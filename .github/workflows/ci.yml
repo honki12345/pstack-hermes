@@ -46,7 +46,7 @@ jobs:
           upstream-pin: ${{ env.UPSTREAM_PIN }}
 
       # Consumer-side regression check (see tools/dist_checkout_check.py). The build
-      # job above validates the source pstack/ directory on disk, where files are LF
+      # job above validates the source package on disk, where files are LF
       # because the converter wrote them that way. Nothing here constructs a git
       # checkout of the dist tree, so a line-ending or binary-asset regression in the
       # published artifacts would ship uncaught. This stages the package exactly as an
@@ -222,6 +222,11 @@ jobs:
       # into .github/actions - see tools/check_action_shell.py).
       - name: Upstream pin is in lock-step across workflows
         run: uv run --frozen python tools/check_pins.py
+
+      # Docs carry the contract agents follow; they drifted once during the
+      # root-layout migration. Cheap grep-style gate (see tools/check_docs.py).
+      - name: Hand-written docs match the package layout and pin policy
+        run: uv run --frozen python tools/check_docs.py
 
       - name: Lint workflows (actionlint + shellcheck)
         run: uv run --frozen actionlint

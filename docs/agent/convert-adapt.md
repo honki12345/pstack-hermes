@@ -14,6 +14,7 @@ uv run --frozen tools/convert.py --source <pstack-clone>
 uv run --frozen tools/validate.py
 uv run --frozen pytest -q
 uv run --frozen ruff check tools
+uv run --frozen python tools/check_docs.py
 ```
 
 Then:

@@ -2,7 +2,7 @@
 """Model-slug drift check: configured panel/config slugs vs the provider catalog.
 
 The panel (tools/assets/model-panel.json) and the shipped config
-(pstack/config/models.json) name provider model slugs that were verified
+(config/models.json) name provider model slugs that were verified
 against the catalog when written. Providers deprecate slugs (free tiers
 especially), so this tool re-verifies them periodically:
 
@@ -171,7 +171,7 @@ def main() -> int:
     ap.add_argument("--panel", default=str(DEFAULT_PANEL),
                     help="repo-owned model panel (default: tools/assets/model-panel.json)")
     ap.add_argument("--config", default=str(DEFAULT_CONFIG),
-                    help="shipped config (default: pstack/config/models.json)")
+                    help="shipped config (default: config/models.json)")
     ap.add_argument("--catalog-url", default=DEFAULT_CATALOG_URL)
     ap.add_argument("--catalog-file", default=None,
                     help="read catalog ids from a JSON file instead of the network")

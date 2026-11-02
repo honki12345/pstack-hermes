@@ -14,7 +14,9 @@ Usage:
   pr_checklist.py <pr-body-file> [--provenance .build-provenance.txt]
   pr_checklist.py --help
 
-The pstack/ package is generated output. The single most important thing a
+The generated package (root `plugin.json`, `skills/`, `config/`, `assets/`,
+`README.md`, `.build-provenance.txt`) is build output. The single most important
+thing a
 contributor can get wrong is claiming a rebuild from a pin that is not the one
 their tree was actually built from, so that comparison is the core check here.
 """

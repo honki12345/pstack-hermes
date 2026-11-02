@@ -42,6 +42,7 @@ uv sync                                   # pinned CPython 3.11 + dev group (pyy
 uv run --frozen tools/validate.py         # must exit 0 before you start
 uv run --frozen pytest -q                 # unit tests for the tooling
 uv run --frozen ruff check tools          # lint
+uv run --frozen python tools/check_docs.py  # docs drift gate
 ```
 
 Python is pinned via `.python-version` and `uv.lock`; never commit interpreter
@@ -51,17 +52,18 @@ The poteto-mode checker scripts additionally need
 [Bun](https://bun.sh) (CI runs the same suite):
 
 ```sh
-cd pstack/skills/poteto-mode/scripts
+cd skills/poteto-mode/scripts
 bun run test                              # deps + `bun test orch watch-pr`
 bun run typecheck                         # deps + tsc --noEmit --strict
 ```
 
 ## The pipeline
 
-1. **Convert** — `tools/convert.py` rebuilds `pstack/` from any pstack clone
-   (or a fresh upstream clone at the pinned SHA). Builds are atomic
-   (`pstack.tmp-build` swap, with rollback if the swap fails) and
-   byte-reproducible under `SOURCE_DATE_EPOCH`. Every transform anchor in the
+1. **Convert** — `tools/convert.py` rebuilds the package at the repository
+   root from any pstack clone (or a fresh upstream clone at the pinned SHA).
+   Builds are byte-reproducible under `SOURCE_DATE_EPOCH`; out-of-tree builds
+   stage in a temp sibling, but `--out` at the repo root rewrites entries in
+   place (see [rollback](docs/agent/upstream-drift.md#rollback)). Every transform anchor in the
    T8/T9/T10/T11/delegation maps is audited: an anchor that matches nothing in
    the upstream build fails the build loudly (upstream drift must be resolved
    by updating or pruning the map, never ignored).
@@ -76,12 +78,12 @@ bun run typecheck                         # deps + tsc --noEmit --strict
    count is **derived from the package**, not hardcoded — structural changes
    flow through automatically. Dependency installs (`node_modules/`) created
    by script verification are exempt from the scans.
-3. **Doctor** — `hermes plugins doctor pstack --ci` for install-relevant
-   changes (maintainer machine; needs the hermes venv). Select the target
-   explicitly — `pstack` is ambiguous: from the repo root it names the local
-   directory, elsewhere it can resolve to an installed package. For branch
-   verification, pass the resolved local path (`$(pwd)/pstack`); for the
-   installed dist package, use the name as installed.
+3. **Doctor** — `hermes plugins doctor` for install-relevant changes
+   (maintainer machine; needs the hermes venv). Select the target explicitly:
+   from the repo root pass the branch tree (`hermes plugins doctor "$PWD"
+   --ci`); for the installed dist package run `hermes plugins doctor pstack
+   --ci` from outside the repo. The bare name is ambiguous when run inside the
+   checkout.
 4. **Publish** — pushes to `master` build and validate the append-only
    `dist` compatibility channel. Only converted_at-only changes are skipped; changes to source_commit or the converter hash still publish.
    Existing unpinned installs can continue fast-forward updates.
@@ -90,12 +92,14 @@ bun run typecheck                         # deps + tsc --noEmit --strict
 
 ## Repository contract
 
-- Target `master` for development PRs. Restore it as the default after this
-  migration merges; keep `dist` append-only for installed clones.
+- Target `master` for development PRs; keep `dist` append-only for installed
+  clones (history is never rewritten, even though each publish replaces the
+  tree).
 
-- `pstack/` is **generated content** — never hand-edit; change the converter
-  and rebuild. Provenance (`.build-provenance.txt`) must record the pinned
-  upstream SHA at all times.
+- `plugin.json`, `skills/`, `config/`, `assets/`, `README.md` and
+  `.build-provenance.txt` are **generated content** at the repository root —
+  never hand-edit; change the converter and rebuild. Provenance
+  (`.build-provenance.txt`) must record the pinned upstream SHA at all times.
 - **Banned constructs** are defined once in `tools/bans.py` (6 delegation tokens: `subagent_type`, `generalPurpose`, `AskQuestion`, `` `Task` ``, `run_in_background`, `environment: "cloud"`, plus 3 security needles: `tailscale.com/install.sh`, `FOR_AGENTS.md`, `http://127.0.0.1:4173`) and the hermes adaptation bans in `tools/validate.py`. Enforced by `tools/validate.py` and the CI scanner gate (`tools/scanner_gate.py`). Inline legacy model slugs in skill prose (e.g. a superseded default kept as fallback documentation) are intentional fallback documentation, not banned.
 - Encoding: LF-only, no BOM (`.gitattributes` enforces; validate.py fails on
   drift).
@@ -125,9 +129,8 @@ one has already caught (or would have caught) a real defect here.
   decision rather than an accident. Dependabot keeps already-allowed pins
   current as usual.
 - **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,
-  `release.yml`, `publish-dist.yml` and `upstream-drift-watch.yml`;
-  `tools/check_pins.py` fails CI when any of the four is missing, duplicated,
-  malformed, or out of step. Follow
+  `release.yml` and `publish-dist.yml`; `tools/check_pins.py` fails CI when any
+  of the three is missing, duplicated, malformed, or out of step. Follow
   [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md).
 - **Workflows must pass `actionlint`** (with `shellcheck`) - the `Lint
   workflows` CI step, runnable locally as `uv run --frozen actionlint`.
@@ -173,8 +176,8 @@ one has already caught (or would have caught) a real defect here.
 
 Follow [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md)
 verbatim. The one rule people forget: `UPSTREAM_PIN` is declared independently
-in **four workflows** — `ci.yml`, `release.yml`, `publish-dist.yml`,
-`upstream-drift-watch.yml` — and all three must move in the same PR. Update maps,
+in **three workflows** — `ci.yml`, `release.yml`, `publish-dist.yml` — and all
+three must move in the same PR. Update maps,
 never the package. (The build prologue itself now lives once, in the
 `.github/actions/build-package` composite action, so `ci.yml`, `release.yml` and
 `publish-dist.yml` pass the pin to it as an input rather than each repeating
@@ -184,7 +187,7 @@ lock-step rule in CI, so a missed file fails fast instead of at release time.)
 ### Change the model panel
 
 Edit `tools/assets/model-panel.json` (never the shipped
-`pstack/config/models.json` — Stage-D copies it in and `validate.py` checks
+`config/models.json` — Stage-D copies it in and `validate.py` checks
 they match). Rebuild, then confirm the weekly
 [model-drift-watch](.github/workflows/model-drift-watch.yml) assumptions still
 hold: slugs are provider-qualified `vendor/model[:variant]`, array roles hold
@@ -195,7 +198,7 @@ informational (`tools/slug_drift.py --prose`).
 ### Update hermesbot
 
 Edit `tools/assets/hermesbot/SKILL.md` — the shipped
-`pstack/skills/hermesbot/` copy is converter output. Rebuild and validate.
+`skills/hermesbot/` copy is converter output. Rebuild and validate.
 
 ### Release
 
@@ -231,16 +234,16 @@ Do not keep parallel plans or adaptation ledgers in `docs/`.
 The [PR template](.github/PULL_REQUEST_TEMPLATE.md) requires: convert clean, validate
 exit 0, doctor exit 0 (install-relevant), banned-construct scan, the
 poteto-mode Bun suite (`bun run test` / `bun run typecheck`), provenance
-consistency. A PR that changes `pstack/` must say `rebuilt from pin <sha>` in its
+consistency. A PR that changes a generated surface (`skills/`, `config/`,
+`assets/`, `README.md`, `LICENSE`, `plugin.json`) must say `rebuilt from pin <sha>` in its
 body and name the converter change behind the rebuild — that tree is build
 output, and reviewers read it as output. The [PR template](.github/PULL_REQUEST_TEMPLATE.md)
 carries the matching "Generated package" fields. CI runs all of it plus the pinned-SHA re-check, unit tests, lint,
-and a weekly upstream-drift check
-([upstream-drift-watch](.github/workflows/upstream-drift-watch.yml)) that opens
-a tracking issue when upstream `pstack/` changes past the pin; a weekly
-[model-drift-watch](.github/workflows/model-drift-watch.yml) re-verifies every
-configured model slug against the provider catalog (`tools/slug_drift.py`).
-PRs are
+and a weekly [model-drift-watch](.github/workflows/model-drift-watch.yml)
+re-verifies every configured model slug against the provider catalog
+(`tools/slug_drift.py`). Upstream drift is caught by the anchor audit and the
+reproducibility gate, not a scheduled watcher (see
+[docs/agent/upstream-drift.md](docs/agent/upstream-drift.md)). PRs are
 auto-labeled by path (labels are created once via the `labels-bootstrap`
 workflow after the repo goes public).
 
@@ -282,8 +285,10 @@ template, issue bodies). They carry more weight than a plain `> Note.` block.
   commit messages — they stay plain text. Say it in the subject line or the
   body as normal prose. The `type(scope): summary` convention already carries
   the what/why; add a second line for the why if it doesn't fit.
-- **The generated `pstack/` package.** That tree is rebuilt by
-  `tools/convert.py` from upstream and is never hand-edited. Don't add a
+- **The generated package.** `skills/`, `config/`, `assets/`, `README.md`,
+  `LICENSE` and
+  `plugin.json` are rebuilt by `tools/convert.py` from upstream and are never
+  hand-edited. Don't add a
   callout convention there as a hand-edit rule — it would be wiped on the next
   build. If alerts belong in package prose, that's a converter change (and an
   upstream-drift consideration), not a CONTRIBUTING note.

@@ -36,7 +36,7 @@ def run(pkg: Path) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--package", required=True, help="converted package dir (e.g. pstack/)")
+    ap.add_argument("--package", required=True, help="converted package dir (e.g. the repo root)")
     args = ap.parse_args()
     return run(Path(args.package).resolve())
 

@@ -4,9 +4,9 @@
 Why this exists
 ---------------
 The package contract is LF-only (see ``tools/validate.py::check_encoding``), and
-the pstack/ subtree is what ``hermes plugins install
-iap/pstack-hermes/pstack`` actually clones. The
-``build`` CI job validates the *source* ``pstack/`` directory, where files are LF
+the repository root is what ``hermes plugins install iap/pstack-hermes`` actually
+clones. The
+``build`` CI job validates the *source* package at the repo root, where files are LF
 because ``tools/convert.py`` wrote them that way. That job is structurally
 incapable of catching a line-ending or binary-asset regression introduced by the
 publish step, because it never constructs a checkout of the published tree on a
