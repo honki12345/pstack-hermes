@@ -5,6 +5,8 @@ All notable changes to the pstack-hermes port tooling will be documented in this
 ## [Unreleased]
 
 ### Changed
+- `docs/agent/review-ops.md` rewritten as an explicit review loop: Qodo first, then manual CodeRabbit (`.coderabbit.yaml` disables auto-review), SHA-bound "clean", finding-vs-recommendation triage, GraphQL-first thread tooling with a documented REST fallback (list/reply only; resolution stays GraphQL), a per-round ledger, and a loop budget with escalation.
+- New `docs/agent/dev-ops.md` (router rows in `AGENTS.md` and `docs/agent/README.md`): scope discipline (no drive-by edits; out-of-scope work becomes an issue or separate PR) and parallel-work rules (parallel reads/triage, one writer per file, never parallelize rebase/rebuild/push).
 - Agent docs consolidated: `AGENTS.md` is now a short always-on contract plus a router; the work loop, hermes vocabulary table and verify prose live only under `docs/agent/`. Root-layout drift removed from `AGENTS.md`, `CONTRIBUTING.md`, the PR template and tooling help text (`pstack/` subdirectory paths, `$PWD/pstack` doctor target, atomic-swap claim), and `README.md` is correctly classified as converter output.
 - `tools/check_docs.py` (+ `test_check_docs.py`, CI `lint-and-tests` step): gates router links, `docs/agent/layout.md` vs `.gitattributes`, `UPSTREAM_PIN` declarer lists vs `check_pins.py`, stale `pstack/` paths, and `publish-dist` copy sources. Added to the local verify block.
 - Drop `after-install.md`: converter no longer emits it; first-run guidance stays in package README / `docs/USING.md`. Publish/release/CI package lists and root-layout obsolete cleanup updated. Next convert refresh clears the stale provenance fix line.

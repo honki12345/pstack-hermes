@@ -23,6 +23,14 @@ users at [docs/USING.md](docs/USING.md).
 
 Everything below follows from that rule.
 
+## Work discipline
+
+- Keep the diff scoped: touch only files the task or finding requires;
+  out-of-scope work becomes an issue or a separate PR.
+- Parallelize independent reads/triage/verification with `delegate_task`
+  workers; keep one writer per file, and never parallelize rebase, rebuild, or
+  push. Details: [docs/agent/dev-ops.md](docs/agent/dev-ops.md).
+
 ## Do not
 
 - Hand-edit a generated surface (root `skills/`, `config/`, `assets/`,
@@ -47,6 +55,7 @@ Everything below follows from that rule.
 | Know which paths are generated vs hand-written | [docs/agent/layout.md](docs/agent/layout.md) |
 | Change converter maps/assets/bans, rebuild, verify | [docs/agent/convert-adapt.md](docs/agent/convert-adapt.md) |
 | Re-pin upstream / resolve dead anchors | [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md) |
+| Scope and parallel-work discipline | [docs/agent/dev-ops.md](docs/agent/dev-ops.md) |
 | Reply to CodeRabbit / Qodo findings | [docs/agent/review-ops.md](docs/agent/review-ops.md) |
 | Setup, CI/Actions policy, PR, release | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Invoke or configure the installed package | [docs/USING.md](docs/USING.md) |

@@ -1,50 +1,191 @@
 # Reviewer-bot threads
 
-How to handle automated review findings (CodeRabbit, Qodo, and similar) without
-weakening the port contract.
+How to drive automated review (Qodo first, then CodeRabbit) to a **clean,
+SHA-current** state before merge. The port contract outranks every bot.
+
+## Non-negotiables
+
+1. **Verify before changing.** A finding is a claim, not a fact. Reproduce it
+   against the current head. Bots are sometimes stale, wrong about the symptom,
+   or right about the symptom and wrong about the fix.
+2. **Fix the defect, not the gate.** Never silence a check to go green: no new
+   `# noqa`, no broadened regex, no deleted/skipped test, no loosened assertion.
+3. **Never resolve threads yourself.** Reply in-thread with evidence; the
+   maintainer (or the bot) resolves.
+4. **Clean is SHA-bound.** A verdict on an older commit is not clean. Compare
+   the review's commit with the current `headRefOid` before believing it.
+5. **One writer per file.** Delegated workers may read, triage, and verify in
+   parallel; only the branch owner edits, rebases, and pushes.
+
+## Bot order
+
+- **Qodo** reviews every push automatically. If there is no verdict for the
+  current head SHA, re-run it (UI or its configured command); do not assume
+  clean.
+- **CodeRabbit is manual in this repo.** `.coderabbit.yaml` sets
+  `auto_review.enabled: false`, so it will not appear until requested:
+  `@coderabbitai review` (incremental) or `@coderabbitai full review` (full).
+  If it does not respond, check CodeRabbit's documented commands rather than
+  assuming it is clean.
+
+Round loop:
+
+1. Push, then wait for Qodo's verdict on the **new head SHA**.
+2. Triage every Qodo finding (matrix below). Fix valid ones; reply on the rest.
+3. When Qodo has **no open finding on the head SHA**, request CodeRabbit.
+4. Triage CodeRabbit. Any fix push re-opens both bots (Qodo auto; CodeRabbit
+   incremental). Return to step 1.
+5. Merge only when both bots are clean **on the same head SHA**, every thread
+   is resolved, CI is green, and the local gates pass.
+
+Wait for the bot on the current SHA — poll with backoff. Do not assume clean
+because no comment arrived within an arbitrary minute, and do not treat a
+pre-push "clean" comment as current.
+
+## Triage matrix
+
+| Situation | Action | Evidence in the reply |
+|---|---|---|
+| Valid, in scope | Minimal fix + a test that fails before and passes after | commit SHA, `file:line`, test name, gate output |
+| Valid, out of scope | Do not widen the PR; open an issue and link it | issue link + why it is out of scope |
+| False positive | No code change; correct the bot | counter-evidence: code path, test, or contract quote |
+| Already fixed | No code change | commit SHA + the current diff hunk |
+| Outdated hunk | Re-check against head; reply on current code | head SHA + current `file:line` |
+| Duplicate | Point at the canonical thread | thread/comment link |
+| Blocked / product decision | Stop and ask the maintainer | the conflict, the options, the contract clause |
+
+## Finding vs recommendation
+
+The finding names a symptom; the "Recommended Fix" is **advisory**. Reproduce
+the symptom first, then choose the smallest correct fix. Reject a recommendation
+that conflicts with the contract (hand-editing generated output, reintroducing
+Cursor vocabulary, adding a lint ignore) even when the symptom is real. If the
+symptom is real but the recommendation is wrong, fix it differently and say so
+in the reply.
 
 ## Tooling
 
-- **Inspect threads deeply.** Prefer `gh api graphql` to fetch PR review threads (thread ID, resolution state, outdated hunks, and replies) before deciding fix/dismiss/duplicate.
-- **Reply to the correct thread.** Use the thread ID from GraphQL when replying (or the correct `pullRequestReviewThread` endpoint).
-- **Fallback gracefully.** If GraphQL is blocked by auth/scopes, fall back to `gh pr view`/REST and note that limitation when replying or reporting checks.
+Prefer **GraphQL**: it is the only source for thread IDs, resolution state,
+outdated hunks, and the reviewed SHA. Use **REST** only as a fallback.
 
-## Bot review order
+Examples are POSIX shell. On PowerShell, `--paginate` cannot be combined with
+`--input`; run these in Git Bash, or drop `--paginate` and pass the cursor
+explicitly. Non-paginated calls can use `--input <file>` (UTF-8, no BOM).
 
-1. **Qodo AI triggers automatically.** Cross-check each finding against the
-   pre-change contract, current code, callers, tests, and the current review
-   thread. Resolve every valid finding until Qodo reports no remaining
-   findings. Dismiss false positives or out-of-scope items with evidence
-   (see step 3 below) — do not weaken the contract to satisfy a bot.
-2. **CodeRabbit triggers a "full review" after Qodo is reviewed.** Wait for
-   CodeRabbit findings to appear. Resolve every valid finding until CodeRabbit
-   reports no remaining findings. Dismiss false positives or out-of-scope
-   items with evidence.
-3. **Cross-check and verify findings are resolved before merge.** Both bots
-   must report clean. If a finding from the second bot surfaces a re-opened
-   issue from the first bot, return to step 1 and re-resolve. Do not merge
-   while any bot has an open finding.
+Set the PR under review once; every command below uses these:
 
-## Process
+```sh
+OWNER=$(gh repo view --json owner -q .owner.login)
+REPO=$(gh repo view --json name -q .name)
+PR=$(gh pr view --json number -q .number)   # run on the PR branch
+```
 
-1. **Inspect before changing.** Check each finding against the pre-change
-   contract, current code, callers, tests, and the current review thread.
-   Decide whether it is already fixed, duplicated, outdated, incorrect, or
-   blocked.
-2. **Valid finding.** Implement the compatible fix and run the relevant checks.
-   If it conflicts with the contract or needs a product decision, explain the
-   conflict and seek clarification — do **not** weaken a contract to satisfy a
-   bot.
-3. **Reply in the same thread with evidence.**
-   - **If you change code:** state what changed, why, commit/code reference, and verification results (including honest `not run` + cause if blocked).
-   - **If you do not change code (false positive, duplicate, already fixed, already resolved, or already discussed):** reply with **What** (file:line + a short quote of the finding), **Why** (specific reason tied to the contract/diff/outdated hunk), **Evidence** (commit SHA, prior comment/thread link, current code/diff, `validate.py`/tests, or a concrete summary of the discussion), and **Verification** if checks are relevant. Avoid generic phrases like "already discussed" alone.
-   Report any unresolved blocker.
-4. **Do not mark threads resolved with the resolver.** A maintainer decides
-   thread status after reading the reply. If a reply cannot be sent, report
-   that limitation rather than claiming it was posted.
+List every review thread, paginated (`gh api` follows `$endCursor`):
 
-5. **Comment style.** Prefer replying as a comment linked to the bot's comment
-   rather than a standalone normal post (e.g. `Fix on: #<post-number> What: <short what> Why: <short why>`). If the fix needs follow-up on another PR, leave a short `{"what": ..., "why": ...}` comment pointing to that PR instead. **Leave thread status unchanged; the maintainer will resolve threads after review.** Do not set the resolve button from a comment — the bot or a maintainer may resolve threads as appropriate.
+```sh
+gh api graphql --paginate --slurp -f query='
+query($owner:String!,$repo:String!,$pr:Int!,$endCursor:String){
+  repository(owner:$owner,name:$repo){
+    pullRequest(number:$pr){
+      headRefOid
+      reviewThreads(first:100,after:$endCursor){
+        pageInfo{hasNextPage endCursor}
+        nodes{
+          id isResolved isOutdated path line subjectType
+          comments(first:1){nodes{
+            databaseId author{login} commit{oid} originalCommit{oid} body
+          }}
+        }
+      }
+    }
+  }
+}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR"
+```
+
+`--slurp` returns one object per page; inspect all of them. Without
+`--paginate`, pass the previous page's `endCursor` as `-F endCursor=...` and
+stop when `hasNextPage` is false.
+
+Bot verdicts carry their reviewed commit too:
+
+```sh
+gh api graphql -f query='
+query($owner:String!,$repo:String!,$pr:Int!){
+  repository(owner:$owner,name:$repo){
+    pullRequest(number:$pr){
+      headRefOid
+      latestReviews(first:100){nodes{author{login} state commit{oid} submittedAt}}
+    }
+  }
+}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR"
+```
+
+`latestReviews` returns the latest review per author, so a current bot verdict
+cannot be pushed out of the window by later reviews from someone else.
+
+**SHA check.** A thread or verdict is current only when its `commit.oid`
+equals `headRefOid`. A different `commit.oid` (or an `originalCommit.oid`
+behind the head) is stale: re-request the bot, do not count it as clean.
+
+Reply in the same thread:
+
+```sh
+gh api graphql -f query='
+mutation($tid:ID!,$body:String!){
+  addPullRequestReviewThreadReply(
+    input:{pullRequestReviewThreadId:$tid,body:$body}
+  ){comment{id url}}
+}' -f tid=PRRT_... -f body='...'
+```
+
+REST fallback (list and reply; **no resolution state**):
+
+```sh
+gh api "repos/$OWNER/$REPO/pulls/$PR/comments" --paginate \
+  --jq '.[] | {id,path,line,in_reply_to_id,commit_id,user:.user.login}'
+
+gh api --method POST "repos/$OWNER/$REPO/pulls/$PR/comments" \
+  -f body='...' -F in_reply_to=<numeric comment id>
+```
+
+The numeric id is `comments.nodes[].databaseId` from GraphQL (or `id` in REST).
+Resolution is GraphQL-only. If GraphQL is unavailable, report "cannot certify
+clean" instead of merging.
+
+Checks and merge state:
+
+```sh
+gh pr view "$PR" --json headRefOid,mergeStateStatus,statusCheckRollup
+gh pr checks "$PR"
+```
+
+## Reply format
+
+Reply in the bot's thread, not as a standalone post. Start with the head SHA
+you verified against, then:
+
+- **What** — `file:line` + a short quote of the finding.
+- **Why** — the reason tied to the contract, diff, or outdated hunk.
+- **Evidence** — commit SHA, test name, gate output, or counterexample.
+- **Verification** — commands run; state honest `not run` + cause if blocked.
+
+Avoid generic phrases such as "already discussed" with nothing behind them. If
+a reply cannot be posted, report that limitation instead of claiming it landed.
+
+## Round ledger
+
+Keep **one** PR comment updated per round: round number, head SHA, bot, open
+findings, action (fix / reply / dismiss), status. It prevents re-triaging the
+same root cause across rounds and gives the maintainer a merge checklist.
+
+## Loop budget and escalation
+
+- Three rounds per bot with no new information → stop and ask the maintainer.
+- Contradictory demands (bot A wants X, bot B wants not-X) → the contract
+  decides; escalate rather than oscillate.
+- A bot re-raising a resolved root cause on a new SHA → reply with the prior
+  SHA and fix; do not re-fix.
+- Never merge to escape the loop.
 
 ## Common false pressures on this repo
 
@@ -56,3 +197,5 @@ weakening the port contract.
 | Implement GitLab stack provider because docs mention `glab` | Halted |
 | Treat missing Graphite as a hard CI/product failure | GitHub fallback is intentional |
 | Mutate installed stock skills via learning / `skill_manage` | Forbidden as durable source of truth |
+| Broaden a check or add `# noqa` to silence a finding | Fix the input, not the gate |
+| Bump an action/dependency or reformat the file "while here" | Separate PR — keep the diff scoped |
