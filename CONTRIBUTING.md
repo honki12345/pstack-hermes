@@ -114,6 +114,15 @@ bun run typecheck                         # deps + tsc --noEmit --strict
 The `.github/` tree is hand-written and gated; these rules exist because each
 one has already caught (or would have caught) a real defect here.
 
+> [!IMPORTANT]
+> **The real-loader gate has its own workflow.** `validate-gold.yml` pins
+> `hermes-agent` by commit SHA, builds its environment, and runs
+> `tools/validate.py --require-gold`, which exits 3 rather than reporting a green
+> package when the required loader checks did not complete. It stays out of
+> `ci.yml` on purpose: the network install should not be paid for by the 2-OS
+> build matrix. Promote it to a required check in the `Master` ruleset only after
+> it has been green across unrelated PRs.
+
 - **Every action is pinned to a full commit SHA** with a trailing `# vN`
   comment. `dependabot.yml` keeps them current: the weekly `github-actions`
   group PR updates both the SHA and the comment. Review SHA bumps like any

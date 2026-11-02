@@ -1,0 +1,79 @@
+# Real-loader validation. `ci.yml` proves the package is reproducible and that
+# the static mirror of agent_plugins.py accepts it, but it cannot exercise the
+# actual hermes loader: validate.py degrades to "gold: SKIPPED" and still exits
+# 0 when hermes is absent, and no GitHub-hosted runner has hermes installed.
+#
+# That is the gap this workflow closes. It pins hermes-agent by commit SHA,
+# builds its environment, and runs validate.py --require-gold, which exits 3
+# rather than pretending the loader passed.
+#
+# NOT a required check yet, on purpose: promote it in the `Master` ruleset only
+# after it has been green across several unrelated PRs. A required check that
+# flakes on a network install is worse than an advisory one that never lies.
+
+name: validate-gold
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # hermes-agent tag v0.22.6 (annotated tag -> commit). Bump deliberately, and
+  # treat a bump like an upstream re-pin: the loader contract is what this pins.
+  HERMES_PIN: f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab
+
+concurrency:
+  group: validate-gold-${{ github.ref }}-${{ github.event_name == 'pull_request' && github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate-gold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10
+        with:
+          enable-cache: true
+
+      - name: Clone hermes-agent at the pin
+        shell: bash
+        env:
+          HERMES_URL: https://github.com/NousResearch/hermes-agent.git
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/hermes-agent"
+          rm -rf "$target"
+          git init -q "$target"
+          git -C "$target" remote add origin "$HERMES_URL"
+          git -C "$target" fetch --depth 1 origin "$HERMES_PIN"
+          git -C "$target" checkout -q FETCH_HEAD
+
+          got="$(git -C "$target" rev-parse HEAD)"
+          if [ "$got" != "$HERMES_PIN" ]; then
+            echo "::error::hermes SHA mismatch: got $got, want $HERMES_PIN"
+            exit 1
+          fi
+          echo "pinned hermes SHA verified: $got"
+
+      # Dependencies only: validate.py puts the hermes source root on sys.path
+      # itself (HERMES_SRC), so installing the project is unnecessary and would
+      # drag in its build backend for no benefit.
+      - name: Build the hermes environment
+        working-directory: ${{ runner.temp }}/hermes-agent
+        run: uv sync --frozen --no-install-project --python 3.14
+
+      - name: Validate with the real loader
+        env:
+          HERMES_HOME: ${{ runner.temp }}
+        shell: bash
+        run: uv run --frozen python tools/validate.py --require-gold --package .
