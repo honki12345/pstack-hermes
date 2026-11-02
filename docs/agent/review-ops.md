@@ -180,6 +180,28 @@ you verified against, then:
 Avoid generic phrases such as "already discussed" with nothing behind them. If
 a reply cannot be posted, report that limitation instead of claiming it landed.
 
+Tone is part of the format, not decoration:
+
+- **Open with `<sha>: <verdict>`.** The head SHA you verified against, then the
+  verdict - `accepted` / `rejected` / `already fixed` / `out of scope` - then the
+  mechanism and the evidence. SHA first is not a courtesy to the reviewer; it is
+  what keeps a verdict SHA-bound per the round loop. No preamble before either.
+- **No thanks.** Never "thank you", "thanks", "great catch", "good find", or a
+  thank-you mention of the bot. A finding is a claim to adjudicate, not a gift,
+  and a reply that opens by thanking spends its most-read clause on nothing the
+  reviewer can act on.
+- **No emoji, no encouragement, no hedging.** Terse, technical, declarative.
+  The reader is deciding whether to merge.
+- **Address the claim, not the author.** "The classifier counted
+  `import-failed` as available" beats "you are right that this is subtle".
+
+```
+Wrong   <sha> - thank you, this was a real contract mismatch.
+Right   <sha>: accepted. main counted import-failed as available, so a loader
+        that never ran was reported as exit 2. Fixed by a three-way
+        loader_state; 14 tests cover the matrix.
+```
+
 ## Round ledger
 
 Keep **one** PR comment updated per round: round number, head SHA, bot, open
