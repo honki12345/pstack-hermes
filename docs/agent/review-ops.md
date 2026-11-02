@@ -23,20 +23,28 @@ SHA-current** state before merge. The port contract outranks every bot.
   current head SHA, re-run it (UI or its configured command); do not assume
   clean.
 - **CodeRabbit is manual in this repo.** `.coderabbit.yaml` sets
-  `auto_review.enabled: false`, so it will not appear until requested:
-  `@coderabbitai review` (incremental) or `@coderabbitai full review` (full).
-  If it does not respond, check CodeRabbit's documented commands rather than
-  assuming it is clean.
+  `auto_review.enabled: false`, so a push never starts it. Request
+  `@coderabbitai full review` for the first pass and again after any rebase,
+  force-push, or large diff; use `@coderabbitai review` only for a small fix
+  push within the same round. A CodeRabbit check of `skipping` means **not
+  requested**, never clean. If it does not respond, check CodeRabbit's
+  documented commands rather than assuming it is clean.
 
 Round loop:
 
 1. Push, then wait for Qodo's verdict on the **new head SHA**.
 2. Triage every Qodo finding (matrix below). Fix valid ones; reply on the rest.
-3. When Qodo has **no open finding on the head SHA**, request CodeRabbit.
-4. Triage CodeRabbit. Any fix push re-opens both bots (Qodo auto; CodeRabbit
-   incremental). Return to step 1.
+3. When Qodo has **no open finding on the head SHA**, request the appropriate
+   CodeRabbit review and wait for its verdict on that same SHA. Use
+   `full review` for the first pass, a rebase, a force-push, or a large diff;
+   use `review` only for a small fix push in the same round. Confirm the
+   verdict's `commit.oid` equals `headRefOid`.
+4. Triage CodeRabbit. Every fix push restarts the loop: Qodo re-runs
+   automatically, but CodeRabbit does not. Return to step 1; step 3
+   re-requests CodeRabbit for the new head.
 5. Merge only when both bots are clean **on the same head SHA**, every thread
-   is resolved, CI is green, and the local gates pass.
+   is resolved, CI is green, and the local gates pass. Confirm the CodeRabbit
+   check is not `skipping`.
 
 Wait for the bot on the current SHA — poll with backoff. Do not assume clean
 because no comment arrived within an arbitrary minute, and do not treat a
