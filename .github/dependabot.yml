@@ -10,6 +10,27 @@
 # (build, lint, actionlint, determinism) run on the PR as usual.
 #
 # Grouped per ecosystem so an update lands as ONE reviewable PR rather than N.
+# Groups carry `update-types: [minor, patch]` deliberately: a major bump is not a
+# routine update, so it falls outside the group and arrives as its own PR where
+# the version jump cannot be mistaken for a patch.
+#
+# COOLDOWN. A version is held back for a few days after publication before it is
+# proposed, so a release that gets yanked or flagged upstream is never the thing
+# CI validates and a human then approves. Security updates bypass cooldown by
+# design - an advisory is not a reason to wait.
+#
+# The tiered `semver-*-days` keys are declared for `uv` only. GitHub's Dependabot
+# options reference marks SemVer-bump cooldowns as NOT supported for the
+# github-actions ecosystem (only `default-days` applies there), and an
+# unsupported key invalidates the whole file - which would silently stop
+# version-update PRs entirely.
+#
+# MERGE POLICY (review-enforced, not expressed in this file). Auto-merge
+# (`gh pr merge --auto --squash`) is allowed for the `actions-minor-patch` group
+# only. Everything else is merged by a human: any major bump, and the whole `uv`
+# group until publish-dist stops running `uv run` inside a `contents: write`
+# job. A PyPI artifact executes during the build; an Actions bump only moves a
+# SHA inside an already-allowlisted owner/repo.
 #
 # Dependabot reads this configuration from master, the default development branch.
 
@@ -21,9 +42,13 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
+    labels: ["tooling"]
     groups:
-      actions:
+      actions-minor-patch:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # Composite actions need their own entry. The root entry above covers
   # .github/workflows plus a repo-root action.yml, but NOT
@@ -37,6 +62,9 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
+    labels: ["tooling"]
 
   # pyproject.toml + uv.lock (the tooling venv: pyyaml, pytest, ruff,
   # actionlint-py, shellcheck-py).
@@ -46,6 +74,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-patch-days: 3
+    labels: ["tooling"]
     groups:
-      uv:
+      uv-minor-patch:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
