@@ -67,13 +67,10 @@ def test_release_requires_matching_payload(tmp_path, payload_changed, provenance
     git(remote, 'add', '.')
     git(remote, 'commit', '-qm', 'source')
     git(remote, 'checkout', '--orphan', 'dist')
-    git(remote, 'rm', '-rf', '.')
-    # Restore package files from source when payload unchanged
-    if not payload_changed:
-        for f in ['README.md', 'LICENSE', 'config/models.json']:
-            (remote / f).write_text((remote / f).read_text())
-        import shutil
-        shutil.copytree(remote / 'skills', remote / 'skills')
+    # The orphan checkout keeps the source tree in the index and working tree, so
+    # the package files are already present. Drop only the provenance file and let
+    # the cases below write it (or omit it for 'missing').
+    git(remote, 'rm', '-q', '-f', '.build-provenance.txt')
     (remote / 'plugin.json').write_text('changed' if payload_changed else 'payload')
     if provenance_change == 'missing':
         pass

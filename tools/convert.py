@@ -220,6 +220,7 @@ class Stats:
         self.byte_copied = 0
         self.bom_stripped = 0
         self.crlf_fixed = 0
+        self.path_fixes = 0
         self.fixes: list[str] = []
         self.warnings: list[str] = []
         # (map_name, anchor_index) -> occurrences replaced package-wide
@@ -239,6 +240,13 @@ def normalize_text(data: bytes, st: Stats) -> str | None:
     if b"\r\n" in data or b"\r" in data:
         st.crlf_fixed += 1
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # The package lives at the repository root (repo layout v2), so an upstream
+    # ``pstack/skills/...`` reference is stale: it would point outside the
+    # install root. Rewrite it wherever prose quotes a path (`git show
+    # origin/main:...`, `node ...`, markdown links).
+    if "pstack/skills" in text:
+        text = text.replace("pstack/skills", "skills")
+        st.path_fixes += 1
     return text
 
 
@@ -2142,7 +2150,7 @@ def main() -> int:
     if comment_sicko.is_file():
         no_comments_refs = out / "skills" / "no-comments" / "references"
         no_comments_refs.mkdir(parents=True, exist_ok=True)
-        (no_comments_refs / "comment-sicko.md").write_bytes(comment_sicko.read_bytes())
+        copy_file(comment_sicko, no_comments_refs / "comment-sicko.md", st)
         st.fixes.append(
             "Phase-2A: Comment Sicko persona copied into no-comments "
             "references for hermes prompt inlining"
@@ -2351,6 +2359,11 @@ ledger with reviewer checks lives in the dev repo
         f"(files normalized: {st.text_normalized}, BOM stripped: {st.bom_stripped}, "
         f"CRLF fixed: {st.crlf_fixed})"
     )
+    if st.path_fixes:
+        fix_lines += (
+            f"\n  - repo-root layout: rewrote stale pstack/skills path(s) in "
+            f"{st.path_fixes} file(s)"
+        )
     if st.anchor_audited:
         fix_lines += (
             f"\n  - anchor audit: {len(st.anchor_hits)}/{st.anchor_audited} transform "

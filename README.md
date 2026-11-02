@@ -45,7 +45,9 @@ enter the prompt index with 60-char descriptions and lose the namespace.
 hermes plugins update pstack
 ```
 
-Hermes updates unpinned installs from the repository root. Pinned installs must be reinstalled with a new SHA and `--force`.
+Hermes updates unpinned `dist` root installs and `master` subdirectory
+installs. Root installs use Git; subdirectory installs are re-cloned from the
+recorded source. Pinned installs must be reinstalled with a new SHA and `--force`.
 
 ## Customizing skills
 
@@ -69,7 +71,7 @@ a hermes defect that reproduces with the plugin disabled →
 - **47 skills** (24 workflow/mode +
   23 `principle-*`), single-level `skills/<dir>/SKILL.md`,
   discovered via the root `plugin.json` (agent-plugins-v1 manifest,
-  9-field manifest output).
+  9 whitelisted fields).
 - `skills/hermesbot/` — hermes-native control-surface skill on the gateway
   webhook (`X-Webhook-Signature-V2` HMAC) plus `hermes send` / `hermes peer`;
   fills the excluded `make-bot-ui` slot.
@@ -78,13 +80,15 @@ a hermes defect that reproduces with the plugin disabled →
 
 Not shipped: `automations/benny/` and `skills/make-bot-ui/` (install-scanner
 verdicts — persistence / privilege escalation; `--force` cannot override) and
-upstream's `docs/guide/` (read it upstream for the guided tour).
+upstream's `docs/guide/` (read it upstream for the guided tour). `agents/` and
+`.cursor-plugin/` are inert on hermes — kept so the tree still dual-loads as a
+Cursor plugin structurally; for real Cursor-side work install upstream pstack.
 
 ## Differences from upstream
 
 | Pass | What changed |
 |---|---|
-| manifest | root `plugin.json` injected: exact agent-plugins-v1 `$schema`, 9-field output |
+| manifest | root `plugin.json` injected: exact agent-plugins-v1 `$schema`, 9-field whitelist |
 | frontmatter | `poteto-mode` name fixed to kebab-case (loader requirement) |
 | R1 | poteto-mode principles index regenerated from the 23 leaves |
 | F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex |
