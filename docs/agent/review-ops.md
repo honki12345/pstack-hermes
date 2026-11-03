@@ -30,8 +30,30 @@ SHA-current** state before merge. The port contract outranks every bot.
   requested**, never clean. If it does not respond, check CodeRabbit's
   documented commands rather than assuming it is clean.
 
-Round loop:
+  Two "no verdict" states look identical in the UI and are not:
 
+  - `skipping` - never requested.
+  - `in_progress` that never moves - **the review is paused**, not slow. After a
+    run of new commits on one branch CodeRabbit posts a "Reviews paused" note and
+    stops reviewing, while its check run stays live and idle. Six fix commits
+    into a single round was enough to trigger it here. Send
+    `@coderabbitai resume`, then `@coderabbitai review`; a paused review never
+    times out, so waiting for it is not a strategy. The threshold is CodeRabbit's
+    `auto_pause_after_reviewed_commits`; this repo does not set it, so the vendor
+    default applies. Its own pause notice and its published schema disagree on
+    the key's nesting (`reviews.auto_pause_after_reviewed_commits` vs
+    `reviews.auto_review.auto_pause_after_reviewed_commits`) - check the current
+    schema before setting it. Hitting the threshold is a signal that the round is
+    churning: prefer fewer, larger fix pushes over one commit per finding.
+
+One request per head SHA. Do not re-send a review command because a verdict is
+slow - that is noise, not pressure: a paused review does not resume because it
+was asked twice, and a running one gains nothing from a duplicate comment.
+Diagnose the state first (skipping / paused / running), clear it if paused, then
+wait. Repeating the command also buries the evidence the next reader needs under
+duplicate ask-and-ack comments.
+
+Round loop:
 1. Push, then wait for Qodo's verdict on the **new head SHA**.
 2. Triage every Qodo finding (matrix below). Fix valid ones; reply on the rest.
 3. When Qodo has **no open finding on the head SHA**, request the appropriate
