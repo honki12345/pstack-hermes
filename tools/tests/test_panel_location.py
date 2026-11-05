@@ -35,7 +35,7 @@ REPO = CONVERT.parents[1]
 
 # The pre-fix wording. Assembled from parts so this file has no stray apostrophe.
 IN_PACKAGE_WRITE = "in this plugin" + chr(39) + "s directory"
-NEXT_TO_MANIFEST = "next to plugin.yaml"
+NEXT_TO_MANIFEST = "next to plugin.json"
 
 
 def _load_t10_map() -> list[tuple[str, str]]:

@@ -47,9 +47,13 @@ jobs:
           git -C "$dist" remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
           # Replace the tree with the fresh build (.git kept): an append-only
-          # commit on top of dist so installed clones can fast-forward.
-          find "$dist" -mindepth 1 -maxdepth 1 -not -name ".git" -not -name ".github" -exec rm -rf {} +
-          cp -a plugin.json skills config README.md LICENSE .build-provenance.txt "$dist/"
+                    # commit on top of dist so installed clones can fast-forward.
+                    find "$dist" -mindepth 1 -maxdepth 1 -not -name ".git" -not -name ".github" -exec rm -rf {} +
+                    # Remove __pycache__ from the package before publishing so the dist
+                    # checkout check and the published tree use the same file set.
+                    find plugin.json skills/ config/ assets/ -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+                    cp -a plugin.json skills/ config/ README.md LICENSE .build-provenance.txt "$dist/"
+                    if [ -d assets ]; then cp -a assets "$dist/"; fi
           if [ -d assets ]; then cp -a assets "$dist/"; fi
           # The dist branch is consumed by `hermes plugins install` (a git
           # clone), so it needs its own .gitattributes. The package contract is

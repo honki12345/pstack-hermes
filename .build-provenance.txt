@@ -2,7 +2,7 @@ package: pstack (hermes agent-plugins-v1, Phase-0 conversion)
 source: (local clone; public origin in source_url)
 source_url: https://github.com/cursor/plugins.git
 source_commit: c47b12849e43f18d5c374c7069c744cc55b0ea00
-converted_at: 2026-11-03T02:57:09Z
+converted_at: 2026-11-05T02:52:08Z
 converter: convert.py (sha256[:16]=48247f3f569b535c)
 schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
 fixes:
@@ -29,7 +29,7 @@ fixes:
   - F-publish: automations/benny excluded (scanner persistence verdict) and skills/make-bot-ui excluded (scanner privilege verdict; F33)
   - assets/: 1 file(s) copied verbatim (referenced by the manifest)
   - plugin.json: injected exact agent-plugins-v1 $schema at ROOT (9 whitelisted fields; displayName/category/tags/agents/skills omitted)
-  - text normalization: UTF-8 without BOM, LF line endings (files normalized: 123, BOM stripped: 0, CRLF fixed: 0)
+  - text normalization: UTF-8 without BOM, LF line endings (files normalized: 123, BOM stripped: 0, CRLF fixed: 123)
   - repo-root layout: rewrote stale pstack/skills path(s) in 3 file(s)
   - anchor audit: 130/130 transform anchors applied (0 dead; the converter fails loudly on upstream drift)
 counts:
