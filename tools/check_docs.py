@@ -11,10 +11,13 @@ longer exists. This tool checks the facts that actually broke:
    way `.gitattributes` does (this is how `README.md` was mislabelled).
 3. Every doc paragraph that lists `UPSTREAM_PIN` workflows lists exactly
    `tools/check_pins.py::REQUIRED_DECLARERS`.
-4. Hand-written docs carry no stale package-subdirectory paths
-   (`pstack/skills/`, `pstack/config/`, `$PWD/pstack`, ...).
+4. Hand-written docs (plus the generated `README.md`) carry no stale
+   package-subdirectory paths (`pstack/skills/`, `pstack/config/`,
+   `$PWD/pstack`, ...).
 5. `publish-dist.yml` copies only paths that exist in the tree (the dropped
    `after-install.md` would have failed every master publish).
+6. Install docs (`README.md`, `docs/USING.md`) do not resurrect the dead
+   `master` subdirectory install route.
 
 Exit codes: 0 clean; 1 drift found; 2 unreadable input.
 """
@@ -25,6 +28,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,6 +40,10 @@ HAND_WRITTEN_DOCS = (
     ".github/PULL_REQUEST_TEMPLATE.md",
 )
 HAND_WRITTEN_DOC_GLOBS = ("docs/*.md", "docs/agent/*.md")
+# README.md is generated, but its install prose is user-facing and drifted once
+# with the root-layout migration; scan it for the same stale package paths.
+SCAN_EXTRA_DOCS = ("README.md",)
+INSTALL_ROUTE_DOCS = ("README.md", "docs/USING.md")
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 PATH_CELL_RE = re.compile(r"^\|\s*(?P<paths>(?:`[^`]+`[,\s]*)+)\|\s*(?P<kind>[^|]+?)\s*\|")
@@ -50,6 +58,18 @@ STALE_PATH_RE = re.compile(
 )
 GENERATED_KINDS = frozenset({"generated", "copied"})
 HAND_WRITTEN_KINDS = frozenset({"hand-written"})
+STALE_INSTALL_RE = re.compile(
+    r"`?master`?\s+subdirectory\s+installs?"
+    r"|subdirectory\s+installs?\s+are\s+re-cloned"
+    r"|Subdirectory\s+updates\s+replace\s+shipped\s+skills",
+    re.IGNORECASE,
+)
+LEGACY_REPO = "iap/pstack-hermes"
+LEGACY_PREFIX_TERMINATORS = " \t\r\n/`'\"(=:"
+LEGACY_TOKEN_BOUNDARIES = " \t\r\n`'\"(=<>[]{};,!#|*_~"
+LEGACY_NAME_CONTINUATIONS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."
+)
 BARE_PACKAGE_RE = re.compile(r"(?<![\w./-])pstack/(?=\s|$|`)")
 CONTRACT_DOCS = frozenset({"AGENTS.md", "CONTRIBUTING.md"})
 LAYOUT_GENERATED_EXEMPT = frozenset({"plugin.yaml", "agents"})
@@ -60,8 +80,50 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _github_repo_prefix(text: str, pos: int) -> bool:
+    start = pos
+    while start > 0 and text[start - 1] not in LEGACY_TOKEN_BOUNDARIES:
+        start -= 1
+    token = text[start:pos].lower()
+    if token.endswith(":"):
+        return token[:-1].rsplit("@", 1)[-1] == "github.com"
+    if "://" in token:
+        parsed = urlparse(token)
+        return (parsed.hostname or "") == "github.com" and parsed.path == "/"
+    return token == "github.com/"
+
+
+def _subdir_token_ends(rest: str) -> bool:
+    if not rest:
+        return True
+    if rest[0] != ".":
+        return rest[0] not in LEGACY_NAME_CONTINUATIONS
+    return len(rest) == 1 or rest[1] not in LEGACY_NAME_CONTINUATIONS
+
+
+def _legacy_target(text: str, pos: int) -> bool:
+    """True when the repo name at *pos* points at the removed `pstack/` subdir."""
+    if pos > 0:
+        separator = text[pos - 1]
+        if separator not in LEGACY_PREFIX_TERMINATORS:
+            return False
+        if separator in "/:" and not _github_repo_prefix(text, pos):
+            return False
+    tail = text[pos + len(LEGACY_REPO) :].lower()
+    if tail.startswith(".git"):
+        tail = tail[4:]
+    if tail.startswith("/tree/"):
+        _, sep, subdir = tail[len("/tree/") :].partition("/")
+        if not sep or not subdir.startswith("pstack"):
+            return False
+        return _subdir_token_ends(subdir[len("pstack") :])
+    if not (tail.startswith("/pstack") or tail.startswith("#pstack")):
+        return False
+    return _subdir_token_ends(tail[7:])
+
+
 def _doc_paths(root: Path) -> list[Path]:
-    paths = [root / rel for rel in HAND_WRITTEN_DOCS]
+    paths = [root / rel for rel in (*HAND_WRITTEN_DOCS, *SCAN_EXTRA_DOCS)]
     for pattern in HAND_WRITTEN_DOC_GLOBS:
         paths.extend(sorted(root.glob(pattern)))
     seen: dict[Path, None] = {}
@@ -212,6 +274,38 @@ def check_stale_paths(root: Path = ROOT) -> list[str]:
     return problems
 
 
+def check_stale_install_route(root: Path = ROOT) -> list[str]:
+    problems: list[str] = []
+    for rel in INSTALL_ROUTE_DOCS:
+        doc = root / rel
+        if not doc.is_file():
+            continue
+        text = _read(doc)
+        for match in STALE_INSTALL_RE.finditer(text):
+            lineno = text.count("\n", 0, match.start()) + 1
+            snippet = " ".join(match.group(0).split())
+            problems.append(
+                f"{rel}:{lineno}: stale subdirectory-install route: {snippet}"
+            )
+        lower = text.lower()
+        start = 0
+        while True:
+            pos = lower.find(LEGACY_REPO, start)
+            if pos == -1:
+                break
+            if _legacy_target(text, pos):
+                lineno = text.count("\n", 0, pos) + 1
+                line_end = text.find("\n", pos)
+                snippet = " ".join(
+                    text[pos : line_end if line_end != -1 else len(text)].split()
+                )
+                problems.append(
+                    f"{rel}:{lineno}: stale subdirectory-install route: {snippet}"
+                )
+            start = pos + len(LEGACY_REPO)
+    return problems
+
+
 def check_publish_sources(root: Path = ROOT) -> list[str]:
     workflow = root / ".github" / "workflows" / "publish-dist.yml"
     if not workflow.is_file():
@@ -233,6 +327,7 @@ CHECKS = (
     ("layout matches .gitattributes", check_layout_manifest),
     ("UPSTREAM_PIN declarers match check_pins", check_pin_declarers),
     ("no stale package subdirectory paths", check_stale_paths),
+    ("no stale subdirectory-install route", check_stale_install_route),
     ("publish-dist sources exist", check_publish_sources),
 )
 

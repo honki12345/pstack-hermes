@@ -107,6 +107,285 @@ def test_stale_subdirectory_path_fails(tmp_path):
     assert any("pstack/skills" in item for item in problems)
 
 
+def test_stale_path_in_readme_fails(tmp_path):
+    _write(tmp_path / "README.md", "git show origin/main:pstack/skills/x\n")
+    problems = check_docs.check_stale_paths(tmp_path)
+    assert any("README.md" in item and "pstack/skills" in item for item in problems)
+
+
+def test_stale_subdirectory_install_route_in_readme_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "Hermes updates unpinned `dist` root installs and `master` subdirectory\n"
+        "installs.\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_stale_subdirectory_install_route_in_using_fails(tmp_path):
+    _write(
+        tmp_path / "docs" / "USING.md",
+        "Subdirectory updates replace shipped skills; in-place edits are not durable.\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("docs/USING.md" in item for item in problems)
+
+
+def test_legacy_subdirectory_install_command_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_subdirectory_install_command_with_trailing_slash_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes/pstack/ --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_git_url_install_command_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install https://github.com/iap/pstack-hermes.git/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_ssh_url_install_command_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install git@github.com:iap/pstack-hermes/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_userless_scp_install_command_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install github.com:iap/pstack-hermes/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_unrelated_scp_install_command_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install example.com:iap/pstack-hermes/pstack --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_legacy_markdown_link_text_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "[https://github.com/iap/pstack-hermes/pstack](https://example.com)\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_markdown_emphasis_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "See *https://github.com/iap/pstack-hermes/tree/master/pstack*.\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_hash_subdir_install_command_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes#pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_option_before_identifier_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install --enable iap/pstack-hermes/pstack\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_option_with_value_before_identifier_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install --force --ref abc123 iap/pstack-hermes/pstack\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_other_owner_prefix_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install acme-iap/pstack-hermes/pstack --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_nested_path_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install acme/iap/pstack-hermes/pstack --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_nested_url_path_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install https://github.com/acme/iap/pstack-hermes/pstack --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_legacy_install_other_option_before_identifier_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install --allow-removed iap/pstack-hermes/pstack\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_continuation_before_identifier_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install \\\n  iap/pstack-hermes/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_quoted_ref_separated_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install --ref \"$SHA\" iap/pstack-hermes/pstack\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_quoted_ref_equals_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install --ref=\"$SHA\" iap/pstack-hermes/pstack\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_install_newline_inside_inline_code_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "Run `hermes plugins install\niap/pstack-hermes/pstack --enable`.\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_schemeless_github_install_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install github.com/iap/pstack-hermes/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_root_install_without_subdir_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_legacy_tree_url_install_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install https://github.com/iap/pstack-hermes/tree/master/pstack --enable\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_tree_url_with_query_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install https://github.com/iap/pstack-hermes/tree/master/pstack?plain=1\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_legacy_tree_url_with_sentence_period_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "See https://github.com/iap/pstack-hermes/tree/master/pstack.\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_dot_named_subdirectory_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes/pstack.tools --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_legacy_install_command_with_semicolon_fails(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes/pstack; echo done\n",
+    )
+    problems = check_docs.check_stale_install_route(tmp_path)
+    assert any("subdirectory-install route" in item for item in problems)
+
+
+def test_similarly_named_subdirectory_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install iap/pstack-hermes/pstack-tools --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_root_git_url_install_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "hermes plugins install https://github.com/iap/pstack-hermes.git --enable\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
+def test_migration_note_is_not_flagged(tmp_path):
+    _write(
+        tmp_path / "README.md",
+        "Installs created before the root-layout migration (the old\n"
+        "source-subdirectory route) cannot update in place. Remove it,\n"
+        "then run `hermes plugins install iap/pstack-hermes --enable`.\n",
+    )
+    assert check_docs.check_stale_install_route(tmp_path) == []
+
+
 def test_upstream_repo_path_is_not_flagged(tmp_path):
     _write(
         tmp_path / "docs" / "agent" / "upstream-drift.md",

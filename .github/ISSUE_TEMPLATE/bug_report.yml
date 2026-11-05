@@ -29,7 +29,7 @@ body:
       options:
         - hermes plugins install iap/pstack-hermes (root, default branch)
         - a pinned --ref install
-        - source subdirectory install
+        - pre-migration source subdirectory install
         - a dist fork
         - not sure
     validations:
