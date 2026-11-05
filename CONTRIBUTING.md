@@ -238,11 +238,13 @@ Do not keep parallel plans or adaptation ledgers in `docs/`.
 
 ## Bot review gate (pre-merge mandate)
 
-1. **Qodo [bot]** triggers automatically on PRs. Do not trigger Qodo manually. Review and resolve Qodo findings first. If Qodo findings are resolved and no new issues exist on the same head, proceed to CodeRabbit without re-triggering Qodo.
-2. **CodeRabbit** is not auto-review by default (to reduce noise and bot-to-bot conflict). Trigger `@coderabbitai full review` only after Qodo is clean on the same head.
-3. After CodeRabbit reviews, resolve all findings. Continue resolving from CodeRabbit until its CI flow/check completes successfully.
-4. **Merge only when both bots are clean on the same head commit.** Green CI alone is insufficient. Treat "skipping"/"pending" as not clean.
+1. **Qodo [bot]** triggers automatically on PRs. Do not trigger Qodo manually. Triage Qodo findings first (fix or reply with evidence). If Qodo findings are triaged and no new issues exist on the same head, proceed to CodeRabbit without re-triggering Qodo.
+2. **CodeRabbit** is not auto-review by default (to reduce noise and bot-to-bot conflict). Trigger `@coderabbitai full review` only after Qodo findings are triaged (fixed or answered with evidence) on this head. Request CodeRabbit again after every fix push: use `full review` after a rebase, force-push, or large diff, and `review` for a small fix push. Confirm the verdict's `commit.oid` equals `headRefOid`. See `docs/agent/bot-reviews.md`.
+3. After CodeRabbit reviews, reply in-thread to all findings with evidence (fix or justify). Continue until CodeRabbit's CI flow/check completes successfully. The maintainer or bot resolves the threads.
+4. **Merge only when CodeRabbit is clean on the current head commit**, every Qodo finding is triaged (fixed or answered with evidence), every thread is resolved, and CI + local gates pass. Green CI alone is insufficient. Treat "skipping"/"pending" as not clean.
 5. Reply to findings with comments explaining what/why (not just resolving). Cross-check for false positives before applying fixes.
+
+Qodo config: optional repo-level Qodo/PR-Agent config may live at `.pr_agent.toml` or `.qodo/pr-agent.toml`; this repo ships none. If added, keep it to a one-line pointer here and in `AGENTS.md`. See `docs/agent/bot-reviews.md`.
 
 
 > [!TIP]

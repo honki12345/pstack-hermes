@@ -202,8 +202,8 @@ finding against the contract and current code before changing behavior, reply
 in the same thread with evidence, and never resolve threads yourself.
 
 > **Review gate order (user-mandated):** Qodo AI triggers automatically →
-> cross-check and resolve findings first → CodeRabbit triggers "full review"
-> after Qodo is clean → wait for CodeRabbit findings → resolve them →
+> cross-check and triage findings first (fix or reply with evidence) → CodeRabbit triggers "full review"
+> after Qodo is clean → wait for CodeRabbit findings → reply in-thread with evidence →
 > cross-check/verify before merge. Green CI alone is insufficient. Treats
 > "skipping"/"pending" as not clean. Wants mechanical enforcement (scripts/gates)
 > not just checklists.

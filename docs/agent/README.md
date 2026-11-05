@@ -9,6 +9,7 @@ Always-on contract: [AGENTS.md](../../AGENTS.md). Open **one** row below.
 | Re-pinning upstream / dead anchors | [upstream-drift.md](upstream-drift.md) |
 | Scope and parallel-work discipline | [dev-ops.md](dev-ops.md) |
 | Replying to bot review findings | [review-ops.md](review-ops.md) |
+| Bot review gate, flow, and policy (SSOT) | [bot-reviews.md](bot-reviews.md) |
 | Invoking / configuring the installed package | [../USING.md](../USING.md) |
 | Setup, Actions policy, PR, release | [../../CONTRIBUTING.md](../../CONTRIBUTING.md) |
 
