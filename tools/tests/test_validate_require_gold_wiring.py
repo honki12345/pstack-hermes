@@ -35,3 +35,52 @@ def test_require_gold_wiring_via_subprocess(tmp_path):
         f"stdout: {proc.stdout}\nstderr: {proc.stderr}"
     )
     assert "REQUIRED but UNAVAILABLE" in proc.stdout or "REQUIRED but UNAVAILABLE" in proc.stderr
+
+def test_require_gold_passed_to_resolve_exit_code(monkeypatch):
+    """Unit-level: main() must pass require_gold=args.require_gold.
+
+    Patches resolve_exit_code to capture the keyword argument, so the test
+    fails if the wiring is deleted regardless of static-check state.
+    """
+    import validate as V
+
+    captured = {}
+
+    def fake_resolve_exit_code(**kwargs):
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(V, "resolve_exit_code", fake_resolve_exit_code)
+
+    # Stub the loader so main() reaches the resolve_exit_code call.
+    monkeypatch.setattr(V, "loader_state", lambda *a, **k: "ran")
+    nonexistent = __import__("pathlib").Path("/nonexistent")
+    monkeypatch.setattr(V, "HERMES_SRC", nonexistent)
+    monkeypatch.setattr(V, "VENV_PY", nonexistent / "python")
+    monkeypatch.setattr(V, "VENV_HERMES", nonexistent / "hermes")
+
+    # Run main with --require-gold in an isolated env.
+    import os
+    env = dict(os.environ)
+    env["HERMES_HOME"] = "/tmp/empty-hermes-test"
+    monkeypatch.setattr(os, "environ", env)
+
+    try:
+        V.main.__wrapped__ if hasattr(V.main, "__wrapped__") else None
+    except Exception:
+        pass
+
+    # Invoke main via argparse by simulating sys.argv.
+    import sys
+    old_argv = sys.argv
+    sys.argv = ["validate.py", "--package", str(ROOT), "--require-gold"]
+    try:
+        V.main()
+    except SystemExit:
+        pass
+    finally:
+        sys.argv = old_argv
+
+    assert captured.get("require_gold") is True, (
+        f"require_gold not passed to resolve_exit_code: {captured}"
+    )
