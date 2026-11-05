@@ -51,6 +51,11 @@ def _hermes_home_default() -> str:
     return str(Path.home() / ".hermes")
 
 
+# NOTE (issue #130 item 1): --no-install-project relies on agent/hermes_platform/
+# hermes_cli being root-level packages in the hermes tree. If upstream moves to
+# a src/ layout or installed distributions, this gate fails with ImportError.
+# HERMES_HOME must point at a hermes checkout that has a .venv; CI uses
+# --require-gold so an absent loader is never mistaken for a pass.
 _hermes_home = os.environ.get("HERMES_HOME") or _hermes_home_default()
 HERMES_SRC = Path(_hermes_home) / "hermes-agent"
 if sys.platform == "win32":
