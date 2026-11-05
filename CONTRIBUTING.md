@@ -141,6 +141,9 @@ one has already caught (or would have caught) a real defect here.
   `release.yml` and `publish-dist.yml`; `tools/check_pins.py` fails CI when any
   of the three is missing, duplicated, malformed, or out of step. Follow
   [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md).
+- **`HERMES_PIN` is the hermes-agent commit pinned by `validate-gold.yml`.**
+  It is a full lowercase 40-char SHA, declared exactly once, and moved
+  deliberately like `UPSTREAM_PIN` (treat a bump as an upstream re-pin).
 - **Workflows must pass `actionlint`** (with `shellcheck`) - the `Lint
   workflows` CI step, runnable locally as `uv run --frozen actionlint`.
 - **Action inputs must be declared by the action they target.** `tools/`

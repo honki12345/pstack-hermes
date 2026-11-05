@@ -223,6 +223,9 @@ jobs:
       - name: Upstream pin is in lock-step across workflows
         run: uv run --frozen python tools/check_pins.py
 
+      - name: Dependabot config is valid
+        run: uv run --frozen python tools/check_dependabot.py
+
       # Docs carry the contract agents follow; they drifted once during the
       # root-layout migration. Cheap grep-style gate (see tools/check_docs.py).
       - name: Hand-written docs match the package layout and pin policy

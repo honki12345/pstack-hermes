@@ -27,6 +27,7 @@ tooling:
       - any-glob-to-any-file: "tools/**"
       - any-glob-to-any-file: ".github/workflows/**"
       - any-glob-to-any-file: ".github/actions/**"
+      - any-glob-to-any-file: ".github/*.yml"
       - any-glob-to-any-file: "pyproject.toml"
       - any-glob-to-any-file: "uv.lock"
       - any-glob-to-any-file: ".python-version"
