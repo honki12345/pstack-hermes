@@ -2380,9 +2380,8 @@ a hermes defect that reproduces with the plugin disabled →
 
 Not shipped: `automations/benny/` and `skills/make-bot-ui/` (install-scanner
 verdicts — persistence / privilege escalation; `--force` cannot override) and
-upstream's `docs/guide/` (read it upstream for the guided tour). `agents/` and
-`.cursor-plugin/` are inert on hermes — kept so the tree still dual-loads as a
-Cursor plugin structurally; for real Cursor-side work install upstream pstack.
+upstream's `docs/guide/` (read it upstream for the guided tour). This tree is
+Hermes-native only; for real Cursor-side work install upstream pstack.
 
 ## Differences from upstream
 
