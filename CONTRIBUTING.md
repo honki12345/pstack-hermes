@@ -236,6 +236,15 @@ Do not keep parallel plans or adaptation ledgers in `docs/`.
 
 ## Pull requests
 
+## Bot review gate (pre-merge mandate)
+
+1. **Qodo [bot]** triggers automatically on PRs. Do not trigger Qodo manually. Review and resolve Qodo findings first. If Qodo findings are resolved and no new issues exist on the same head, proceed to CodeRabbit without re-triggering Qodo.
+2. **CodeRabbit** is not auto-review by default (to reduce noise and bot-to-bot conflict). Trigger `@coderabbitai full review` only after Qodo is clean on the same head.
+3. After CodeRabbit reviews, resolve all findings. Continue resolving from CodeRabbit until its CI flow/check completes successfully.
+4. **Merge only when both bots are clean on the same head commit.** Green CI alone is insufficient. Treat "skipping"/"pending" as not clean.
+5. Reply to findings with comments explaining what/why (not just resolving). Cross-check for false positives before applying fixes.
+
+
 > [!TIP]
 > **Draft content first.**
 > Write draft messages/content in a separate location (local file, branch, or draft PR) before publishing or pushing to the public git provider. Keep it technical, short, and essential — only on-scope context relations. Cross-check and verify the content to ensure no false positive/negative on the post messages (good or bad for public and human/bot reviewer). If posting as an open/draft PR, add a note for the reviewer so they can read it clearly.
