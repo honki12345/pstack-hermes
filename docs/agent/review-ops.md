@@ -164,7 +164,42 @@ review is recorded at its own commit and is not a current-head verdict.
 Re-request CodeRabbit on the new head; never post a Qodo trigger in the
 automatic setup.
 
-Reply in the same thread:
+## Thread resolution commands
+
+Bots do not auto-resolve on a plain evidence reply; each needs its own trigger.
+See `docs/agent/bot-reviews.md` § "Thread resolution mechanics" for the full
+rationale.
+
+- **Qodo** — dismiss by addressing it explicitly in plain language:
+  `@qodo false positive: …`, `@qodo this is intentional: …`, etc. Qodo classifies
+  the dismissal (chat labels observed 2026-11-05 from Qodo's chat doc: False
+  positive / Rejected / Deferred / Intentional; portal may show Fix later / Not
+  specified) and, for ordinary findings, resolves + collapses the thread. When a
+  cross-repo conflict is dismissed because its relationship is wrong or outdated,
+  Qodo keeps the thread open so the relationship link remains visible. Untagged
+  replies are treated as reviewer discussion and left alone. Use only Qodo's
+  documented dismissal reasons; if a reason is rejected, rephrase in plain
+  language rather than forcing a label. If no label is accepted, escalate as an
+  open issue.
+- **CodeRabbit** — `@coderabbitai resolve` must be the **entire comment** (no other
+  text). Posted as a reply in a CodeRabbit review thread it resolves **only that
+  thread**; posted as a top-level PR comment it resolves **all** CodeRabbit
+  threads on the PR at once. The "whole comment" rule is what makes it work —
+  mixing it with evidence text makes CodeRabbit treat the whole thing as chat and
+  skip the resolve. `@coderabbitai approve` resolves all + submits approval only
+  when automatic approvals are enabled AND the verdict's commit.oid equals
+  headRefOid; otherwise it only resolves threads without approving. Approve is
+  not a substitute for the merge gate — prefer `resolve` for clearing threads.
+  Both commands must be whole comments.
+- **Outdated threads** (lines moved by a later commit) — a commit mismatch
+  identifies staleness but is not a prerequisite for confirming whether the
+  finding applies; compare the finding against the code at `headRefOid`. Resolve
+  only after confirming on the thread that the finding does not apply to the
+  current head; then use the "Resolve conversation" button or
+  `resolveReviewThread`. Do not resolve merely because the lines moved, and do not
+  use this to bypass a substantive finding.
+
+## Reply in the same thread
 
 ```sh
 gh api graphql -f query='
