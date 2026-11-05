@@ -29,6 +29,7 @@ def _duplicate_keys(text: str) -> list[str]:
         return dupes
 
     def walk(n):
+        """Recursively collect duplicate mapping keys."""
         if isinstance(n, yaml.MappingNode):
             seen: set[str] = set()
             for key_node, _ in n.value:
@@ -60,6 +61,10 @@ SEMVER_COOLDOWN_SUPPORTED: set[str] = {
 
 
 def load_dependabot(root: Path = ROOT) -> tuple[int, dict | None, list[str]]:
+    """Load and parse dependabot.yml; return (code, data, errors).
+
+    Detects duplicate keys and unreadable files.
+    """
     path = root / ".github" / "dependabot.yml"
     if not path.is_file():
         return 2, None, [f"error: no dependabot.yml at {path}"]
@@ -133,6 +138,10 @@ def composite_actions_with_uses(root: Path = ROOT) -> list[str]:
 
 
 def check(root: Path = ROOT) -> tuple[int, list[str]]:
+    """Validate dependabot.yml against the documented contract.
+
+    Returns (exit_code, report_lines).
+    """
     code, data, errs = load_dependabot(root)
     if code != 0:
         return code, errs
@@ -257,6 +266,7 @@ def check(root: Path = ROOT) -> tuple[int, list[str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point for check_dependabot."""
     ap = argparse.ArgumentParser(prog="check_dependabot.py", description=__doc__)
     ap.add_argument("--root", type=Path, default=ROOT, help="repository root")
     args = ap.parse_args(argv)

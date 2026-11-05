@@ -82,6 +82,7 @@ def check_hermes_pin(root: Path = ROOT) -> tuple[int, list[str]]:
         composed = None
 
     def _walk_all_pins(node):
+        """Recursively collect all HERMES_PIN values in the document."""
         if isinstance(node, yaml.MappingNode):
             for key_node, val_node in node.value:
                 key = key_node.value if hasattr(key_node, "value") else str(key_node)
@@ -123,6 +124,7 @@ def check_hermes_pin(root: Path = ROOT) -> tuple[int, list[str]]:
     if composed is not None:
 
         def _dup_walk(n, path=""):
+            """Recursively detect duplicate mapping keys."""
             if isinstance(n, yaml.MappingNode):
                 seen: set[str] = set()
                 for key_node, val_node in n.value:
@@ -211,6 +213,7 @@ def check(root: Path = ROOT) -> tuple[int, list[str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point for check_pins."""
     ap = argparse.ArgumentParser(prog="check_pins.py", description=__doc__)
     ap.add_argument("--root", type=Path, default=ROOT, help="repository root")
     args = ap.parse_args(argv)
