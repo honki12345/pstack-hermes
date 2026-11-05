@@ -34,6 +34,20 @@ GENERATED_DEPENDENCY_DIRS: frozenset[str] = frozenset({"node_modules"})
 # Repo-root tooling/documentation directories (only when at package root)
 ROOT_TOOLING_DIRS: frozenset[str] = frozenset({"tools", "docs", ".github", ".git", ".venv", "patches", "agents", ".cursor-plugin", ".pytest-tmp", ".pytest_cache", ".ruff_cache"})
 
+# Top-level entries that constitute the installed Hermes package (issue #128).
+# Scanning is allowlist-based: only files under these entries are package content.
+# Everything else in a checkout (tools/, docs/, .github/, scratch dumps, ...) is
+# repo tooling and must not be scanned as if it were package content.
+PACKAGE_TOP_LEVEL: frozenset[str] = frozenset({
+    "plugin.json", "README.md", "LICENSE", ".build-provenance.txt",
+    "skills", "config", "assets",
+})
+
+
+def is_package_path(rel: Path) -> bool:
+    """True when ``rel`` (relative to the package root) is package content."""
+    return bool(rel.parts) and rel.parts[0] in PACKAGE_TOP_LEVEL
+
 
 # Repo-level tooling/documentation files that are NOT part of the installed package.
 # These may legitimately reference banned constructs in explanatory context.
@@ -57,7 +71,7 @@ def iter_text_files(pkg: Path) -> Iterator[tuple[str, str]]:
         if not p.is_file():
             continue
         rel = p.relative_to(pkg)
-        if rel.parts and rel.parts[0] in ROOT_TOOLING_DIRS:
+        if not is_package_path(rel):
             continue
         if is_generated_dependency_path(rel):
             continue

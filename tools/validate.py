@@ -36,7 +36,12 @@ REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_PACKAGE = REPO_ROOT
 
 sys.path.insert(0, str(SCRIPT_DIR))
-from bans import DELEGATION_VOCAB_BANS, find_violations, is_generated_dependency_path  # noqa: E402
+from bans import (  # noqa: E402
+    DELEGATION_VOCAB_BANS,
+    find_violations,
+    is_generated_dependency_path,
+    is_package_path,
+)
 from convert import MANIFEST_NAME_RE, SCHEMA_URL, SKILL_NAME_RE, TEXT_EXTS  # noqa: E402
 
 
@@ -298,7 +303,7 @@ def check_encoding(pkg: Path, rep: Report) -> None:
         if not p.is_file():
             continue
         rel = p.relative_to(pkg)
-        if rel.parts and rel.parts[0] in getattr(__import__('bans'), 'ROOT_TOOLING_DIRS', set()):
+        if not is_package_path(rel):
             continue
         if is_generated_dependency_path(rel):
             continue
@@ -520,7 +525,7 @@ def check_conflict_markers(pkg: Path, rep: Report) -> None:
         if not p.is_file():
             continue
         rel = p.relative_to(pkg)
-        if rel.parts and rel.parts[0] in getattr(__import__('bans'), 'ROOT_TOOLING_DIRS', set()):
+        if not is_package_path(rel):
             continue
         if is_generated_dependency_path(rel):
             continue
