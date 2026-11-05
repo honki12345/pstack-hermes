@@ -1010,6 +1010,76 @@ function runCli(
     )
 
 
+
+def apply_local_provider_patch(out: Path, st: Stats) -> None:
+    """Add the local (git-native) stack provider to the generated orch scripts."""
+    store = out / "skills" / "poteto-mode" / "scripts" / "orch" / "store.ts"
+    orch = out / "skills" / "poteto-mode" / "scripts" / "orch" / "orch.ts"
+
+    # 1. StackProvider type: add "local"
+    replace_required(
+        store,
+        'export type StackProvider = "auto" | "graphite" | "github" | "gitlab";',
+        'export type StackProvider = "auto" | "graphite" | "github" | "gitlab" | "local";',
+        "StackProvider type local",
+    )
+
+    # 2. Insert localFrontier() before resolveFrontier()
+    template_path = Path(__file__).resolve().parent / "templates" / "local_frontier.ts"
+    local_frontier_fn = template_path.read_text(encoding="utf-8") + chr(10)
+    replace_required(
+        store,
+        "function resolveFrontier(" + chr(10),
+        local_frontier_fn + "function resolveFrontier(" + chr(10),
+        "localFrontier insertion",
+    )
+
+    # 3. Add local case in resolveFrontier (after gitlab case)
+    replace_required(
+        store,
+        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10),
+        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10) + '  if (provider === "local") {' + chr(10) + '    return { provider, prs: localFrontier(repo, pin) };' + chr(10) + '  }' + chr(10),
+        "resolveFrontier local case",
+    )
+
+    # 4. parseFrontier: accept pr: 0 (local provider sentinel)
+    replace_required(
+        store,
+        "      row.pr < 1 ||",
+        "      row.pr < 0 ||",
+        "parseFrontier allow pr 0",
+    )
+
+    # 5. orch.ts: stackProvider parser - add local
+    replace_required(
+        orch,
+        '    value === "gitlab"' + chr(10) + '  ) {',
+        '    value === "gitlab" ||' + chr(10) + '    value === "local"' + chr(10) + '  ) {',
+        "orch stackProvider local",
+    )
+
+    # 6. orch.ts: help text
+    replace_required(
+        orch,
+        '  throw new InvalidArgumentError("must be auto, graphite, github, or gitlab");',
+        '  throw new InvalidArgumentError("must be auto, graphite, github, gitlab, or local");',
+        "orch stackProvider help local",
+    )
+
+    # 7. orch.ts: option description
+    replace_required(
+        orch,
+        '"stack provider: auto, graphite, github, or gitlab",',
+        '"stack provider: auto, graphite, github, gitlab, or local",',
+        "orch option desc local",
+    )
+
+    st.fixes.append(
+        "T16: local (git-native) stack provider added "
+        "(auto/graphite/github/gitlab/local)"
+    )
+
+
 def apply_phase1_transforms(out: Path, st: Stats) -> None:
     """Apply R1/F16/F10-F12 hygiene to the copied package. Fail-loud on any
     anchor mismatch so a silent no-op can never masquerade as a fix."""
@@ -1080,6 +1150,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         "git-fixture signing disabled, and Graphite fixture tests given explicit Bun timeouts"
     )
     apply_stack_provider_patch(out, st)
+    apply_local_provider_patch(out, st)
 
     # --- T1: regenerate the principles index from the leaves (R1) ---
     pm = out / "skills" / "poteto-mode" / "SKILL.md"
