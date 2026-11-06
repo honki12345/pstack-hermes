@@ -1,6 +1,6 @@
 [project]
 name = "pstack-hermes"
-version = "0.3.0"
+version = "0.5.0"
 description = "Converter and validator tooling for the pstack Cursor->hermes port (the shipped package itself is content-only and needs no Python)."
 requires-python = ">=3.11"
 dependencies = []
