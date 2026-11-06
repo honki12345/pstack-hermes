@@ -287,7 +287,7 @@ same root cause across rounds and gives the maintainer a merge checklist.
 |---|---|
 | Hand-edit generated `skills/` / `config/` / package README to "fix" prose | Rebuild from converter / assets instead |
 | Reintroduce Cursor tool names for "clarity" | Banned — use hermes vocabulary |
-| Clean up / modernize `agents/` or re-add excluded `benny` / `make-bot-ui` | Leave as-is (scanner / dual-load contract) |
+| Clean up / modernize attribution or re-add excluded `benny` / `make-bot-ui` | Leave as-is (scanner / publisher contract) |
 | Implement GitLab stack provider because docs mention `glab` | Halted |
 | Treat missing Graphite as a hard CI/product failure | GitHub fallback is intentional |
 | Mutate installed stock skills via learning / `skill_manage` | Forbidden as durable source of truth |

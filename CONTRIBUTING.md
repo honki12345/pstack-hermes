@@ -272,9 +272,9 @@ workflow after the repo goes public).
 
 ## Issue reports
 
-Use the templates — platform (hermes portable / hermes slash / Cursor
-dual-load) and affected skill are required fields; `hermes plugins doctor
-pstack --ci` output is the most useful evidence you can attach.
+Use the templates — the bug form requires the affected skill or surface and how
+the plugin is installed; `hermes plugins doctor pstack --ci` output is the most
+useful evidence you can attach.
 
 ## Document style
 

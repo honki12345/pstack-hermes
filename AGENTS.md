@@ -4,8 +4,7 @@
 > This repository is **pstack-hermes** — the unofficial community port of
 > Cursor's *pstack* agent method to the **Hermes Agent** platform
 > (`NousResearch/hermes-agent`). The runtime target is **hermes**. Cursor is
-> upstream attribution and an inert dual-load surface only — never the
-> implementation or verification path.
+> upstream attribution only — never the implementation or verification path.
 
 This file is the always-on contract: read it, then open **one** row of the
 router. Humans contributing start at [CONTRIBUTING.md](CONTRIBUTING.md); end
@@ -45,8 +44,8 @@ Everything below follows from that rule.
   GitHub fallback can satisfy the task.
 - Rewrite or delete the `dist` compatibility branch while installed clones
   depend on it.
-- "Clean up" `agents/`, attribution, or the excluded `benny` / `make-bot-ui`
-  slots — that is the scanner / dual-load contract.
+- "Clean up" attribution, or re-add the excluded `benny` / `make-bot-ui`
+  slots — that is the scanner / publisher contract.
 
 ## Router
 
@@ -95,7 +94,7 @@ bun run typecheck   # deps + tsc --noEmit --strict
 
 | Area | Decision |
 |---|---|
-| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; GitLab (`glab`) halted |
+| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
 | Package identity | Plugin/repo name `pstack`; upstream version follows the pin (`plugin.json`); keep the `iap/pstack-hermes` repository — never create or rename one for an install alias (#100); update mechanics live in the package README |
 | Releases | Tooling releases recorded in `CHANGELOG.md`; never move an existing tag |
 | Planning | GitHub issues, native sub-issues and milestones own plans; `docs/` holds instructions only |
@@ -110,7 +109,6 @@ bun run typecheck   # deps + tsc --noEmit --strict
 | `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written docs |
 | `README.md` template in `tools/convert.py` | hand-written source; `README.md` itself is generated |
 | `.github/` | hand-written CI; `UPSTREAM_PIN` stays in lock-step across the declarers listed by `tools/check_pins.py`; action pins are bumped by dependabot, not by hand |
-| `agents/`, `.cursor-plugin/` | dual-load source; leave as-is |
 | `patches/` | historical reference only ([docs/PATCHES.md](docs/PATCHES.md)) |
 | `plugin.json`, `skills/`, `config/`, `assets/`, `README.md`, `LICENSE`, `.build-provenance.txt` | generated — never hand-edit |
 | `.venv/`, `.pytest-tmp/`, `.validate-data/`, `pstack.tmp-build/` | local scratch; never commit |

@@ -32,7 +32,7 @@ DELEGATION_VOCAB_BANS: tuple[str, ...] = (
 VOCAB_EXEMPT_PREFIXES: tuple[str, ...] = (".build-provenance.txt",)
 GENERATED_DEPENDENCY_DIRS: frozenset[str] = frozenset({"node_modules"})
 # Repo-root tooling/documentation directories (only when at package root)
-ROOT_TOOLING_DIRS: frozenset[str] = frozenset({"tools", "docs", ".github", ".git", ".venv", "patches", "agents", ".cursor-plugin", ".pytest-tmp", ".pytest_cache", ".ruff_cache"})
+ROOT_TOOLING_DIRS: frozenset[str] = frozenset({"tools", "docs", ".github", ".git", ".venv", "patches", ".pytest-tmp", ".pytest_cache", ".ruff_cache"})
 
 # Top-level entries that constitute the installed Hermes package (issue #128).
 # Scanning is allowlist-based: only files under these entries are package content.

@@ -349,10 +349,6 @@ def check_layout(pkg: Path, rep: Report) -> None:
         rep.fail("missing: LICENSE")
     if (pkg / "automations").exists():
         rep.fail("F-publish: automations/ present (must be excluded)")
-    if (pkg / "agents").exists():
-        rep.note("agents/ present (Cursor dual-load source; inert on hermes portable path)")
-    if (pkg / ".cursor-plugin").exists():
-        rep.note(".cursor-plugin/ present (Cursor dual-load source; hermes probes root manifest only)")
 
 
 def check_phase1(pkg: Path, rep: Report) -> None:

@@ -72,7 +72,7 @@ LEGACY_NAME_CONTINUATIONS = frozenset(
 )
 BARE_PACKAGE_RE = re.compile(r"(?<![\w./-])pstack/(?=\s|$|`)")
 CONTRACT_DOCS = frozenset({"AGENTS.md", "CONTRIBUTING.md"})
-LAYOUT_GENERATED_EXEMPT = frozenset({"plugin.yaml", "agents"})
+LAYOUT_GENERATED_EXEMPT = frozenset({"plugin.yaml"})
 CP_SOURCE_RE = re.compile(r'cp -a (?P<src>[^;\n"]+?) "\$dist/"')
 
 

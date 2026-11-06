@@ -38,7 +38,6 @@ jobs:
           ensure "pstack-core"        "0E8A16" "Core manifest/config changes"
           ensure "skills"             "1D76DB" "Workflow/mode skill changes"
           ensure "principles"         "5319E7" "Principle skill changes"
-          ensure "cursor-dual-load"   "FBCA04" "Cursor dual-load surface (inert on hermes)"
           ensure "tooling"            "D93F0B" "Converter, validator, CI tooling"
           ensure "documentation"      "0075CA" "Documentation"
           ensure "scanner-clean"      "BFD4F2" "Verified: install-scanner safe verdict"

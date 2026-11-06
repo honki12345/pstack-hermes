@@ -146,7 +146,7 @@ the author.
 |---|---|
 | Hand-edit generated `skills/` / `config/` / package README | Rebuild from converter / assets instead |
 | Reintroduce Cursor tool names | Banned — use Hermes vocabulary |
-| Clean up / modernize `agents/` or re-add excluded `benny` / `make-bot-ui` | Leave as-is (scanner / dual-load contract) |
+| Clean up / modernize attribution or re-add excluded `benny` / `make-bot-ui` | Leave as-is (scanner / publisher contract) |
 | Implement GitLab stack provider because docs mention `glab` | Halted |
 | Treat missing Graphite as a hard CI/product failure | GitHub fallback is intentional |
 | Mutate installed stock skills via learning / `skill_manage` | Forbidden as durable source of truth |

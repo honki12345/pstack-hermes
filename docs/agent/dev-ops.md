@@ -15,7 +15,7 @@ Layout paths: [layout.md](layout.md). Review loop: [review-ops.md](review-ops.md
   <sha>` (see [layout.md](layout.md)). Do not hand-edit generated files.
 - **Out-of-scope finding → issue or separate PR.** Link it; do not silently
   widen the diff.
-- **Never touch** `agents/`, attribution, or the excluded `benny` /
+- **Never touch** attribution, or re-add the excluded `benny` /
   `make-bot-ui` slots.
 - **Two fixes in one file for different reasons:** land them separately so each
   can be reverted on its own.

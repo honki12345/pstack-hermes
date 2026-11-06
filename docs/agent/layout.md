@@ -13,6 +13,5 @@ Which paths are **generated** (converter output) vs **hand-written** (source):
 | `.build-provenance.txt` | generated | Rebuild stamp. |
 | `tools/`, `tools/assets/` | hand-written | Converter, validator, bans, assets source. Edit here, then rebuild. |
 | `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written | Docs and contract. |
-| `agents/`, `.cursor-plugin/` | source (dual-load) | Cursor dual-load artifacts; inert on hermes portable path. |
 
 Rule: change `tools/` / `tools/assets/`, rebuild with `tools/convert.py`, validate. Never hand-edit generated surfaces.

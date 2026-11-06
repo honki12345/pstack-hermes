@@ -13,11 +13,10 @@ Contract implemented (study Ch3 sections 3.1-3.2 + subagent_03a loader facts):
     delete the now-empty grokbot container.
   - Fix SKILL.md frontmatter names so name == directory name in
     kebab-case (agent_plugins.py:158-168).
-  - agents/ and automations/ copied unchanged (inert on hermes portable path;
-    kept for Cursor dual-load and Phase 2).
+  - agents/ is not emitted (Hermes-native package; no Cursor dual-load);
+    automations/benny is excluded by the publisher contract.
   - Every copied text file normalized to UTF-8 WITHOUT BOM, LF line endings.
-  - .cursor-plugin/plugin.json preserved as-is (Cursor-rich manifest) so the
-    package dual-loads; hermes reads the root manifest only.
+  - .cursor-plugin/ is not emitted; hermes reads the root manifest only.
   - Provenance (source commit) written to .build-provenance.txt.
 
 Usage:
@@ -1038,7 +1037,7 @@ def apply_local_provider_patch(out: Path, st: Stats) -> None:
     replace_required(
         store,
         '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10),
-        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10) + '  if (provider === "local") {' + chr(10) + '    return { provider, prs: localFrontier(repo, pin) };' + chr(10) + '  }' + chr(10),
+        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10) + '  if (provider === "local") {' + chr(10) + '    return { provider, prs: localFrontier(repo) };' + chr(10) + '  }' + chr(10),
         "resolveFrontier local case",
     )
 
@@ -1078,6 +1077,16 @@ def apply_local_provider_patch(out: Path, st: Stats) -> None:
         "T16: local (git-native) stack provider added "
         "(auto/graphite/github/gitlab/local)"
     )
+
+    # 8. Regression test for discovery order, shipped with the package so
+    # `bun test orch` proves the provider without a forge.
+    test_template = (
+        Path(__file__).resolve().parent / "templates" / "local_frontier.test.ts"
+    )
+    if not test_template.is_file():
+        raise ConvertError(f"localFrontier test template missing: {test_template}")
+    copy_file(test_template, store.parent / "local_frontier.test.ts", st)
+    st.fixes.append("T16: localFrontier order/exclusion regression test emitted")
 
 
 def apply_phase1_transforms(out: Path, st: Stats) -> None:
@@ -1895,7 +1904,7 @@ T13_MAP = [
     ),
     (
         "The frontier is a computed object, never narrative. Recompute `frontier.json` from `gt` after every merge and stack mutation because GitHub base refs drift mid-restack while gt tracking is authoritative: ordered PR list, branch names, head SHAs, a generation number, the lowest unmerged PR. Resolve it where gt knows the stack, normally the stacker's clone. A checkout whose gt metadata never saw the submits reports no PRs and the command errors rather than guessing.",
-        "The frontier is a computed object, never narrative. Recompute `frontier.json` from the resolved forge after every merge and stack mutation: ordered PR list, branch names, head SHAs, a generation number, and the lowest unmerged PR. `orch frontier set --provider auto` tries Graphite first and then a GitHub-native chain inferred from PR base/head branches; pin with `--provider graphite` or `--provider github` when the stack source must be explicit. Resolve it in the clone that has the local branches for the stack; a checkout whose forge metadata cannot produce one connected chain errors rather than guessing.",
+        "The frontier is a computed object, never narrative. Recompute `frontier.json` from the resolved forge after every merge and stack mutation: ordered PR list, branch names, head SHAs, a generation number, and the lowest unmerged PR. `orch frontier set --provider auto` tries Graphite first and then a GitHub-native chain inferred from PR base/head branches; pin with `--provider graphite`, `--provider github`, or `--provider local` when the stack source must be explicit. `--provider local` needs no forge: it reads local branches only (the current branch plus its ancestors and descendants, ordered bottom-to-top) and marks every row with PR sentinel `0`. Resolve it in the clone that has the local branches for the stack; a checkout whose forge metadata cannot produce one connected chain errors rather than guessing.",
     ),
     (
         "Prove the load-bearing behavior live on the real surface the change touches (with the matching control skill, such as `control-cli` or `control-ui` from `cursor-team-kit`, or a named driver where none exists)",
@@ -2465,9 +2474,9 @@ counts:
   skill_md_on_disk: {len(discovered)} (skills/ only; automations/benny + make-bot-ui excluded for the install scanner)
   agents_files: 0
 notes:
-  - agents/ is inert on the hermes portable path (kept for Cursor dual-load / Phase 2)
+  - agents/ and .cursor-plugin/ are not emitted (Hermes-native package; no Cursor dual-load)
   - automations/benny + make-bot-ui excluded (install-scanner verdict); rebuild via Phase 4 / stay Cursor-side
-  - .cursor-plugin/plugin.json preserved unchanged for Cursor dual-load; hermes probes the root manifest only
+  - hermes probes the root manifest only; no .cursor-plugin/ is shipped
 """
     (out / ".build-provenance.txt").write_bytes(provenance.encode("utf-8"))
     st.files_copied += 1

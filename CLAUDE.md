@@ -5,7 +5,7 @@
 
 ## Project identity
 
-This is **pstack-hermes** — the unofficial community port of Cursor's *pstack* agent method to the **Hermes Agent** platform (`NousResearch/hermes-agent`). The runtime target is **hermes**. Cursor is upstream attribution and an inert dual-load surface only — never the implementation or verification path.
+This is **pstack-hermes** — the unofficial community port of Cursor's *pstack* agent method to the **Hermes Agent** platform (`NousResearch/hermes-agent`). The runtime target is **hermes**. Cursor is upstream attribution only — never the implementation or verification path.
 
 Package name: `pstack`. Plugin installed via `hermes plugins install iap/pstack-hermes --enable`.
 
@@ -43,8 +43,8 @@ Everything below follows from that rule.
   GitHub fallback can satisfy the task.
 - Rewrite or delete the `dist` compatibility branch while installed clones
   depend on it.
-- "Clean up" `agents/`, attribution, or the excluded `benny` / `make-bot-ui`
-  slots — that is the scanner / dual-load contract.
+- "Clean up" attribution, or re-add the excluded `benny` / `make-bot-ui`
+  slots — that is the scanner / publisher contract.
 
 ## Router
 
@@ -62,7 +62,7 @@ Everything below follows from that rule.
 
 | Area | Decision |
 |---|---|
-| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; GitLab (`glab`) halted |
+| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
 | Package identity | Plugin/repo name `pstack`; upstream version follows the pin (`plugin.json`); keep the `iap/pstack-hermes` repository |
 | Releases | Tooling releases recorded in `CHANGELOG.md`; never move an existing tag |
 | Planning | GitHub issues, native sub-issues and milestones own plans; `docs/` holds instructions only |
@@ -77,7 +77,6 @@ Everything below follows from that rule.
 | `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written docs |
 | `README.md` template in `tools/convert.py` | hand-written source; `README.md` itself is generated |
 | `.github/` | hand-written CI; `UPSTREAM_PIN` stays in lock-step across declarers |
-| `agents/`, `.cursor-plugin/` | dual-load source; leave as-is |
 | `patches/` | historical reference only (`docs/PATCHES.md`) |
 | `plugin.json`, `skills/`, `config/`, `assets/`, `README.md`, `LICENSE`, `.build-provenance.txt` | generated — never hand-edit |
 | `.venv/`, `.pytest-tmp/`, `.validate-data/`, `pstack.tmp-build/` | local scratch; never commit |
