@@ -165,9 +165,7 @@ one has already caught (or would have caught) a real defect here.
   step needs it. Checkouts that never push set `persist-credentials: false`.
 - **Every job sets `timeout-minutes`.** A hung step otherwise burns the
   6-hour default before anyone notices.
-- **`pull_request_target` is allowed only for the labeler**, where no PR
-  content is checked out or executed. Never add a PR-head checkout to that
-  job; put such work in a `pull_request` workflow instead.
+- **`pull_request_target` is allowed only for the labeler and `.github/workflows/round-ledger.yml`**, where no PR content is checked out or executed; both read PR state via the API and never evaluate PR-controlled files. Never add a PR-head checkout to either job; put such work in a `pull_request` workflow instead.
 
 ## Common tasks
 
