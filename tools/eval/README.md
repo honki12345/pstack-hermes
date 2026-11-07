@@ -50,10 +50,11 @@ hermes profile delete pstacklane-demo
   the client does not stop the gateway: its run continues to the end, and the cost keeps coming.
   The gateway also keeps the plugin code it loaded until it restarts, so an edited gate is not
   the gate that runs. Pick it only to measure the path a person's `hermes -z` takes. A stopped
-  `cli` run (Ctrl-C, SIGTERM or `--timeout`) says so in one stderr line. It cannot
+  `cli` run (Ctrl-C, SIGTERM, SIGHUP or `--timeout`) says so in one stderr line. It cannot
   continue a session, so `p4-followup` needs `inproc`.
-- Ctrl-C and SIGTERM kill the child and its processes and delete the sandbox. SIGKILL cannot
-  be handled.
+- A signal that unwinds the harness (Ctrl-C, SIGTERM, SIGHUP) kills the child and its processes
+  and deletes the sandbox, including when it arrives while the sandbox is being built. SIGKILL
+  cannot be handled.
 - `--timeout` bounds one run (default 900 s). `--cleanup` removes the `shop-api` checkout.
 
 Output in `--out`: `run.json`, `verdict.json` (an array, one verdict per graded turn), the

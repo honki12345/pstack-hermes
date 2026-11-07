@@ -970,10 +970,14 @@ def wait_for(condition, seconds=5.0) -> bool:
 def contained_signals():
     """A signal the test sends must not kill pytest if the harness fails to handle it."""
 
-    watched = (signal.SIGINT, signal.SIGTERM)
+    def unhandled(signum, frame):
+        raise AssertionError(f"signal {signum} reached the test process unhandled")
+
+    watched = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
     saved = {sig: signal.getsignal(sig) for sig in watched}
     signal.signal(signal.SIGINT, signal.default_int_handler)
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    signal.signal(signal.SIGHUP, unhandled)
     yield
     for sig, handler in saved.items():
         signal.signal(sig, handler)
@@ -1017,7 +1021,8 @@ def signal_when_started(fake: Path, sig: int) -> None:
 
 @pytest.mark.parametrize("runner", ["cli", "inproc"])
 @pytest.mark.parametrize(("sig", "raised"), [
-    (signal.SIGINT, KeyboardInterrupt), (signal.SIGTERM, SystemExit)])
+    (signal.SIGINT, KeyboardInterrupt), (signal.SIGTERM, SystemExit),
+    (signal.SIGHUP, SystemExit)])
 def test_an_interrupted_run_leaves_no_child_process_and_no_sandbox(
         tmp_path, stuck_hermes, sandboxes, runner, sig, raised):
     home = fake_profile(tmp_path)
@@ -1051,6 +1056,31 @@ def test_a_timed_out_cli_run_says_the_gateway_keeps_going(
                    "--out", str(tmp_path / "out2"), "--timeout", "0.5"])
     notes = [line for line in capsys.readouterr().err.splitlines() if "gateway" in line]
     assert len(notes) == 1
+
+
+@pytest.mark.parametrize(("sig", "raised"), [
+    (signal.SIGINT, KeyboardInterrupt), (signal.SIGTERM, SystemExit),
+    (signal.SIGHUP, SystemExit)])
+def test_a_signal_while_the_sandbox_is_built_leaves_no_sandbox(
+        tmp_path, monkeypatch, sandboxes, contained_signals, sig, raised):
+    real_git = run_eval._git
+
+    def signalled_git(repo, *command):
+        os.kill(os.getpid(), sig)
+        time.sleep(1)
+        return real_git(repo, *command)
+
+    def marker(home, prompt_id, out):
+        path = out / "m.txt"
+        path.write_text("go\n", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(run_eval, "_git", signalled_git)
+    monkeypatch.setattr(run_eval, "build_marker", marker)
+    with pytest.raises(raised):
+        run_eval.main(["--prompt", "p2-why", "--hermes-home", str(fake_profile(tmp_path)),
+                       "--out", str(tmp_path / "out2")])
+    assert list(sandboxes.iterdir()) == []
 
 
 # --- run_eval: --out reuse and grading failures ---------------------------------------------

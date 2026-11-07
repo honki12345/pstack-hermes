@@ -82,18 +82,21 @@ def _git(repo: Path, *command: str) -> str:
 def make_sandbox() -> Path:
     """A project-shaped checkout: a path and a repo that read like real work."""
     root = Path(tempfile.mkdtemp(prefix="shop-"))
-    repo = root / "shop-api"
     try:
+        repo = root / "shop-api"
         shutil.copytree(FIXTURE, repo)
         _git(repo, "init", "-q")
         (repo / ".git" / "info" / "exclude").write_text(SANDBOX_EXCLUDES, encoding="utf-8")
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "initial import")
-    except (OSError, subprocess.CalledProcessError) as exc:
+        return repo
+    except BaseException as exc:
+        # A signal lands here too (SystemExit, KeyboardInterrupt); the caller has no path yet.
         shutil.rmtree(root, ignore_errors=True)
+        if not isinstance(exc, (OSError, subprocess.CalledProcessError)):
+            raise
         detail = (getattr(exc, "stderr", "") or str(exc)).strip()[-300:]
         raise RunError(f"could not build the sandbox checkout: {detail}") from exc
-    return repo
 
 
 def git_state(repo: Path) -> dict | None:
@@ -293,14 +296,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-default-profile", action="store_true")
     parser.add_argument("--cleanup", action="store_true", help="delete the shop-api checkout after")
     args = parser.parse_args(argv)
-    previous = signal.signal(signal.SIGTERM, _terminate)
+    # SIGHUP is a closed terminal or window; it must unwind like SIGTERM, not kill us mid-run.
+    previous = {sig: signal.signal(sig, _terminate) for sig in (signal.SIGTERM, signal.SIGHUP)}
     try:
         return run(args)
     except RunError as exc:
         print(f"run_eval: {exc}", file=sys.stderr)
         return 2
     finally:
-        signal.signal(signal.SIGTERM, previous)
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 
 if __name__ == "__main__":
