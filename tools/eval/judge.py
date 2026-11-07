@@ -46,6 +46,8 @@ PREPARATORY_TOOLS = frozenset({
 # (read_file, search_files) are not listed, so a real unpaired event of those still shows.
 REVIEW_FORK_TOOLS = frozenset({"skill_view", "skills_list", "skill_manage", "memory"})
 # Hermes' file-writing tools. Shell and code tools are judged by their effect on the sandbox.
+# `skill_manage` is in PREPARATORY_TOOLS too, and both are intended. The gate lets it through before a
+# decision, so G1 does not count it as work, and G5 still counts it as a file write.
 FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 
 # What a bad path, a missing state.db or a malformed run.json raise while grading.
