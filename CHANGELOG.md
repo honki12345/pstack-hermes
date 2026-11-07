@@ -7,6 +7,13 @@ All notable changes to the pstack-hermes port tooling will be documented in this
 Independent fork maintained by honki12345 as `honki12345/pstack-hermes`.
 Entries below this section are history inherited from the original port.
 
+### Added
+- `hermes-plugin/poteto-delegation-gate/`: the delegation gate moves into the repository
+  with no code change. It blocks working tools on a `/poteto-mode` turn until the todolist records
+  the delegation decision (hooks `pre_llm_call` and `pre_tool_call`). The audit log now records
+  `tool_call_id`, which the `tools/eval/` judge uses to pair log lines with session messages.
+  `tools/tests/test_poteto_delegation_gate.py` collects its 43 cases in CI.
+
 ### Changed
 - **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
   skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,

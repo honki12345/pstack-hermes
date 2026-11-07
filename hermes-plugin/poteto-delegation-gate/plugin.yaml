@@ -1,0 +1,7 @@
+name: poteto-delegation-gate
+version: 0.1.0
+description: "Blocks working tools on a /poteto-mode turn until the todolist (with the delegation decision) is written. Forces a conscious delegate-or-skip decision; never forces delegation itself."
+author: pstack-hermes fork
+hooks:
+  - pre_llm_call
+  - pre_tool_call
