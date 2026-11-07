@@ -559,6 +559,18 @@ def test_the_fixture_ships_the_bug_the_prompts_describe():
     assert '"shipping": shipping(amount)' in pricing
 
 
+def test_readme_documents_what_the_judge_prints(run):
+    readme = (EVAL_DIR / "README.md").read_text(encoding="utf-8")
+    section = readme.split("## Verdict", 1)[1]
+    example = json.loads(re.search(r"```json\n(.*?)\n```", section, re.DOTALL).group(1))
+    actual = run.grade("p2-why", sandbox=UNCHANGED)
+    assert isinstance(example, list)
+    assert list(example[0]) == list(actual)
+    assert list(example[0]["counts"]) == list(actual["counts"])
+    assert list(example[0]["evidence"]) == list(actual["evidence"])
+    assert "--clone-from pstacklab" not in readme
+
+
 def test_run_eval_refuses_the_default_profile(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     default = tmp_path / ".hermes"
