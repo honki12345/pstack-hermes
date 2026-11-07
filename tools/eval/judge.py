@@ -11,7 +11,7 @@ Metrics (null when the prompt does not exercise them):
   G2 recovery            after a gate block, the agent writes the todolist without being blocked
                          again in a later assistant message (parallel blocks are one attempt)
   G3 delegation happens  p1: at least one delegate_task executed and not rejected
-  G4 no over-delegation  p3: no delegate_task, no child session, and a `skip:` reason is written
+  G4 no over-delegation  p3: no delegate_task, no child session, and a `skip:` reason is written in a decision item
   G5 reroute             p2: the sandbox ends as it began (same HEAD, same porcelain status) and
                          no file-writing tool ran; null without a recorded before/after state
   G6 follow-up turn      p4: the gate stays active on the second turn of the same session
@@ -45,9 +45,21 @@ FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 # What a bad path, a missing state.db or a malformed run.json raise while grading.
 GRADE_ERRORS = (OSError, ValueError, KeyError, TypeError, sqlite3.Error)
 
-DECISION_RE = re.compile(r"delegate_task|skip\s*:", re.IGNORECASE)
-# Same line only: a reason on the next line would be the next todo item's text.
-SKIP_RE = re.compile(r"skip[ \t]*:[ \t]*([^\n]*)", re.IGNORECASE)
+# Same criterion as the gate's _is_decision: one todo item either names `delegate_task`, or mentions
+# delegation (`deleg`) and holds `skip:` with a same-line reason. A `skip:` with no mention of
+# delegation is how the playbook marks a skipped step, so it is not a delegation decision.
+DECISION_RE = re.compile(r"delegate_task", re.IGNORECASE)
+DELEG_RE = re.compile(r"deleg", re.IGNORECASE)
+SKIP_REASON_RE = re.compile(r"skip[ \t]*:[ \t]*\S", re.IGNORECASE)
+# Same line only: a reason on the next line would be the next todo item's text. `skip delegate_task:`
+# is the form agents write; the gate accepts it through `delegate_task`, so the reason is read here.
+SKIP_RE = re.compile(r"skip(?:[ \t]+delegate_task)?[ \t]*:[ \t]*([^\n]*)", re.IGNORECASE)
+
+
+def is_decision(text: str) -> bool:
+    if DECISION_RE.search(text):
+        return True
+    return bool(DELEG_RE.search(text) and SKIP_REASON_RE.search(text))
 
 
 @dataclass
@@ -204,7 +216,7 @@ def _decision_first(calls: list[Call]) -> tuple[bool, str | None, bool]:
         before = calls[:end]
     texts = [t for c in before for t in _todo_texts(c)]
     todo_written = any(TODO_TOOL in c.names for c in before)
-    decided = any(DECISION_RE.search(t) for t in texts)
+    decided = any(is_decision(t) for t in texts)
     first_tool = (
         next((n for n in first_work.names if n not in PREPARATORY_TOOLS), None)
         if first_work else None
@@ -381,7 +393,11 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     armed = any(e.get("event") in {"turn_armed", "turn_continued"} for e in events)
     todo_text = [t for c in current.calls for t in _todo_texts(c)]
     skip_reasons = [
-        reason for t in todo_text for m in SKIP_RE.finditer(t) if (reason := m.group(1).strip())
+        reason
+        for t in todo_text
+        if is_decision(t)
+        for m in SKIP_RE.finditer(t)
+        if (reason := m.group(1).strip())
     ]
     blocks = sum(1 for e in pairing.events if e["event"] == "block")
     block_messages = len({

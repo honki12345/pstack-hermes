@@ -1,6 +1,6 @@
 """poteto-mode 턴에서 위임 결정이 든 todolist를 쓰기 전까지 작업 도구 호출을 막는다.
 
-위임을 강제하지 않는다. 막는 것은 "결정 없이 작업부터 시작하는 것"뿐이고, todolist에
+위임을 강제하지 않는다. 막는 것은 "결정 없이 작업부터 시작하는 것"뿐이고, 위임을 가리키는 항목에
 `skip: <사유>`를 적는 것도 유효한 결정이다. 결정 항목이 없는 todolist는 작업을 풀지 못한다.
 """
 
@@ -30,30 +30,47 @@ ALLOWED_BEFORE_TODO = frozenset({
     DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect", "hindsight_retain",
 })
 
-# 결정 항목의 형식. 판정기(tools/eval/judge.py)의 DECISION_RE 와 같되, `skip:` 뒤에 같은 줄 사유가
-# 있어야 한다. 사유 없는 `skip:` 은 결정을 적은 것이 아니라 형식만 맞춘 것이다.
-_DECISION_RE = re.compile(r"delegate_task|skip[ \t]*:[ \t]*\S", re.IGNORECASE)
+# 결정 항목의 형식. 한 항목 안에서 다음 둘 중 하나여야 한다.
+#   1. `delegate_task` 를 쓰겠다는 내용
+#   2. 위임을 가리키는 말(`deleg`, 예: delegation, delegate)과 같은 줄 사유가 있는 `skip:`
+# 위임을 가리키는 말 없는 `skip: <사유>` 는 playbook 단계를 건너뛴다는 표시(SKILL.md 의 `skip:`)일
+# 수 있어 결정으로 읽지 않는다. tools/eval/judge.py 의 is_decision 과 같은 기준이어야 한다.
+_DELEGATE_TASK_RE = re.compile(r"delegate_task", re.IGNORECASE)
+_DELEG_RE = re.compile(r"deleg", re.IGNORECASE)
+_SKIP_REASON_RE = re.compile(r"skip[ \t]*:[ \t]*\S", re.IGNORECASE)
+
+
+def _is_decision(text: str) -> bool:
+    if _DELEGATE_TASK_RE.search(text):
+        return True
+    return bool(_DELEG_RE.search(text) and _SKIP_REASON_RE.search(text))
+
 
 # 결정 없는 todolist 뒤에 작업 호출이 이만큼 막히면 다음 호출부터 푼다. 에이전트가 끝내 결정 항목을
 # 쓰지 못하는 턴(todo_list 가 실패하거나 항목 형식을 못 맞추는 경우)에서 관문이 세션을 마비시키지
-# 않게 하는 안전장치다. 첫 차단(work_before_todo)과 합쳐 턴당 차단은 3회를 넘지 않는다.
-# todolist 를 아예 쓰지 않은 차단(work_before_todo)에는 세지 않는다. 그때는 todolist 하나로 풀리므로
-# 교착이 아니다.
+# 않게 하는 안전장치다. todolist 를 쓰기 전의 차단(work_before_todo)은 횟수 제한이 없고 여기에
+# 세지 않는다. 그때는 todolist 하나로 풀리므로 교착이 아니다. 결정 없는 todolist 뒤에는 최대 이
+# 횟수만큼만 막는다.
 MAX_DECISION_BLOCKS = 2
+
+_FORMAT_HINT = (
+    "Recommended item: `Delegation decision: delegate_task <the steps that go to a child>` (with "
+    "pstack_role) or `Delegation decision: skip: <reason>` with the reason on the same line."
+)
 
 BLOCK_MESSAGE = (
     "poteto-mode gate: write the todolist before working. Copy the matched playbook's numbered "
     "steps verbatim as items. Add the playbook's opening sentence about delegation as an item "
-    "too, then add one item that records the delegation decision: either `delegate_task` for the "
-    "named steps (with pstack_role) or `skip: <reason>`. Then retry this call."
+    "too, then add one item that records the delegation decision. " + _FORMAT_HINT + " A `skip:` "
+    "on a playbook step does not count. Then retry this call."
 )
 
 DECISION_MESSAGE = (
     "poteto-mode gate: your todolist has no delegation decision, so working tools stay blocked. "
-    "Add an item that names `delegate_task` (which steps go to a child, with pstack_role) or reads "
-    "`skip: <reason>` with the reason on the same line, and add the playbook's opening sentence "
-    "about delegation as an item. todo_list with merge: true adds the item without rewriting the "
-    "list. Then retry this call."
+    "Add one item that names `delegate_task`, or that mentions delegation and reads `skip: <reason>` "
+    "with the reason on the same line. " + _FORMAT_HINT + " A `skip:` on a playbook step does not "
+    "count. Add the playbook's opening sentence about delegation as an item too. todo_list with "
+    "merge: true adds the item without rewriting the list. Then retry this call."
 )
 
 
@@ -63,6 +80,8 @@ class _TurnState:
     # 이 턴에서 위임 결정 항목이 든 todolist 쓰기를 본 적이 있다. 한 번 서면 턴 끝까지 유지해서,
     # `merge: true` 부분 갱신이나 목록 교체가 결정 항목 없이 와도 다시 막지 않는다.
     todo_written: bool = False
+    # 결정 없이 교착 해제로 풀린 턴. 결정이 쓰인 턴(todo_written)과 로그에서 구분한다.
+    released: bool = False
     # 결정 항목 없는 todolist 쓰기를 본 적이 있다. 작업 차단 사유를 가르고 교착 해제를 센다.
     todo_pending: bool = False
     decision_blocks: int = 0
@@ -163,7 +182,7 @@ def _writes_todos(args: dict) -> bool:
 
 
 def _has_decision(args: dict) -> bool:
-    return any(_DECISION_RE.search(text) for text in _item_texts(args))
+    return any(_is_decision(text) for text in _item_texts(args))
 
 
 def _on_pre_llm_call(**kwargs):
@@ -201,6 +220,8 @@ def _decide(state: _TurnState, tool_name: str, args: object) -> tuple[str, str]:
     if any(_has_decision(a) for a in todo_args):
         state.todo_written = True
         return "allow", "todo_written_now"
+    if state.released:
+        return "allow", "released"
     undecided_write = any(_writes_todos(a) for a in todo_args)
     if names and all(n in ALLOWED_BEFORE_TODO for n in names):
         # 결정 없는 todolist 쓰기는 통과시킨다. 에이전트가 `merge: true` 로 결정 항목만 더할 수 있어야
@@ -211,7 +232,7 @@ def _decide(state: _TurnState, tool_name: str, args: object) -> tuple[str, str]:
         return "allow", "preparatory_tool"
     if state.todo_pending or undecided_write:
         if state.decision_blocks >= MAX_DECISION_BLOCKS:
-            state.todo_written = True
+            state.released = True
             return "allow", "decision_missing_released"
         state.decision_blocks += 1
         return "block", "todo_without_decision"
