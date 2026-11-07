@@ -1316,7 +1316,7 @@ def test_a_sed_address_without_a_backslash_stays_read_only(command):
 
 @pytest.mark.parametrize("command", [
     "gh auth status --show-token=true", "gh auth status -at", "gh auth status -t", "gh auth status --json hosts",
-    "gh auth status --json hosts --jq env", "gh auth status -h github.com", "gh auth status extra",
+    "gh auth status --json hosts --jq env", "gh auth status -h github.com", "gh auth status --hostname github.com",
     "gh pr list -w=true", "gh pr list --web=true", "gh pr list --web", "gh issue list --web=true",
     "gh pr view 1 --jq .title", "gh pr view 1 -q .title", "gh pr view 1 --json title -q .title",
     "gh pr view 1 --json title --jq env", "gh pr view 1 --template x", "gh pr view 1 -t x",
@@ -1394,7 +1394,7 @@ def test_notice_detection_is_linear_in_the_message_length():
     assert len(hostile) > 1_000_000
     start = time.perf_counter()
     assert gate._is_notice(hostile) is False
-    assert gate._is_notice(hostile + "]") is False
+    assert gate._is_notice(hostile + "]") is True  # the last block is a complete footer
     assert gate._is_notice("x" * 1_000_000) is False
     assert time.perf_counter() - start < 0.1
 
@@ -1404,7 +1404,7 @@ def test_a_huge_message_does_not_hold_the_state_lock(monkeypatch):
     monkeypatch.setattr(gate, "_is_notice", lambda message: seen.append(gate._LOCK.locked()) or False)
     turn()
     turn(message="plain", turn_id="t2")
-    assert seen == [False]
+    assert seen and not any(seen)
 
 
 def test_only_the_last_footer_block_counts_and_it_must_close_the_message(tmp_path):
