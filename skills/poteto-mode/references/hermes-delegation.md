@@ -100,3 +100,7 @@ Hermes has no cloud workers. Every worker is a local `delegate_task` child that
 starts with no conversation history, so briefs inline what the child needs or
 point at repo paths. Two writers never share a worktree. Use a separate git
 worktree per writer.
+
+## Record the delegation decision
+
+Record every delegation instruction a playbook gives, preamble included, as a todolist item: a `delegate_task` item, or `skip: <reason>` when you do not delegate. A playbook's unnumbered intro ("Delegate investigation and the fix to subagents") counts, so write its item before your first work tool.

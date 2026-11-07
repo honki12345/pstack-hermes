@@ -53,6 +53,9 @@ Entries below this section are history inherited from the original port.
   is the repository root, pinned with `--ref <sha>`.
 
 ### Added
+- H1 delegation contract: a playbook's delegation instruction, unnumbered
+  preamble included, is recorded as a todolist `delegate_task` item or
+  `skip: <reason>`. The upstream playbook body is unchanged.
 - `tools/eval/`: harness that runs four fixed poteto-mode prompts in a throwaway
   Hermes profile and grades the delegation behaviour (G1-G6) from the gate log
   and `state.db`; only the judge's unit tests run in CI.
