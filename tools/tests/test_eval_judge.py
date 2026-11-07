@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -1128,3 +1129,149 @@ def test_a_grading_failure_ends_with_one_line_and_keeps_run_json(
     assert not any("Traceback" in line for line in err)
     assert record["turns"]
     assert not (out / "verdict.json").exists()
+
+
+# --- p5: an incident investigation that is clearly worth delegating --------------------------
+
+P5 = "p5-ops-errors"
+OPS_FIXTURE = EVAL_DIR / "fixtures" / "fulfilment-api"
+
+
+def test_p5_is_a_selectable_prompt_with_its_own_fixture():
+    assert P5 in run_eval.PROMPT_IDS
+    assert (EVAL_DIR / "prompts" / f"{P5}.txt").is_file()
+    assert run_eval.fixture_for(P5) == OPS_FIXTURE
+    assert run_eval.fixture_for("p1-bugfix") == EVAL_DIR / "fixtures" / "shop-api"
+
+
+def test_the_sandbox_is_built_from_the_fixture_a_prompt_names(sandboxes):
+    repo = run_eval.make_sandbox(OPS_FIXTURE)
+    assert repo.name == "fulfilment-api"
+    assert (repo / "checks" / "run.py").is_file()
+    assert run_eval.git_state(repo)["status"] == ""
+
+
+def test_g1_and_g3_apply_to_p5(run):
+    run.todo(DECIDED)
+    run.call("delegate_task", {"goal": "read the payment logs", "pstack_role": "leaf"})
+    run.call("terminal", {"command": "python3 checks/run.py"})
+    verdict = run.grade(P5)
+    assert verdict["G1"] is True
+    assert verdict["G3"] is True
+    assert verdict["counts"]["delegate_task_calls"] == 1
+    assert [verdict[k] for k in ("G4", "G5", "G6")] == [None, None, None]
+
+
+def test_p5_g3_fails_when_the_agent_investigates_alone(run):
+    run.todo(DECIDED)
+    run.call("terminal", {"command": "grep ERROR logs/ops.log"})
+    verdict = run.grade(P5)
+    assert verdict["G1"] is True
+    assert verdict["G3"] is False
+
+
+def test_p5_g1_fails_when_work_comes_before_the_decision(run):
+    run.call("terminal", {"command": "grep ERROR logs/ops.log"}, blocked=True)
+    run.todo(DECIDED)
+    verdict = run.grade(P5)
+    assert verdict["G1"] is False
+    assert verdict["G2"] is True
+
+
+def test_p5_g3_ignores_a_rejected_delegation_without_a_child(run):
+    run.todo(DECIDED)
+    run.call("delegate_task", {"goal": "x"}, result=json.dumps({"error": "no route"}))
+    assert run.grade(P5)["G3"] is False
+
+
+def test_p5_g2_is_recorded_after_a_block(run):
+    run.call("terminal", {"command": "ls"})
+    run.todo(DECIDED)
+    verdict = run.grade(P5)
+    assert verdict["G2"] is True
+    assert verdict["counts"]["blocks"] == 1
+
+
+def run_checks(repo: Path) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-B", "checks/run.py"], cwd=repo, capture_output=True,
+                          text=True, check=False)
+
+
+@pytest.fixture
+def ops_repo(tmp_path):
+    repo = tmp_path / "fulfilment-api"
+    shutil.copytree(OPS_FIXTURE, repo)
+    return repo
+
+
+def edit(repo: Path, relative: str, old: str, new: str) -> None:
+    path = repo / relative
+    text = path.read_text(encoding="utf-8")
+    assert old in text, f"{relative} no longer contains the line this case patches"
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+def test_the_ops_fixture_spans_several_modules_and_a_mixed_log():
+    package = sorted(p.name for p in (OPS_FIXTURE / "fulfil").glob("*.py"))
+    files = [p for p in OPS_FIXTURE.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+    assert 8 <= len(files) <= 18
+    assert len(package) >= 8
+    log = (OPS_FIXTURE / "logs" / "ops.log").read_text(encoding="utf-8")
+    levels = {line.split()[1] for line in log.splitlines() if line.strip()}
+    assert {"INFO", "WARN", "ERROR"} <= levels
+    for pattern in ("duplicate charge", "drift", "webhook", "declined"):
+        assert pattern in log
+
+
+def test_the_repro_script_fails_on_the_shipped_fixture(ops_repo):
+    done = run_checks(ops_repo)
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "MISMATCH timeout then retry charges once" in done.stdout
+    assert "MISMATCH cancel then expiry restores stock once" in done.stdout
+
+
+def test_the_two_defects_live_in_different_files_and_fail_independently(ops_repo):
+    edit(ops_repo, "fulfil/payments.py", "key = idempotency.new_key()",
+         "key = idempotency.key_for(order_id)")
+    only_stock = run_checks(ops_repo)
+    assert only_stock.returncode == 1
+    assert "timeout then retry" not in only_stock.stdout
+    assert "cancel then expiry" in only_stock.stdout
+
+
+def test_fixing_both_defects_makes_the_repro_pass(ops_repo):
+    edit(ops_repo, "fulfil/payments.py", "key = idempotency.new_key()",
+         "key = idempotency.key_for(order_id)")
+    edit(ops_repo, "fulfil/inventory.py",
+         "    def release(self, order_id):\n        reservation = self.reservations.get(order_id)",
+         "    def release(self, order_id):\n        reservation = self.reservations.pop(order_id, None)")
+    done = run_checks(ops_repo)
+    assert done.returncode == 0, done.stdout + done.stderr
+
+
+def test_the_stock_defect_alone_still_fails_the_repro(ops_repo):
+    edit(ops_repo, "fulfil/inventory.py",
+         "    def release(self, order_id):\n        reservation = self.reservations.get(order_id)",
+         "    def release(self, order_id):\n        reservation = self.reservations.pop(order_id, None)")
+    done = run_checks(ops_repo)
+    assert done.returncode == 1
+    assert "timeout then retry" in done.stdout
+    assert "cancel then expiry" not in done.stdout
+
+
+def test_the_p5_prompt_asks_for_an_investigation_and_never_for_delegation():
+    text = (EVAL_DIR / "prompts" / f"{P5}.txt").read_text(encoding="utf-8")
+    assert "logs/ops.log" in text
+    assert not BLINDING_WORDS.search(text)
+    for word in ("위임", "delegate", "서브에이전트", "subagent", "병렬", "parallel", "나눠", "skip"):
+        assert word not in text.lower(), f"the prompt must not steer the delegation: {word}"
+
+
+def test_readme_lists_p5_in_the_prompt_and_metric_tables():
+    readme = (EVAL_DIR / "README.md").read_text(encoding="utf-8")
+    assert f"prompts/{P5}.txt" in readme
+    assert "fixtures/fulfilment-api/" in readme
+    row = next(line for line in readme.splitlines() if line.startswith("| G3 "))
+    assert "p5" in row
+    row = next(line for line in readme.splitlines() if line.startswith("| G1 "))
+    assert "p5" in row
