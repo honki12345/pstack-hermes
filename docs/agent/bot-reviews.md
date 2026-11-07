@@ -10,7 +10,17 @@ short form and must stay consistent with this file.
 
 1. **Qodo [bot]** reviews the open PR automatically (on open / reopen / ready-for-review).
    Do **not** trigger Qodo manually. Triage its findings first; do not wait for a fresh
-   Qodo verdict after a fix push.
+   Qodo verdict after a fix push — Qodo re-reviews are a *reply trigger*, not a push
+   trigger: a re-review happens when a follow-up reply addresses Qodo
+   (`@qodo …` in-thread, e.g. `@qodo I pushed fixes, can you review again?`), and
+   the re-review can carry **new** findings. Only a follow-up explicitly asking
+   for a re-review (e.g. `@qodo fixed:` with a re-review request) opens the
+   bounded wait for it as for the initial review (ledger it and proceed if it
+   never arrives); dismissal replies (`@qodo false positive:` / `intentional:` /
+   `rejected:`) never start a wait. At most two re-review cycles per head SHA;
+   a further re-review request on that head escalates to the maintainer. Triage
+   whatever it raises the same way (same resolve-all gate) **before** requesting
+   CodeRabbit — the CodeRabbit request follows the Qodo triage, never precedes it.
 2. **CodeRabbit** is manual (`.coderabbit.yaml` sets `auto_review.enabled: false`).
    Trigger `@coderabbitai full review` only after Qodo findings are triaged
    (fixed or answered with evidence) on this head.
@@ -26,6 +36,20 @@ short form and must stay consistent with this file.
 
 Green CI alone is insufficient. `skipping` = never requested (not clean). `pending` = not clean.
 
+Two distinct gates — do not confuse them:
+
+- **Trigger gate (start the CodeRabbit review):** Qodo *triaged* — every Qodo finding
+  is fixed or answered with evidence and dismissal triggers posted. Bot-1 resolved UI
+  state is **not** a precondition (cross-repo-conflict dismissals stay open by design —
+  see resolution mechanics).
+- **Merge gate (ship):** ALL findings from both bots resolved — Bot 1 *and* Bot 2
+  threads closed via their own triggers, CodeRabbit clean on the current head, CI
+  green, local gates pass. A Qodo cross-repo-conflict dismissal is *answered* but
+  stays open by Qodo's design; GitHub resolution (the maintainer's button /
+  `resolveReviewThread`) closes that thread, satisfying the gate — until the
+  maintainer resolves it, it stays an explicit open ledger item. If GitHub-side
+  resolution is unavailable, escalate as an issue; do not merge around it.
+
 ## SHA-bound verdicts
 
 A CodeRabbit verdict on an older commit is not clean. Compare `commit.oid` with
@@ -34,23 +58,44 @@ commit and is never treated as a current-head verdict.
 
 ## "No verdict" states (CodeRabbit)
 
-- `skipping` — never requested.
+- `skipping` — no verdict. If a request is posted and then skipped, first
+  verify the cause from the request response and check-run lifecycle: a skip after
+  a request does not by itself prove rate limiting (seat or installation problems
+  also skip). Then recover once: for rate limiting, retry the appropriate review
+  command after about one hour — then it is a fresh request on the same head, not
+  a loop; for seat or installation problems, retry once the cause is fixed.
+  Exactly one retry per head SHA; a second skip escalates to the maintainer.
 - `in_progress` that never moves — **paused**, not slow. After a run of new commits
   CodeRabbit posts a "Reviews paused" note and stops. Send `@coderabbitai resume`,
   then `@coderabbitai review`. A paused review never times out. Prefer fewer, larger
-  fix pushes over one commit per finding.
+  fix pushes over one commit per finding. One `resume` + `review` pair per head SHA;
+  a second consecutive pause on that same head SHA escalates to the maintainer,
+  not another trigger.
 
-One request per head SHA. Do not re-send because a verdict is slow.
+One request per head SHA. Do not re-send because a verdict is slow. The
+single exception: a check that is *paused* (its in-progress run never moves
+while CodeRabbit posts a "Reviews paused" note) is recovered by ONE
+`@coderabbitai resume` + `@coderabbitai review` pair per head SHA; a second
+consecutive pause on that same head SHA escalates to the maintainer instead of
+another trigger.
 
 ## Round loop
 
-1. Open PR; wait for Qodo's initial automatic review.
+1. Open PR; wait for Qodo's initial automatic review. Bounded wait only (poll with
+   backoff, a few minutes to ~15–20 min): if it never arrives, ledger `Qodo: no review
+   yet` and proceed — no findings means the gate is unaffected. Never wait
+   indefinitely, and never trigger Qodo to force a review.
 2. Triage every Qodo finding (matrix below). Fix valid ones; reply on the rest.
-   Do not wait for Qodo to re-review a later head.
+   Only a follow-up explicitly asking for a re-review opens the bounded wait
+   (same as step 1); dismissal replies never do. Wait for a re-review that was
+   asked for, triage whatever it raises before step 3. At most two re-review
+   cycles per head SHA; a further re-review request on that head escalates.
 3. Request CodeRabbit on the current head (`full review` first pass / rebase /
    force-push / large diff; `review` for small fix push). Confirm `commit.oid == headRefOid`.
-4. Triage CodeRabbit. Every fix push requires a new CodeRabbit request; Qodo does
-   not re-run. Return to step 3.
+4. Triage CodeRabbit. Every fix push requires a new CodeRabbit request. Qodo does
+   not re-run automatically (only on `@qodo`-addressed replies). Return to step 2
+   to triage any new Qodo findings before step 3. Do not repeat a bounded wait
+   already completed for a re-review.
 5. Merge only when all gate conditions hold.
 
 ## Triage matrix (adjudication)
@@ -92,7 +137,8 @@ Rules:
   with evidence text makes CodeRabbit treat the whole thing as chat and skip the
   resolve. Use it only after every CodeRabbit finding is fixed or answered.
 - For Qodo, address it in **every** follow-up message in the thread, including
-  re-reviews (`@qodo I pushed fixes, can you review again?`).
+  re-reviews (`@qodo I pushed fixes, can you review again?`). A re-review can
+  raise new findings — triage them the same way, in the same resolve-all gate.
 - Outdated threads (lines changed by a later commit) no longer describe current
   code. A commit mismatch identifies staleness but is not a prerequisite for
   confirming whether the finding applies — compare the finding against the code at

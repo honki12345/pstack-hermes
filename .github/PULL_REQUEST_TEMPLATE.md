@@ -65,6 +65,7 @@ converter: convert.py (sha256[:16]=<first 16 of your convert.py hash>)
      See docs/agent/bot-reviews.md and CONTRIBUTING.md "Bot review gate". -->
 - [ ] Qodo [bot] findings triaged (fixed or answered with evidence) on this head
 - [ ] CodeRabbit requested (`@coderabbitai full review` / `review`) and clean on this head (`commit.oid == headRefOid`)
+- [ ] All Bot 1 + Bot 2 review threads resolved (per-bot triggers fired; cross-repo-conflict dismissals closed by maintainer resolution; `@coderabbitai resolve` as a whole comment after every CodeRabbit finding is fixed/answered)
 - [ ] No `skipping` / `pending` CodeRabbit check
 - [ ] Round ledger comment updated (round, head SHA, bot, open findings, action, status)
 <!-- Before merge, every review thread must be resolved. Agents must not resolve
