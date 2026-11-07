@@ -12,6 +12,7 @@ Which paths are **generated** (converter output) vs **hand-written** (source):
 | `LICENSE` | generated | Upstream MIT plus the adaptation line, written by `tools/convert.py`. Never hand-edit. |
 | `.build-provenance.txt` | generated | Rebuild stamp. |
 | `tools/`, `tools/assets/` | hand-written | Converter, validator, bans, assets source. Edit here, then rebuild. |
-| `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written | Docs and contract. |
+| `docs/`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `NOTICE.md`, `CHANGELOG.md` | hand-written | Docs and contract. |
+| `hermes-plugin/` | hand-written | `pstack-delegation` Hermes plugin (role-routed delegation backend); not part of the generated package. |
 
 Rule: change `tools/` / `tools/assets/`, rebuild with `tools/convert.py`, validate. Never hand-edit generated surfaces.

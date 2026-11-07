@@ -2,9 +2,9 @@
 
 Each test pins one failure mode: a broken router link, a generated path
 mislabelled as hand-written (README.md), a stale `pstack/` subdirectory path,
-a pin-declarer list that disagrees with check_pins, and a publish `cp` source
-that no longer exists (after-install.md). The final test runs the gate against
-this repository so the checked-in docs cannot drift again.
+a pin-declarer list that disagrees with check_pins, and a doc that still
+carries the original port's identity or removed machinery. The repository
+test runs the gate against this checkout so the docs cannot drift again.
 """
 
 import sys
@@ -443,3 +443,51 @@ def test_generated_marker_listed_in_layout_passes(tmp_path):
         "| Path | Kind | Notes |\n|---|---|---|\n| `LICENSE` | generated | x |\n",
     )
     assert check_docs.check_layout_manifest(tmp_path) == []
+
+
+def test_old_owner_install_url_fails(tmp_path):
+    _write(tmp_path / "README.md", "hermes plugins install iap/pstack-hermes --enable\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("original-port repository" in item for item in problems)
+
+
+def test_old_owner_issue_url_in_issue_template_fails(tmp_path):
+    _write(
+        tmp_path / ".github" / "ISSUE_TEMPLATE" / "config.yml",
+        "url: https://github.com/iap/pstack-hermes/blob/master/docs/USING.md\n",
+    )
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("ISSUE_TEMPLATE/config.yml" in item for item in problems)
+
+
+def test_old_owner_on_attribution_line_passes(tmp_path):
+    _write(
+        tmp_path / "AGENTS.md",
+        "Tooling derives from <https://github.com/iap/pstack-hermes>.\n"
+        "| Upstream | `iap/pstack-hermes` is attribution only |\n",
+    )
+    assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_unscanned_history_files_may_name_old_owner(tmp_path):
+    _write(tmp_path / "NOTICE.md", "forked from iap/pstack-hermes\n")
+    _write(tmp_path / "CHANGELOG.md", "keep the iap/pstack-hermes repository\n")
+    _write(tmp_path / "docs" / "fork" / "AUDIT-ko.md", "대상: iap/pstack-hermes\n")
+    assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_removed_machinery_reference_fails(tmp_path):
+    _write(tmp_path / "CONTRIBUTING.md", "Trigger `@coderabbitai full review`.\n")
+    _write(tmp_path / "docs" / "USING.md", "Use the name as installed for the dist branch.\n")
+    _write(tmp_path / ".github" / "PULL_REQUEST_TEMPLATE.md", "- [ ] Qodo findings triaged\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    for rel in ("CONTRIBUTING.md", "docs/USING.md", "PULL_REQUEST_TEMPLATE.md"):
+        assert any(rel in item and "removed original-port machinery" in item for item in problems)
+
+
+def test_readme_must_name_fork_install_command(tmp_path):
+    _write(tmp_path / "README.md", "hermes plugins install someone/else --enable\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("missing install command" in item for item in problems)
+    _write(tmp_path / "README.md", "hermes plugins install honki12345/pstack-hermes --enable\n")
+    assert check_docs.check_repo_identity(tmp_path) == []

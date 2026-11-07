@@ -13,14 +13,14 @@ uv run --frozen tools/convert.py --source <pstack-clone>
 # 3. Must exit 0:
 uv run --frozen tools/validate.py
 uv run --frozen pytest -q
-uv run --frozen ruff check tools
+uv run --frozen ruff check tools hermes-plugin
 uv run --frozen python tools/check_docs.py
+uv run --frozen actionlint
 ```
 
 Then:
 
-1. Converter / maps / assets changed → adaptation issue linked to
-   [#94](https://github.com/iap/pstack-hermes/issues/94) with a **reviewer
+1. Converter / maps / assets changed → adaptation issue with a **reviewer
    check**; PR includes rebuilt package (`rebuilt from pin <sha>`).
 2. Install-relevant → [Verify](#verify).
 3. Re-pin only via [upstream-drift.md](upstream-drift.md).
@@ -32,7 +32,7 @@ Poteto checkers: see [CONTRIBUTING Setup](../../CONTRIBUTING.md#setup)
 
 1. Edit map/pass in `tools/convert.py` (`T8_MAP`, `DELEGATION_MAP`, `st.fixes`, …).
 2. Rebuild — dead anchors fail on purpose.
-3. Adaptation issue → [#94](https://github.com/iap/pstack-hermes/issues/94).
+3. Adaptation issue with scope and reviewer check.
 4. Checkable scope → unit test (`tools/tests/test_t11_scope.py` pattern).
 5. Validate + suite; PR with `rebuilt from pin <sha>`.
 
@@ -41,14 +41,13 @@ Poteto checkers: see [CONTRIBUTING Setup](../../CONTRIBUTING.md#setup)
 | Model panel | `tools/assets/model-panel.json` | `config/models.json` |
 | hermesbot | `tools/assets/hermesbot/SKILL.md` | `skills/hermesbot/` |
 
-Panel slug shape / model-drift assumptions: weekly
-`model-drift-watch` + `tools/slug_drift.py` (see CONTRIBUTING Actions policy).
+Panel slug shape / model-drift assumptions: run `tools/slug_drift.py` by hand
+before a panel refresh (see CONTRIBUTING "Change the model panel").
 
 ## Hermes vocabulary
 
 Speak **hermes** in converter output, docs, and tooling. Enforced by
-`tools/bans.py` + `HERMES_ADAPTATION_BANS` in `validate.py`
-([#94](https://github.com/iap/pstack-hermes/issues/94) §2).
+`tools/bans.py` + `HERMES_ADAPTATION_BANS` in `validate.py`.
 
 | Use | Banned alias |
 |---|---|
@@ -70,8 +69,8 @@ Prove the **built package** on hermes — not Cursor IDE dual-load.
    `hermes plugins doctor pstack --ci` **outside** this repo.
 3. Optional: load `poteto-mode` per [USING.md](../USING.md). Clean doctor +
    stock package failure → hermes harness issue, not a silent skill rewrite.
-4. Publish (CI): `master` maintains append-only `dist`; converted_at-only may
-   skip; `source_commit` / converter hash changes still publish.
+4. Ship: the committed repo root is the install; CI proves it is
+   byte-identical to a fresh build from the pin.
 
 Convert is atomic and `SOURCE_DATE_EPOCH`-reproducible; unmatched transform
 anchors fail the build (update or prune maps — never ignore). Validate runs

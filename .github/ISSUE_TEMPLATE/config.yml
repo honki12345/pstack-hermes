@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Start with the user guide
-    url: https://github.com/iap/pstack-hermes/blob/master/docs/USING.md
+    url: https://github.com/honki12345/pstack-hermes/blob/develop/docs/USING.md
     about: Install, invocation, and customization for the port — many questions are answered there.

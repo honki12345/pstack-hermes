@@ -1,7 +1,7 @@
 # Development ops
 
 How to change this repo without collateral damage, and when to parallelize.
-Layout paths: [layout.md](layout.md). Review loop: [review-ops.md](review-ops.md).
+Layout paths: [layout.md](layout.md).
 
 ## Scope discipline
 
@@ -29,11 +29,11 @@ Prefer parallel `delegate_task` workers for independent, read-mostly work:
 
 Keep **one writer per file**:
 
-- The coordinator owns the branch: edits, rebase, push, thread replies.
+- The coordinator owns the branch: edits, rebase, push, review replies.
 - Partition edits by file or area; integrate serially; run the full gate once
   after integration.
 - Delegated workers return commands and outputs, never "it works". They do not
-  push, resolve threads, or edit the same file.
+  push, resolve review threads, or edit the same file.
 
 Do **not** parallelize:
 
@@ -49,8 +49,9 @@ Stop spawning when the remaining work is one file or one command.
 ```sh
 uv run --frozen tools/validate.py
 uv run --frozen pytest -q
-uv run --frozen ruff check tools
+uv run --frozen ruff check tools hermes-plugin
 uv run --frozen python tools/check_docs.py
+uv run --frozen actionlint
 ```
 
 Docs-only changes need no rebuild; package-shaped changes rebuild first (see
@@ -58,5 +59,5 @@ Docs-only changes need no rebuild; package-shaped changes rebuild first (see
 
 ## Review handoff
 
-Push, then drive [review-ops.md](review-ops.md) to clean. Do not merge while a
-bot finding or a CI failure is open on the head SHA.
+Open the PR against `develop`. Do not merge while a review finding or a CI
+failure is open on the head SHA.

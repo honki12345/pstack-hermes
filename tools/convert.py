@@ -2436,28 +2436,38 @@ Hermes Agent portable plugin path. Unofficial port of
 <https://github.com/cursor/plugins/tree/main/pstack> (MIT, © Lauren Tan);
 package keeps the upstream identity pstack v{manifest["version"]}.*
 
+Independently maintained by honki12345 at
+<https://github.com/honki12345/pstack-hermes>. The converter and tooling
+derive from the earlier community port <https://github.com/iap/pstack-hermes>.
+Not affiliated with Cursor, Lauren Tan, or iap; see `NOTICE.md` in the
+repository.
+
 ## Install
 
 Install the plugin:
 
 ```sh
-hermes plugins install iap/pstack-hermes --enable
+hermes plugins install honki12345/pstack-hermes --enable
 ```
 
-Unpinned installs update with `hermes plugins update pstack`.
+The repository root is the package. Unpinned installs track the default
+branch and update with `hermes plugins update pstack`.
 
-Pinned installs must be reinstalled with a new SHA and `--force`.
+For an immutable install, pin a commit (release tags `v*` on `main` mark
+tested ones). Pinned installs do not auto-update; move a pin by reinstalling
+with the new SHA and `--force`:
 
-GitHub Releases record package SHAs for immutable root installs. Pinned
-installs do not auto-update; to move an existing pin, use `hermes plugins
-install iap/pstack-hermes --ref <new-package-SHA> --force --enable`.
+```sh
+hermes plugins install honki12345/pstack-hermes --ref <sha> --enable
+hermes plugins install honki12345/pstack-hermes --ref <new-sha> --force --enable
+```
 
 ## First run
 
 1. `hermes plugins doctor pstack --ci` — manifest parses, all skills discover.
    Pick the target explicitly: `pstack` is ambiguous (repo root = local
    directory; elsewhere = installed package). Use the name as installed for
-   the dist package, or a resolved local path for a branch tree.
+   the installed package, or a resolved local path for a branch tree.
 2. Load the `setup-pstack` skill once - it writes `pstack-models.json` beside hermes' `config.yaml`, outside this package, so plugin updates do not discard it
    (the 18-role model panel the workflow skills read).
 3. Load `poteto-mode` and give it a real task — it classifies the work and
@@ -2480,12 +2490,13 @@ Unpinned root installs update in place. Pinned installs must be reinstalled
 with a new SHA and `--force` (see [Install](#install)).
 
 Installs created before the root-layout migration (the old
-source-subdirectory route) cannot update in place. Back up local edits,
-remove the old install, then install the root package:
+source-subdirectory route), or installed from another fork, cannot update to
+this repository in place. Back up local edits, remove the old install, then
+install the root package:
 
 ```sh
 hermes plugins remove pstack
-hermes plugins install iap/pstack-hermes --enable
+hermes plugins install honki12345/pstack-hermes --enable
 ```
 
 If the old install was pinned, add `--ref <new-package-SHA>` to the install
@@ -2497,7 +2508,7 @@ command.
   gateway, and save a backup outside the plugin before updating. Git-backed
   updates autostash and re-apply local edits (conflicts stay in `git stash`);
   reinstalls replace shipped skills, so in-place edits are temporary.
-- **Own several changed skills** — fork `iap/pstack-hermes`, commit, install from
+- **Own several changed skills** — fork `honki12345/pstack-hermes`, commit, install from
   your fork (`hermes plugins install <you>/pstack-hermes --enable`).
 - **Add your own new skills alongside** — a skill tap:
   `hermes skills tap add <you>/skills-repo`, then
@@ -2505,7 +2516,7 @@ command.
 - Keep the hermes vocabulary when editing (`delegate_task`, `clarify`,
   `session_search`, `hermes cron`); Cursor primitives will mislead the agent.
 
-Problems: port behaviour → <https://github.com/iap/pstack-hermes/issues>;
+Problems: port behaviour → <https://github.com/honki12345/pstack-hermes/issues>;
 a hermes defect that reproduces with the plugin disabled →
 `NousResearch/hermes-agent`; an upstream pstack bug → `cursor/plugins`.
 
@@ -2541,14 +2552,13 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | T11 | hardcoded Cursor paths → hermes equivalents |
 | T12 | `/loop` → `hermes cron` wake; `/goal` → `goal.md` in the agent store |
 | T13 | residual vendor coupling reworded (`cursor-team-kit`, cloud fleet, `gt`) |
-| T14 | stacker-role / topology re-pointed (issue #33) |
+| T14 | stacker-role / topology re-pointed |
 | T15 | `orch frontier set` provider selection: `auto` / `graphite` / `github` |
 | G1 | delegation escape hatch: in-thread surgical edits with mandatory delegate review |
 
 Text is otherwise unchanged; the machine-generated fix register in
-`.build-provenance.txt` is the authoritative per-build record, and the full
-ledger with reviewer checks lives in the dev repo
-(https://github.com/iap/pstack-hermes/issues/94).
+`.build-provenance.txt` is the authoritative per-build record, and the
+fork-level audit lives in the repository at `docs/fork/AUDIT-ko.md`.
 
 ## Known limitations (documented, not drift)
 

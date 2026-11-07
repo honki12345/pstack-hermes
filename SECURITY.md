@@ -2,7 +2,9 @@
 
 ## Supported versions
 
-The `main` branch is the only supported line. The package is content-only
+The `main` branch (and its `v*` tags) is the only supported line; `develop` is
+the integration branch. This repository, `honki12345/pstack-hermes`, is an
+independently maintained fork — see [NOTICE.md](NOTICE.md). The package is content-only
 (markdown skills + config); the tooling (`tools/`) is Python 3.11.
 
 ## Reporting a vulnerability

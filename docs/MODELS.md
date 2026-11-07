@@ -22,8 +22,8 @@ pstack picks a model per role. Three layers, highest precedence first:
 | `inherit-parent` | any role set to it | unchanged — the role runs on the parent chat model |
 
 The `vendor/model` values are ids from the provider catalog the tooling checks
-against (OpenRouter); the weekly `model-drift-watch` workflow re-verifies every
-configured slug and opens a tracking issue when one leaves the catalog. **This
+against (OpenRouter); `uv run --frozen tools/slug_drift.py` re-verifies every
+configured slug by hand and exits non-zero when one leaves the catalog. **This
 mapping is provisional ("for now")** — it moves when upstream renames models or
 the panel is refreshed, and `setup-pstack` lets you override every row.
 

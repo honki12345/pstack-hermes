@@ -2,7 +2,40 @@
 
 All notable changes to the pstack-hermes port tooling will be documented in this file.
 
-## [Unreleased]
+## [Unreleased] — fork
+
+Independent fork maintained by honki12345 as `honki12345/pstack-hermes`.
+Entries below this section are history inherited from the original port.
+
+### Changed
+- Independent fork: repository identity, install/issue URLs, and the product
+  policy now point at `honki12345/pstack-hermes`. Default branch `develop`,
+  flow `feature → develop → main`, releases are this fork's own `v*` tags.
+  Upstream source of truth stays Lauren Tan's pstack in `cursor/plugins` via
+  `tools/convert.py`; the original port is credited in the new `NOTICE.md`.
+- `tools/check_docs.py` enforces the new identity: hand-written docs and the
+  generated README may not reference the old repository outside attribution
+  lines, may not mention removed machinery (dist branch, bot review, release
+  signing), and the install docs must name `honki12345/pstack-hermes`.
+
+### Removed
+- Original-port-only machinery: `publish-dist`, `release`, `round-ledger`,
+  `model-drift-watch`, `labels-bootstrap` and `labeler` workflows,
+  `.github/labeler.yml`, `.coderabbit.yaml`, the `drift-issue-upsert` action,
+  `keys/` (release signing), `patches/` + `docs/PATCHES.md` (Hermes patches,
+  including a scanner bypass that must not ship), the CodeRabbit/Qodo review
+  docs, and the dist-branch tooling (`tools/dist_checkout_check.py`,
+  `tools/assets/dist.gitattributes`, release-delivery tests). The install path
+  is the repository root, pinned with `--ref <sha>`.
+
+### Added
+- `hermes-plugin/pstack-delegation`: role-routed `delegate_task` backend that
+  maps pstack roles to real models and reasoning effort.
+- H1 converter pass: Hermes delegation and wake contract written into the
+  skills (`pstack_role` routing, advisory read-only with post-hoc checks, cron
+  as a fresh run), with an anchor audit and forbidden-string gate.
+
+## [Unreleased] — original port (pre-fork)
 
 ### Added
 - `keys/allowed_signers` (SSH ed25519, principal `iap@users.noreply.github.com`): release-signature trust material, plus a fail-closed gate in `release.yml` — a `v*` tag must verify against the SSH allowed-signers list first, OpenPGP (keys registered on the owner's GitHub profile, fetched live at release time — no key material committed) second, or the release aborts before any packaging. Dispatch-from-master from the start of this round: the release workflow is `workflow_dispatch` on `master` with the tag as an input, so the gate never executes tag-controlled workflow code (see the `Fixed` entry below). Tags go forward-only: `v0.4.3` / `v0.5.0` remain unsigned lightweight tags. CONTRIBUTING documents cutting a signed tag and the repo-local signing defaults (no global config change).

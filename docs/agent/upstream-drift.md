@@ -26,8 +26,8 @@ Any of these means upstream moved past the pin (or the pin is inconsistent):
 > [!NOTE]
 > The former weekly `upstream-drift-watch` workflow was removed with the
 > root-layout migration. Re-pin still depends on anchor audit + pin lock-step +
-> human/CI rebuild. Model slug drift is a separate weekly job
-> (`model-drift-watch` / `tools/slug_drift.py`).
+> human/CI rebuild. Model slug drift is checked by hand with
+> `tools/slug_drift.py`.
 
 ## Procedure
 
@@ -48,25 +48,23 @@ Any of these means upstream moved past the pin (or the pin is inconsistent):
    that apply must pass.
 6. **Re-check package docs.** If the change touches what Differences or Known
    limitations describe, update the README template in `convert.py` and rebuild.
-7. **Update `UPSTREAM_PIN` everywhere it is declared.** It is repeated
-   independently in **three** workflows — `ci.yml`, `release.yml`,
-   `publish-dist.yml` — and all three must move together. The converter holds
+7. **Update `UPSTREAM_PIN` everywhere it is declared.** Today that is
+   `ci.yml` only. The converter holds
    no pin: it records the SHA of the clone it is pointed at, so `source_commit`
    in `.build-provenance.txt` follows the checkout. Adding a workflow that
    builds from the pin means adding it to `REQUIRED_DECLARERS` in
    `tools/check_pins.py` and to this list.
 8. **PR** with `rebuilt from pin <sha>` in the body (PR template fields) and a
    one-line note per map change. Link an adaptation issue when maps/assets
-   changed shape ([#94](https://github.com/iap/pstack-hermes/issues/94)).
+   changed shape.
 
 ## If upstream disappears
 
-`iap/plugins` is a fork of `cursor/plugins` kept as pin insurance. If upstream
-is deleted or moves, point the build action's `upstream-url` input (in addition
-to keeping `upstream-pin` at the fork's commit SHA) in every workflow that
-declares `UPSTREAM_PIN` at the fork — the port then continues from the frozen
-pin. Users are never affected: installs and updates come from
-this repository (and its `dist` compatibility channel), not upstream.
+If `cursor/plugins` is deleted or moves, point the build action's
+`upstream-url` input at a mirror that still contains the pinned commit (keep
+`upstream-pin` unchanged) in every workflow that declares `UPSTREAM_PIN` — the
+port then continues from the frozen pin. Users are never affected: installs
+and updates come from this repository, not upstream.
 
 ## Do not
 
@@ -82,8 +80,8 @@ this repository (and its `dist` compatibility channel), not upstream.
 ## Rollback
 
 A bad rebuild only affects the branch: the build uses a temp sibling, but
-publishing with `--out` set to the repo root is **not atomic** — entries are
+rebuilding with `--out` set to the repo root is **not atomic** — entries are
 removed and copied individually, so readers may observe a partial tree and an
-interrupted publish is not guaranteed to restore the prior tree. A failed build
-does not replace a good tree, but an interrupted in-place publish may leave one. To revert a landed pin bump, revert the PR — the package
+interrupted rebuild is not guaranteed to restore the prior tree. A failed build
+does not replace a good tree, but an interrupted in-place rebuild may leave one. To revert a landed pin bump, revert the PR — the package
 is regenerated from the previous pin.

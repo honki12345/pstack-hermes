@@ -27,10 +27,10 @@ body:
     attributes:
       label: How is the plugin installed?
       options:
-        - hermes plugins install iap/pstack-hermes (root, default branch)
+        - hermes plugins install honki12345/pstack-hermes (root, default branch)
         - a pinned --ref install
         - pre-migration source subdirectory install
-        - a dist fork
+        - an install from another fork (e.g. the original port)
         - not sure
     validations:
       required: true

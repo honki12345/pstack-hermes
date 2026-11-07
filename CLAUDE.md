@@ -7,7 +7,9 @@
 
 This is **pstack-hermes** — the unofficial community port of Cursor's *pstack* agent method to the **Hermes Agent** platform (`NousResearch/hermes-agent`). The runtime target is **hermes**. Cursor is upstream attribution only — never the implementation or verification path.
 
-Package name: `pstack`. Plugin installed via `hermes plugins install iap/pstack-hermes --enable`.
+Independently maintained by honki12345 as `honki12345/pstack-hermes` (origins:
+[NOTICE.md](NOTICE.md)). Package name: `pstack`. Plugin installed via
+`hermes plugins install honki12345/pstack-hermes --enable`.
 
 ## The one rule (critical)
 
@@ -41,8 +43,6 @@ Everything below follows from that rule.
   plugin skills. Personal procedure → local skills, skill tap, or a fork.
 - Implement GitLab (`glab`), or treat missing Graphite as a hard failure while
   GitHub fallback can satisfy the task.
-- Rewrite or delete the `dist` compatibility branch while installed clones
-  depend on it.
 - "Clean up" attribution, or re-add the excluded `benny` / `make-bot-ui`
   slots — that is the scanner / publisher contract.
 
@@ -54,7 +54,7 @@ Everything below follows from that rule.
 | Change converter maps/assets/bans, rebuild, verify | [docs/agent/convert-adapt.md](docs/agent/convert-adapt.md) |
 | Re-pin upstream / resolve dead anchors | [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md) |
 | Scope and parallel-work discipline | [docs/agent/dev-ops.md](docs/agent/dev-ops.md) |
-| Reply to CodeRabbit / Qodo findings | [docs/agent/review-ops.md](docs/agent/review-ops.md) |
+| Fork audit and differences from the original port | [docs/fork/AUDIT-ko.md](docs/fork/AUDIT-ko.md) |
 | Setup, CI/Actions policy, PR, release | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Invoke or configure the installed package | [docs/USING.md](docs/USING.md) |
 
@@ -63,21 +63,21 @@ Everything below follows from that rule.
 | Area | Decision |
 |---|---|
 | Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
-| Package identity | Plugin/repo name `pstack`; upstream version follows the pin (`plugin.json`); keep the `iap/pstack-hermes` repository |
-| Releases | Tooling releases recorded in `CHANGELOG.md`; never move an existing tag |
+| Package identity | Plugin name `pstack`; repository `honki12345/pstack-hermes`, installed from the repo root (pin with `--ref <sha>`); upstream version follows the pin (`plugin.json`) |
+| Upstream | Lauren Tan's pstack in `cursor/plugins` via `tools/convert.py`; `iap/pstack-hermes` is attribution only ([NOTICE.md](NOTICE.md)) |
+| Releases | Our own `v*` tags on `main`, recorded in `CHANGELOG.md`; never move an existing tag |
 | Planning | GitHub issues, native sub-issues and milestones own plans; `docs/` holds instructions only |
 | Encoding | LF-only, no BOM, UTF-8 (CI-enforced) |
-| Default branch | `master` |
+| Branches | Default `develop`; flow `feature → develop → main` |
 
 ## Where to edit
 
 | Path | Kind |
 |---|---|
 | `tools/`, `tools/assets/` | hand-written source of package truth |
-| `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written docs |
+| `docs/`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `NOTICE.md`, `CHANGELOG.md` | hand-written docs |
 | `README.md` template in `tools/convert.py` | hand-written source; `README.md` itself is generated |
 | `.github/` | hand-written CI; `UPSTREAM_PIN` stays in lock-step across declarers |
-| `patches/` | historical reference only (`docs/PATCHES.md`) |
 | `plugin.json`, `skills/`, `config/`, `assets/`, `README.md`, `LICENSE`, `.build-provenance.txt` | generated — never hand-edit |
 | `.venv/`, `.pytest-tmp/`, `.validate-data/`, `pstack.tmp-build/` | local scratch; never commit |
 
@@ -136,13 +136,13 @@ appear in skill prose or config, the build fails:
 ## Installation and first run
 
 ```sh
-hermes plugins install iap/pstack-hermes --enable
+hermes plugins install honki12345/pstack-hermes --enable
 ```
 
 1. `hermes plugins doctor pstack --ci` — manifest parses, all skills discover.
    Pick the target explicitly: `pstack` is ambiguous (repo root = local directory;
-   elsewhere = installed package). Use the name as installed for the dist package,
-   or a resolved local path for a branch tree.
+   elsewhere = installed package). Use the name as installed for the installed
+   package, or a resolved local path for a branch tree.
 2. Load the `setup-pstack` skill once - it writes `pstack-models.json` beside
    hermes' `config.yaml`, outside this package, so plugin updates do not discard it
    (the 18-role model panel the workflow skills read).
@@ -152,9 +152,9 @@ hermes plugins install iap/pstack-hermes --enable
 ## Customizing skills
 
 - **Tweak a line or two** — edit the installed `SKILL.md`, restart the
-  gateway, and save a backup outside the plugin before updating. Subdirectory
-  updates replace shipped skills; in-place edits are temporary.
-- **Own several changed skills** — fork `iap/pstack-hermes`, commit, install
+  gateway, and save a backup outside the plugin before updating. Reinstalls
+  replace shipped skills; in-place edits are temporary.
+- **Own several changed skills** — fork `honki12345/pstack-hermes`, commit, install
   from your fork (`hermes plugins install <you>/pstack-hermes --enable`).
 - **Add your own new skills alongside** — a skill tap:
   `hermes skills tap add <you>/skills-repo`, then
@@ -183,8 +183,9 @@ hermes plugins install iap/pstack-hermes --enable
 uv sync
 uv run --frozen tools/validate.py
 uv run --frozen pytest -q
-uv run --frozen ruff check tools
+uv run --frozen ruff check tools hermes-plugin
 uv run --frozen python tools/check_docs.py
+uv run --frozen actionlint
 ```
 
 Docs-only changes need no rebuild. Package-shaped changes rebuild from a clone
@@ -193,16 +194,3 @@ default `--out` is the repo root) before the block above.
 
 Install-relevant changes (manifest, skill discovery, package layout) also run
 `hermes plugins doctor "$PWD" --ci`.
-
-## Bot review findings
-
-Follow [docs/agent/review-ops.md](docs/agent/review-ops.md). Verify every
-finding against the contract and current code before changing behavior, reply
-in the same thread with evidence, and never resolve threads yourself.
-
-> **Review gate order (user-mandated):** Qodo AI triggers automatically →
-> cross-check and triage findings first (fix or reply with evidence) → CodeRabbit triggers "full review"
-> after Qodo is clean → wait for CodeRabbit findings → reply in-thread with evidence →
-> cross-check/verify before merge. Green CI alone is insufficient. Treats
-> "skipping"/"pending" as not clean. Wants mechanical enforcement (scripts/gates)
-> not just checklists.
