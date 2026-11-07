@@ -204,7 +204,7 @@ def test_g1_passes_when_the_decision_todolist_precedes_work(run):
 
 
 def test_g1_passes_for_a_todolist_written_through_the_bridge(run):
-    run.call("todo_list", {"todos": [{"id": "1", "content": "skip: one-line edit"}]}, bridged=True)
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Delegation decision: skip: one-line edit"}]}, bridged=True)
     run.call("patch", {"path": "README.md"})
     assert run.grade("p3-oneline")["G1"] is True
 
@@ -224,6 +224,49 @@ def test_g1_fails_when_the_todolist_has_no_delegation_decision(run):
     assert verdict["G1"] is False
     assert verdict["evidence"]["todo_written_before_work"] is True
     assert verdict["evidence"]["todo_decision_before_work"] is False
+
+
+REAL_RUN_DECISIONS = [
+    "skip: delegate_task. The repo is a tiny single-purpose API and the bug is likely a one-function "
+    "fix, so a subagent costs more than it saves.",
+    "Delegation decision: skip: repo is tiny (single shop-api checkout), cause likely in one "
+    "function; a direct read and fix is cheaper than a subagent round trip.",
+    "skip delegate_task: repo is tiny, the fix is one function.",
+]
+
+
+@pytest.mark.parametrize("item", REAL_RUN_DECISIONS)
+def test_g1_accepts_the_decision_items_agents_actually_wrote(run, item):
+    run.todo("Step 1", item)
+    run.call("terminal", {"command": "ls"})
+    assert run.grade("p1-bugfix")["G1"] is True
+
+
+@pytest.mark.parametrize("item", [
+    "Step 3: open PR. skip: no PR requested", "skip: trivial", "skip:", "Delegation decision: skip:",
+])
+def test_g1_rejects_a_skip_that_is_not_a_delegation_decision(run, item):
+    run.todo("Step 1", item)
+    run.call("terminal", {"command": "ls"})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["G1"] is False
+    assert verdict["evidence"]["todo_decision_before_work"] is False
+
+
+def test_g4_reads_the_reason_of_a_skip_delegate_task_item(run):
+    run.todo("Step 1", "skip delegate_task: repo is tiny, the fix is one function.")
+    run.call("patch", {"path": "README.md"})
+    verdict = run.grade("p3-oneline")
+    assert verdict["G4"] is True
+    assert verdict["evidence"]["skip_reasons"] == ["repo is tiny, the fix is one function."]
+
+
+def test_g4_ignores_a_playbook_step_skip_that_is_not_a_decision(run):
+    run.todo("Step 3: open PR. skip: no PR requested")
+    run.call("patch", {"path": "README.md"})
+    verdict = run.grade("p3-oneline")
+    assert verdict["G4"] is False
+    assert verdict["evidence"]["skip_reasons"] == []
 
 
 def test_g1_fails_when_the_gate_never_armed(tmp_path):

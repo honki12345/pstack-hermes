@@ -240,11 +240,15 @@ def test_work_with_no_todolist_still_reports_work_before_todo(tmp_path):
 
 
 @pytest.mark.parametrize("text", [
-    "skip: the edit is one line",
-    "Skip: trivial",
     "delegation decision: skip : one-line edit",
     "Step 2: delegate_task the investigation (pstack_role: feature)",
     "DELEGATE_TASK the fix",
+    "skip: delegate_task. The repo is a tiny single-purpose API and the bug is likely a one-function fix, "
+    "so a subagent costs more than it saves.",
+    "Delegation decision: skip: repo is tiny (single shop-api checkout), cause likely in one function; "
+    "a direct read and fix is cheaper than a subagent round trip.",
+    "skip delegate_task: repo is tiny, the fix is one function.",
+    "Delegation: Skip: trivial edit",
 ])
 def test_a_decision_item_unlocks_work(text):
     turn()
@@ -252,10 +256,47 @@ def test_a_decision_item_unlocks_work(text):
     assert tool("terminal") is None
 
 
-@pytest.mark.parametrize("text", ["skip:", "skip:   ", "skipping the tests", "Step 2: do not delegate", "skip:\nreason"])
+@pytest.mark.parametrize("text", [
+    "skip:", "skip:   ", "skipping the tests", "Step 2: do not delegate", "skip:\nreason",
+    "Delegation decision: skip:\nreason",
+    "Step 3: open PR. skip: no PR requested",
+    "skip: the edit is one line",
+    "Skip: trivial",
+])
 def test_text_that_only_looks_like_a_decision_does_not_unlock(text):
     turn()
     tool("todo_list", args=todos("Step 1", text))
+    assert is_blocked(tool("terminal"))
+
+
+def test_a_skipped_playbook_step_is_not_a_delegation_decision(tmp_path):
+    turn()
+    tool("todo_list", args=todos("Step 1: reproduce", "Step 3: open PR. skip: no PR requested"))
+    assert is_blocked(tool("terminal"))
+    assert last_decision(tmp_path)["reason"] == "todo_without_decision"
+
+
+PLAYBOOKS = Path(__file__).resolve().parents[3] / "skills" / "poteto-mode" / "playbooks"
+
+
+@pytest.mark.parametrize("name", ["multi-phase-plan", "orchestrate", "opening-a-pr"])
+def test_playbook_text_that_names_delegate_task_still_unlocks_known_limit(name):
+    """Pins a limit. The gate cannot tell a verbatim playbook step that mentions `delegate_task`
+    from a decision about it, so the copy counts. The README lists this under what the check misses."""
+    steps = [ln for ln in (PLAYBOOKS / f"{name}.md").read_text().splitlines() if "delegate_task" in ln]
+    assert steps
+    turn()
+    tool("todo_list", args=todos("Step 1", steps[0]))
+    assert tool("terminal") is None
+
+
+def test_a_playbook_step_without_delegate_task_does_not_unlock():
+    steps = [
+        ln for ln in (PLAYBOOKS / "bug-fix.md").read_text().splitlines()
+        if ln.strip() and "deleg" not in ln.lower()
+    ]
+    turn()
+    tool("todo_list", args=todos(*steps[:5]))
     assert is_blocked(tool("terminal"))
 
 
@@ -332,7 +373,7 @@ def test_merge_that_adds_the_decision_unlocks():
     turn()
     tool("todo_list", args=UNDECIDED)
     assert is_blocked(tool("terminal"))
-    assert tool("todo_list", args=todos("Decision: skip: one-line edit", merge=True)) is None
+    assert tool("todo_list", args=todos("Delegation decision: skip: one-line edit", merge=True)) is None
     assert tool("terminal") is None
 
 
@@ -357,6 +398,8 @@ def test_undecided_block_message_says_what_to_write():
     assert "delegate_task" in message and "skip: <reason>" in message
     assert "playbook" in message and "merge" in message
     assert "no delegation decision" in message
+    assert "Delegation decision: delegate_task <" in message
+    assert "Delegation decision: skip: <reason>" in message
 
 
 def test_first_block_message_names_the_playbook_sentence():
@@ -364,6 +407,8 @@ def test_first_block_message_names_the_playbook_sentence():
     message = block_message(tool("terminal"))
     assert "delegate_task" in message and "skip: <reason>" in message
     assert "opening sentence" in message and "playbook" in message
+    assert "Delegation decision: delegate_task <" in message
+    assert "Delegation decision: skip: <reason>" in message
 
 
 def test_repeated_undecided_blocks_are_released(tmp_path):
@@ -375,7 +420,7 @@ def test_repeated_undecided_blocks_are_released(tmp_path):
     record = last_decision(tmp_path)
     assert (record["event"], record["reason"]) == ("allow", "decision_missing_released")
     assert tool("terminal") is None
-    assert last_decision(tmp_path)["reason"] == "todo_written"
+    assert last_decision(tmp_path)["reason"] == "released"
 
 
 def test_release_is_counted_per_turn():
