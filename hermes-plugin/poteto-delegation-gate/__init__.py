@@ -72,6 +72,7 @@ MAX_SESSIONS = 256
 READ_ONLY_TOOLS = frozenset({"search_files", "session_search"})
 _READ_ONLY_COMMANDS = frozenset({
     "ls", "cat", "head", "tail", "wc", "pwd", "grep", "rg", "stat", "file", "which", "du", "find",
+    "echo",
 })
 _READ_ONLY_GIT = frozenset({
     "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
