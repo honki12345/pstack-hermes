@@ -32,7 +32,7 @@ Each task resolves in order:
    `setup-pstack`, that is `$HERMES_HOME/pstack-models.json`, which is per profile.
 2. `delegation.backends.pstack.aliases`, which maps any entry string to a route.
 3. Upstream pstack's default for the role, which is a Cursor slug such as
-   `claude-opus-5-5-max`. An unmapped default runs on the parent route, and the
+   `claude-opus-5-5-xhigh`. An unmapped default runs on the parent route, and the
    label says so. Set `unmapped_defaults: refuse` to refuse it instead.
 
 The route merges over the `delegation` section, so `delegation.reasoning_effort`
@@ -87,7 +87,7 @@ hermes config set delegation.backend pstack
 #     backends:
 #       pstack:
 #         aliases:
-#           claude-opus-5-5-max: {model: claude-opus-5-5, reasoning_effort: max}
+#           claude-opus-5-5-xhigh: {model: claude-opus-5-5, reasoning_effort: xhigh}
 #           grok-4.7-xhigh-fast: {provider: xai, model: grok-4.7-fast, reasoning_effort: xhigh}
 ```
 

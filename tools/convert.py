@@ -90,10 +90,10 @@ TEXT_EXTS = {
 }
 
 # The conversion gate (study 3.2 fixes 2): frontmatter name must equal the
-# directory name (kebab-case) for the portable loader.
-FRONTMATTER_FIXES = {
-    "poteto-mode": ("Poteto Mode", "poteto-mode"),
-}
+# directory name (kebab-case) for the portable loader. Empty since the c742dd6
+# re-pin: upstream #702 names every skill after its folder ("name: poteto-mode"),
+# so the old "Poteto Mode" fix was pruned. validate.py still enforces the rule.
+FRONTMATTER_FIXES: dict[str, tuple[str, str]] = {}
 
 # ---------------------------------------------------------------------------
 # Phase-1 hygiene transforms (study findings R1, F10-F12; F16 retired at the
@@ -102,65 +102,47 @@ FRONTMATTER_FIXES = {
 # rebuild re-applies the fixes deterministically.
 # ---------------------------------------------------------------------------
 
-# R1: authoritative grouping for the poteto-mode principles index (the group
-# assignment lives only in the index upstream; leaves carry the descriptions).
-PRINCIPLE_GROUPS = [
-    (
-        "Core",
-        [
-            "principle-laziness-protocol",
-            "principle-foundational-thinking",
-            "principle-redesign-from-first-principles",
-            "principle-subtract-before-you-add",
-            "principle-minimize-reader-load",
-            "principle-outcome-oriented-execution",
-            "principle-experience-first",
-            "principle-exhaust-the-design-space",
-            "principle-build-the-lever",
-            "principle-attack-the-premise",
-        ],
-    ),
-    (
-        "Architecture",
-        [
-            "principle-model-the-domain",
-            "principle-boundary-discipline",
-            "principle-type-system-discipline",
-            "principle-make-operations-idempotent",
-            "principle-migrate-callers-then-delete-legacy-apis",
-            "principle-separate-before-serializing-shared-state",
-        ],
-    ),
-    (
-        "Verification",
-        [
-            "principle-prove-it-works",
-            "principle-fix-root-causes",
-            "principle-sequence-verifiable-units",
-            "principle-test-behavior-not-implementation",
-        ],
-    ),
-    (
-        "Delegation",
-        [
-            "principle-guard-the-context-window",
-            "principle-never-block-on-the-human",
-        ],
-    ),
-    (
-        "Meta",
-        [
-            "principle-encode-lessons-in-structure",
-        ],
-    ),
-]
-
-_PRINCIPLES_HEADER = (
-    "## Principles\n\n"
-    "Read the leaf skill in full for any principle you apply. "
-    "Each entry names when it applies.\n\n"
-)
+# R1 retired at the c742dd6 re-pin: upstream now curates the poteto-mode
+# principles index itself (#633/#634: per-entry "when it applies" wording that
+# intentionally differs from the leaf descriptions, plus a title -> slug naming
+# rule). Regenerating it from the leaves would overwrite upstream prose, which
+# is not a platform adaptation. What survives is the consistency gate: every
+# index entry must resolve to a shipped principle leaf and every leaf must be
+# indexed (principle_index_drift, also run by validate.py).
+_PRINCIPLES_HEADING = "## Principles\n"
 _NEXT_SECTION = "## Autonomy"
+_INDEX_ENTRY_RE = re.compile(
+    r"^- \*\*(?P<title>[^*]+?)\.?\*\*(?: \(\*\*(?P<slug>principle-[a-z0-9-]+)\*\*\))?"
+)
+
+
+def principle_slug(title: str) -> str:
+    """Upstream naming rule: kebab case, hyphens kept, other punctuation dropped."""
+    kept = re.sub(r"[^a-z0-9\s-]", "", title.lower())
+    return "principle-" + re.sub(r"\s+", "-", kept.strip())
+
+
+def principle_index_drift(skills_dir: Path) -> list[str]:
+    """Findings where the poteto-mode principles index and the leaves disagree."""
+    pm = skills_dir / "poteto-mode" / "SKILL.md"
+    text = pm.read_text(encoding="utf-8")
+    start = text.find(_PRINCIPLES_HEADING)
+    end = text.find(_NEXT_SECTION, start)
+    if start == -1 or end == -1:
+        return ["poteto-mode/SKILL.md: principles block anchors not found"]
+    indexed: list[str] = []
+    for line in text[start:end].split("\n"):
+        m = _INDEX_ENTRY_RE.match(line)
+        if m:
+            indexed.append(m.group("slug") or principle_slug(m.group("title")))
+    leaves = sorted(
+        p.name for p in skills_dir.iterdir() if p.name.startswith("principle-") and p.is_dir()
+    )
+    drift = [f"index entry without a shipped leaf: {s}" for s in indexed if s not in leaves]
+    drift += [f"leaf missing from the index: {s}" for s in leaves if s not in indexed]
+    drift += [f"duplicate index entry: {s}" for s in sorted(set(indexed)) if indexed.count(s) > 1]
+    return drift
+
 
 # F16 retired at the c47b1284 re-pin: upstream generalized both sites, so no
 # transform is needed - check-plan.mjs carries
@@ -168,25 +150,10 @@ _NEXT_SECTION = "## Autonomy"
 # and the multi-phase template says "Ten lanes on `<swarm workers model>` at
 # the PR head". validate.py asserts those shapes survive conversion.
 
-# F10-F12: portable mtime/epoch helpers inserted after `set -u`.
-WORKTREE_HELPERS_ANCHOR = "set -u\n"
-WORKTREE_HELPERS = (
-    "set -u\n\n"
-    "# F10-F12 fix: GNU coreutils vs BSD/macOS mtime + epoch conversion.\n"
-    "if stat -c '%Y' / >/dev/null 2>&1; then\n"
-    "\tstat_mtime() { stat -c '%Y' \"$1\" 2>/dev/null; }\n"
-    "else\n"
-    "\tstat_mtime() { stat -f '%m' \"$1\" 2>/dev/null; }\n"
-    "fi\n"
-    "# Epoch probe: GNU date prints the epoch itself for -d @0 ('0'); BSD date's\n"
-    "# -d flag means something unrelated (kernel DST), so it never prints '0'.\n"
-    "# A plain exit-status probe on '-d @0' is NOT safe: BSD date may accept it.\n"
-    'if [ "$(date -d @0 \'+%s\' 2>/dev/null)" = "0" ]; then\n'
-    "\tdate_epoch() { date -d \"@$1\" '+%Y-%m-%d' 2>/dev/null; }\n"
-    "else\n"
-    "\tdate_epoch() { date -r \"$1\" '+%Y-%m-%d' 2>/dev/null; }\n"
-    "fi\n"
-)
+# F10/F12 retired at the c742dd6 re-pin: upstream #805 picks GNU vs BSD stat
+# and date flags itself (`stat -c %Y /` probe, `stat_fmt`, `fmt_day`), so the
+# stat_mtime/date_epoch helper insertion was pruned. F11 survives: upstream's
+# awk still prints only `$2` of `worktree <path>`, truncating paths with spaces.
 WORKTREE_AWK_PAIRS = [
     ("awk '/^worktree /{print $2; exit}'", "awk '/^worktree /{print substr($0, 10); exit}'"),
     (
@@ -194,14 +161,6 @@ WORKTREE_AWK_PAIRS = [
         "awk '/^worktree /{print substr($0, 10)}' | while read -r wt",
     ),
 ]
-# F10-F12: fragment replacements (avoid anchoring on shell-escaped quotes).
-WORKTREE_STAT_OLD = "| xargs stat -f '%m %N' 2>/dev/null | sort -rn | head -1)"
-WORKTREE_STAT_NEW = (
-    '| while IFS= read -r tfile; do mt=$(stat_mtime "$tfile"); '
-    '[ -n "$mt" ] && printf \'%s %s\\n\' "$mt" "$tfile"; done | sort -rn | head -1)'
-)
-WORKTREE_DATE_OLD = "last=$(date -r \"$last_ts\" '+%Y-%m-%d' 2>/dev/null); fi"
-WORKTREE_DATE_NEW = 'last=$(date_epoch "$last_ts"); fi'
 
 ADAPTATION_LINE = (
     "Adapted for Hermes Agent plugin compatibility from github.com/cursor/plugins pstack."
@@ -318,78 +277,6 @@ def fix_frontmatter_name(text: str, old: str, new: str, rel: str) -> tuple[str, 
     return new_block + text[end:], st_fix
 
 
-def _fm_field(text: str, key: str) -> str | None:
-    """Minimal frontmatter reader for generated-index inputs."""
-    if not text.startswith("---\n"):
-        return None
-    end = text.find("\n---", 4)
-    if end == -1:
-        return None
-    lines = text[4:end].split("\n")
-    i = 0
-    while i < len(lines):
-        m = re.match(rf"^{re.escape(key)}:(.*)$", lines[i])
-        if m:
-            rest = m.group(1).strip()
-            if rest in (">", ">-", "|", "|+", "|-"):
-                buf, i = [], i + 1
-                while i < len(lines) and (lines[i].startswith((" ", "\t")) or lines[i] == ""):
-                    if lines[i].strip():
-                        buf.append(lines[i].strip())
-                    i += 1
-                return (" " if rest.startswith(">") else "\n").join(buf)
-            if len(rest) >= 2 and rest[0] == rest[-1] and rest[0] in "'\"":
-                rest = rest[1:-1]
-            return rest
-        i += 1
-    return None
-
-
-def _h1_title(body: str) -> str | None:
-    for line in body.split("\n"):
-        if line.startswith("# "):
-            return line[2:].strip()
-    return None
-
-
-def build_principles_index(skills_dir: Path) -> tuple[str, list[str]]:
-    """R1: generate the poteto-mode principles index from the 21 leaf skills.
-
-    Leaf descriptions are authoritative; the historical hand-maintained index
-    wording (three drifted variants) is replaced. Returns (block, drift_notes).
-    """
-    entries: dict[str, tuple[str, str]] = {}
-    for slug, _ in [(s, g) for g, slugs in PRINCIPLE_GROUPS for s in slugs]:
-        sk = skills_dir / slug / "SKILL.md"
-        if not sk.is_file():
-            raise ConvertError(f"principle leaf missing for index generation: {slug}")
-        text = sk.read_text(encoding="utf-8")
-        desc = _fm_field(text, "description")
-        title = _h1_title(text.split("---", 2)[-1])
-        if not desc or not title:
-            raise ConvertError(f"principle leaf lacks description/H1: {slug}")
-        entries[slug] = (title, desc)
-    drift: list[str] = []
-    parts = [_PRINCIPLES_HEADER]
-    for group, slugs in PRINCIPLE_GROUPS:
-        parts.append(f"**{group}**\n\n")
-        for slug in slugs:
-            title, desc = entries[slug]
-            entry = re.sub(r"^Apply (?:when|after|before) ", "", desc).strip()
-            entry = entry[0].upper() + entry[1:] if entry else entry
-            # F-1: do not add a period when sentence punctuation is already
-            # present, including periods inside closing quotes (e.g. .' .")
-            if not re.search(r"[.!?][\"'\u201d\u2019)]*$", entry):
-                entry += "."
-            parts.append(f"- **{title}** (**{slug}**). {entry}\n")
-        parts.append("\n")
-    block = "".join(parts).rstrip("\n") + "\n"
-    for slug, (_title, _desc) in entries.items():
-        if f"(**{slug}**)" not in block:
-            drift.append(f"missing entry: {slug}")
-    return block, drift
-
-
 def t11_targets(out: Path) -> list[Path]:
     """T11 pass scope: every skill markdown plus shell scripts.
 
@@ -407,645 +294,6 @@ def replace_required(path: Path, old: str, new: str, label: str) -> None:
     path.write_bytes(text.replace(old, new, 1).encode("utf-8"))
 
 
-def apply_stack_provider_patch(out: Path, st: Stats) -> None:
-    """Add provider-neutral frontier discovery to the generated orch scripts."""
-    store = out / "skills" / "poteto-mode" / "scripts" / "orch" / "store.ts"
-    orch = out / "skills" / "poteto-mode" / "scripts" / "orch" / "orch.ts"
-    test = out / "skills" / "poteto-mode" / "scripts" / "orch" / "orch.test.ts"
-
-    replace_required(
-        store,
-        """export interface Frontier {
-  readonly generation: number;
-  readonly prs: readonly FrontierPr[];
-  readonly lowestUnmerged: number | null;
-}
-""",
-        """export interface Frontier {
-  readonly generation: number;
-  readonly prs: readonly FrontierPr[];
-  readonly lowestUnmerged: number | null;
-  readonly fallback?: readonly string[];
-}
-
-export type StackProvider = "auto" | "graphite" | "github" | "gitlab";
-""",
-        "StackProvider type",
-    )
-    replace_required(
-        store,
-        """export interface SetFrontierParams {
-  readonly repo: string;
-  readonly prs?: readonly number[];
-}
-""",
-        """export interface SetFrontierParams {
-  readonly repo: string;
-  readonly prs?: readonly number[];
-  readonly provider?: StackProvider;
-}
-""",
-        "SetFrontierParams provider",
-    )
-    replace_required(
-        store,
-        """interface GtFrontierEntry extends GtPullRequest {
-  readonly branches: string;
-}
-""",
-        """interface GtFrontierEntry extends GtPullRequest {
-  readonly branches: string;
-}
-
-interface StackFrontierResult {
-  readonly provider: Exclude<StackProvider, "auto">;
-  readonly prs: readonly FrontierPr[];
-  readonly fallback?: readonly string[];
-}
-""",
-        "StackFrontierResult",
-    )
-    replace_required(
-        store,
-        """function branchSha({
-  branch,
-  repo,
-}: {
-  branch: string;
-  repo: string;
-}): string {
-""",
-        """interface GithubPr {
-  readonly number: number;
-  readonly headRefName: string;
-  readonly baseRefName: string;
-  readonly state: FrontierPrState;
-}
-
-function parseGithubPr(value: unknown, index: number): GithubPr {
-  if (!isRecord(value)) {
-    throw new UserError(`gh pr list row ${index + 1} must be an object`);
-  }
-  const number = value.number;
-  const headRefName = value.headRefName;
-  const baseRefName = value.baseRefName;
-  const state = frontierPrStateOrNull(value.state);
-  if (
-    typeof number !== "number" ||
-    !Number.isSafeInteger(number) ||
-    number < 1 ||
-    typeof headRefName !== "string" ||
-    headRefName.trim().length === 0 ||
-    typeof baseRefName !== "string" ||
-    baseRefName.trim().length === 0 ||
-    state === null
-  ) {
-    throw new UserError(`gh pr list row ${index + 1} has an invalid shape`);
-  }
-  return { number, headRefName, baseRefName, state };
-}
-
-function githubPullRequests(repo: string): readonly GithubPr[] {
-  let raw: string;
-  try {
-    raw = execFileSync(
-      "gh",
-      [
-        "pr",
-        "list",
-        "--state",
-        "all",
-        "--json",
-        "number,headRefName,baseRefName,state",
-        "--limit",
-        "100",
-      ],
-      {
-        cwd: repo,
-        encoding: "utf8",
-        env: { ...process.env, NO_COLOR: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-      }
-    );
-  } catch (error) {
-    throw new UserError(`gh pr list failed: ${errorMessage(error)}`);
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    throw new UserError(`gh pr list returned invalid JSON: ${errorMessage(error)}`);
-  }
-  if (!isUnknownArray(parsed)) {
-    throw new UserError("gh pr list JSON must be an array");
-  }
-  return parsed.map(parseGithubPr);
-}
-
-function githubFrontier(
-  repo: string,
-  pin?: readonly number[]
-): readonly FrontierPr[] {
-  const rows = githubPullRequests(repo);
-  if (rows.length === 0) {
-    throw new UserError("gh pr list did not return any pull requests");
-  }
-  const byHead = new Map<string, GithubPr>();
-  for (const row of rows) {
-    if (byHead.has(row.headRefName)) {
-      throw new UserError(`gh pr list contains duplicate head branch ${row.headRefName}`);
-    }
-    byHead.set(row.headRefName, row);
-  }
-  const candidates = pin === undefined
-    ? rows
-    : rows.filter((row) => pin.includes(row.number));
-  if (candidates.length === 0) {
-    throw new UserError(
-      pin === undefined
-        ? "github stack discovery found no pull requests"
-        : `github stack discovery found none of the pinned PRs: ${pin.join(",")}`
-    );
-  }
-  const roots = candidates.filter((row) => !byHead.has(row.baseRefName));
-  if (roots.length !== 1) {
-    throw new UserError(
-      roots.length === 0
-        ? "github stack discovery found no root PR; at least one PR must target trunk"
-        : `github stack discovery found multiple root PRs: ${roots.map((row) => row.number).join(",")}`
-    );
-  }
-  const result: FrontierPr[] = [];
-  let current = roots[0];
-  while (current !== undefined) {
-    result.push({
-      pr: current.number,
-      branches: current.headRefName,
-      sha: branchSha({ branch: current.headRefName, repo }),
-      state: current.state,
-    });
-    const children = candidates.filter((row) => row.baseRefName === current?.headRefName);
-    if (children.length > 1) {
-      throw new UserError(
-        `github stack discovery found multiple children for ${current.headRefName}: ${children.map((row) => row.number).join(",")}`
-      );
-    }
-    current = children[0];
-  }
-  if (pin === undefined && result.length !== rows.length) {
-    throw new UserError("github stack discovery found disconnected pull requests");
-  }
-  return result;
-}
-
-function branchSha({
-  branch,
-  repo,
-}: {
-  branch: string;
-  repo: string;
-}): string {
-""",
-        "GitHub provider insertion",
-    )
-    replace_required(
-        store,
-        """function resolveFrontier(repo: string): readonly FrontierPr[] {
-  return graphiteFrontier(repo).map((row) => ({
-    ...row,
-    sha: branchSha({ branch: row.branches, repo }),
-  }));
-}
-""",
-        """function resolveFrontier(
-  repo: string,
-  provider: StackProvider = "auto",
-  pin?: readonly number[]
-): StackFrontierResult {
-  if (provider === "graphite") {
-    return {
-      provider,
-      prs: graphiteFrontier(repo).map((row) => ({
-        ...row,
-        sha: branchSha({ branch: row.branches, repo }),
-      })),
-    };
-  }
-  if (provider === "github") {
-    return { provider, prs: githubFrontier(repo, pin) };
-  }
-  if (provider === "gitlab") {
-    throw new UserError("gitlab stack provider is not implemented yet");
-  }
-  const failures: string[] = [];
-  const attempted: string[] = [];
-  for (const candidate of ["graphite", "github"] as const) {
-    attempted.push(candidate);
-    try {
-      const result = resolveFrontier(repo, candidate, pin);
-      if (attempted.length > 1) {
-        return { ...result, fallback: attempted.slice(0, -1) };
-      }
-      return result;
-    } catch (error) {
-      failures.push(`${candidate}: ${errorMessage(error)}`);
-    }
-  }
-  throw new UserError(`auto stack provider failed (${failures.join("; ")})`);
-}
-""",
-        "resolveFrontier provider",
-    )
-    replace_required(
-        store,
-        """function validateFrontierPin({
-  actual,
-  expected,
-}: {
-  actual: readonly number[];
-  expected: readonly number[];
-}): void {
-""",
-        """function validateFrontierPin({
-  actual,
-  expected,
-  provider,
-}: {
-  actual: readonly number[];
-  expected: readonly number[];
-  provider: string;
-}): void {
-""",
-        "validateFrontierPin provider parameter",
-    )
-    for old, new, label in [
-        ("missing from gt", "missing from ${provider}", "pin missing provider"),
-        ("extra in gt", "extra in ${provider}", "pin extra provider"),
-        ("; gt ${actual.join", "; ${provider} ${actual.join", "pin order provider"),
-    ]:
-        replace_required(store, old, new, label)
-    replace_required(
-        store,
-        """        const old = await readFrontier(store);
-        const prs = resolveFrontier(repo);
-        if (pin !== undefined) {
-          validateFrontierPin({
-            actual: prs.map((row) => row.pr),
-            expected: pin,
-          });
-        }
-""",
-        """        const old = await readFrontier(store);
-        const frontier = resolveFrontier(repo, params.provider, pin);
-        const prs = frontier.prs;
-        if (pin !== undefined) {
-          validateFrontierPin({
-            actual: prs.map((row) => row.pr),
-            expected: pin,
-            provider: frontier.provider,
-          });
-        }
-""",
-        "frontier set provider",
-    )
-    replace_required(
-        store,
-        """        const value: Frontier = {
-          generation: old.generation + 1,
-          prs,
-          lowestUnmerged: prs.find((row) => row.state === "OPEN")?.pr ?? null,
-        };
-""",
-        """        const value: Frontier = {
-          generation: old.generation + 1,
-          prs,
-          lowestUnmerged: prs.find((row) => row.state === "OPEN")?.pr ?? null,
-          ...(frontier.fallback !== undefined
-            ? { fallback: frontier.fallback }
-            : {}),
-        };
-""",
-        "frontier set fallback metadata",
-    )
-
-    replace_required(
-        orch,
-        """  type OpenGate,
-  type StandingLine,
-  type StatusReport,
-""",
-        """  type OpenGate,
-  type StandingLine,
-  type StackProvider,
-  type StatusReport,
-""",
-        "orch StackProvider import",
-    )
-    replace_required(
-        orch,
-        """interface FrontierSetOptions {
-  readonly repo?: string;
-  readonly prs?: readonly number[];
-}
-""",
-        """interface FrontierSetOptions {
-  readonly repo?: string;
-  readonly prs?: readonly number[];
-  readonly provider: StackProvider;
-}
-""",
-        "orch FrontierSetOptions provider",
-    )
-    replace_required(
-        orch,
-        """function countLine(value: Counts): string {
-""",
-        """function stackProvider(value: string): StackProvider {
-  if (
-    value === "auto" ||
-    value === "graphite" ||
-    value === "github" ||
-    value === "gitlab"
-  ) {
-    return value;
-  }
-  throw new InvalidArgumentError("must be auto, graphite, github, or gitlab");
-}
-
-function countLine(value: Counts): string {
-""",
-        "orch stackProvider parser",
-    )
-    replace_required(
-        orch,
-        """.description("manage the Graphite stack frontier")""",
-        """.description("manage the stack frontier")""",
-        "orch frontier description",
-    )
-    replace_required(
-        orch,
-        """leaf(frontier, "set", "discover the Graphite stack and set the frontier")""",
-        """leaf(frontier, "set", "discover the stack and set the frontier")""",
-        "orch frontier set description",
-    )
-    replace_required(
-        orch,
-        """    .option(
-      "--prs <n,...>",
-      "optional expected pull request order pin",
-      prList
-    )
-""",
-        """    .option(
-      "--provider <provider>",
-      "stack provider: auto, graphite, github, or gitlab",
-      stackProvider,
-      "auto"
-    )
-    .option(
-      "--prs <n,...>",
-      "optional expected pull request order pin",
-      prList
-    )
-""",
-        "orch provider option",
-    )
-    replace_required(
-        orch,
-        """            repo: frontierRepo(options),
-            prs: options.prs,
-""",
-        """            repo: frontierRepo(options),
-            prs: options.prs,
-            provider: options.provider,
-""",
-        "orch provider action",
-    )
-
-    replace_required(
-        test,
-        """function runCli(
-  args: readonly string[],
-""",
-        """async function withFakeGh<T>({
-  directory,
-  operation,
-  pullRequests,
-}: {
-  directory: string;
-  operation: () => Promise<T>;
-  pullRequests: readonly {
-    readonly number: number;
-    readonly headRefName: string;
-    readonly baseRefName: string;
-    readonly state: string;
-  }[];
-}): Promise<T> {
-  const bin = join(directory, "bin-gh");
-  const outputPath = join(directory, "gh-prs.json");
-  await mkdir(bin);
-  await writeFile(outputPath, JSON.stringify(pullRequests));
-  const gh = join(bin, "gh");
-  await writeFile(
-    gh,
-    `#!/usr/bin/env bash
-set -euo pipefail
-case "$*" in
-  "pr list --state all --json number,headRefName,baseRefName,state --limit 100")
-    cat "${outputPath}"
-    ;;
-  *)
-    printf 'unexpected gh arguments: %s\\n' "$*" >&2
-    exit 2
-    ;;
-esac
-`
-  );
-  await chmod(gh, 0o755);
-
-  const originalPath = process.env.PATH;
-  process.env.PATH = `${bin}:${originalPath ?? ""}`;
-  try {
-    return await operation();
-  } finally {
-    if (originalPath === undefined) {
-      delete process.env.PATH;
-    } else {
-      process.env.PATH = originalPath;
-    }
-  }
-}
-
-function runCli(
-  args: readonly string[],
-""",
-        "withFakeGh helper",
-    )
-    replace_required(test, "missing from gt", "missing from graphite", "test pin missing provider")
-    replace_required(test, "extra in gt", "extra in graphite", "test pin extra provider")
-    replace_required(test, "; gt 10,13,11", "; graphite 10,13,11", "test pin order provider")
-    replace_required(
-        test,
-        """  it("rejects unparseable Graphite output loudly", async () => {
-""",
-        """  it("resolves a GitHub-native branch-target stack without Graphite", async () => {
-    const { directory, store } = await initializedStore();
-    const stack = await makeGitStack(directory);
-
-    await withFakeGh({
-      directory,
-      pullRequests: [
-        {
-          number: 11,
-          headRefName: "stack/open",
-          baseRefName: "stack/closed",
-          state: "OPEN",
-        },
-        {
-          number: 10,
-          headRefName: "stack/merged",
-          baseRefName: "main",
-          state: "MERGED",
-        },
-        {
-          number: 13,
-          headRefName: "stack/closed",
-          baseRefName: "stack/merged",
-          state: "CLOSED",
-        },
-      ],
-      operation: async () => {
-        expect(
-          await store.frontier.set({ repo: stack.repo, provider: "github" })
-        ).toEqual({
-          generation: 1,
-          prs: [
-            {
-              pr: 10,
-              branches: "stack/merged",
-              sha: stack.mergedSha,
-              state: "MERGED",
-            },
-            {
-              pr: 13,
-              branches: "stack/closed",
-              sha: stack.closedSha,
-              state: "CLOSED",
-            },
-            {
-              pr: 11,
-              branches: "stack/open",
-              sha: stack.openSha,
-              state: "OPEN",
-            },
-          ],
-          lowestUnmerged: 11,
-        });
-      },
-    });
-  }, 30000);
-
-  it("rejects unparseable Graphite output loudly", async () => {
-""",
-        "GitHub provider test",
-    )
-    replace_required(
-        test,
-        """    expect(frontierHelp.stdout).toContain("--repo <dir>");
-    expect(frontierHelp.stdout).toContain("--prs <n,...>");
-""",
-        """    expect(frontierHelp.stdout).toContain("--repo <dir>");
-    expect(frontierHelp.stdout).toContain("--provider <provider>");
-    expect(frontierHelp.stdout).toContain("--prs <n,...>");
-""",
-        "provider help test",
-    )
-    st.fixes.append(
-        "T15: orch frontier stack provider abstraction added "
-        "(auto/graphite/github, gitlab reserved)"
-    )
-
-
-
-def apply_local_provider_patch(out: Path, st: Stats) -> None:
-    """Add the local (git-native) stack provider to the generated orch scripts."""
-    store = out / "skills" / "poteto-mode" / "scripts" / "orch" / "store.ts"
-    orch = out / "skills" / "poteto-mode" / "scripts" / "orch" / "orch.ts"
-
-    # 1. StackProvider type: add "local"
-    replace_required(
-        store,
-        'export type StackProvider = "auto" | "graphite" | "github" | "gitlab";',
-        'export type StackProvider = "auto" | "graphite" | "github" | "gitlab" | "local";',
-        "StackProvider type local",
-    )
-
-    # 2. Insert localFrontier() before resolveFrontier()
-    template_path = Path(__file__).resolve().parent / "templates" / "local_frontier.ts"
-    local_frontier_fn = template_path.read_text(encoding="utf-8") + chr(10)
-    replace_required(
-        store,
-        "function resolveFrontier(" + chr(10),
-        local_frontier_fn + "function resolveFrontier(" + chr(10),
-        "localFrontier insertion",
-    )
-
-    # 3. Add local case in resolveFrontier (after gitlab case)
-    replace_required(
-        store,
-        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10),
-        '  if (provider === "gitlab") {' + chr(10) + '    throw new UserError("gitlab stack provider is not implemented yet");' + chr(10) + '  }' + chr(10) + '  if (provider === "local") {' + chr(10) + '    return { provider, prs: localFrontier(repo) };' + chr(10) + '  }' + chr(10),
-        "resolveFrontier local case",
-    )
-
-    # 4. parseFrontier: accept pr: 0 (local provider sentinel)
-    replace_required(
-        store,
-        "      row.pr < 1 ||",
-        "      row.pr < 0 ||",
-        "parseFrontier allow pr 0",
-    )
-
-    # 5. orch.ts: stackProvider parser - add local
-    replace_required(
-        orch,
-        '    value === "gitlab"' + chr(10) + '  ) {',
-        '    value === "gitlab" ||' + chr(10) + '    value === "local"' + chr(10) + '  ) {',
-        "orch stackProvider local",
-    )
-
-    # 6. orch.ts: help text
-    replace_required(
-        orch,
-        '  throw new InvalidArgumentError("must be auto, graphite, github, or gitlab");',
-        '  throw new InvalidArgumentError("must be auto, graphite, github, gitlab, or local");',
-        "orch stackProvider help local",
-    )
-
-    # 7. orch.ts: option description
-    replace_required(
-        orch,
-        '"stack provider: auto, graphite, github, or gitlab",',
-        '"stack provider: auto, graphite, github, gitlab, or local",',
-        "orch option desc local",
-    )
-
-    st.fixes.append(
-        "T16: local (git-native) stack provider added "
-        "(auto/graphite/github/gitlab/local)"
-    )
-
-    # 8. Regression test for discovery order, shipped with the package so
-    # `bun test orch` proves the provider without a forge.
-    test_template = (
-        Path(__file__).resolve().parent / "templates" / "local_frontier.test.ts"
-    )
-    if not test_template.is_file():
-        raise ConvertError(f"localFrontier test template missing: {test_template}")
-    copy_file(test_template, store.parent / "local_frontier.test.ts", st)
-    st.fixes.append("T16: localFrontier order/exclusion regression test emitted")
-
-
 def apply_phase1_transforms(out: Path, st: Stats) -> None:
     """Apply R1/F16/F10-F12 hygiene to the copied package. Fail-loud on any
     anchor mismatch so a silent no-op can never masquerade as a fix."""
@@ -1055,7 +303,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
     scripts_payload["name"] = "@pstack-hermes/poteto-mode-tools"
     scripts_payload["scripts"] = {
         "deps": "bun install --frozen-lockfile",
-        "test": "bun run deps && bun test orch watch-pr",
+        "test": "bun run deps && bun test watch-pr check-plan.test.ts",
         "typecheck": "bun run deps && tsc --project watch-pr/tsconfig.json --noEmit --strict",
     }
     scripts_pkg.write_bytes(json.dumps(scripts_payload, indent=2).encode("utf-8") + b"\n")
@@ -1069,73 +317,17 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
                 1,
             ).encode("utf-8")
         )
-    orch_test = out / "skills" / "poteto-mode" / "scripts" / "orch" / "orch.test.ts"
-    orch_test_text = orch_test.read_text(encoding="utf-8")
-    git_config_anchor = '  git({ repo, args: ["config", "user.email", "orch@example.com"] });\n'
-    git_signing_config = (
-        git_config_anchor + '  git({ repo, args: ["config", "commit.gpgsign", "false"] });\n'
-        '  git({ repo, args: ["config", "tag.gpgSign", "false"] });\n'
-    )
-    if git_signing_config not in orch_test_text:
-        if git_config_anchor not in orch_test_text:
-            raise ConvertError("orch.test.ts: git user.email anchor not found")
-        orch_test_text = orch_test_text.replace(git_config_anchor, git_signing_config, 1)
-    graphite_timeout_pairs = [
-        (
-            """      },
-    });
-  });
-
-  it("rejects unparseable Graphite output loudly", async () => {""",
-            """      },
-    });
-  }, 30000);
-
-  it("rejects unparseable Graphite output loudly", async () => {""",
-        ),
-        (
-            """      },
-    });
-  });
-
-  it("rejects malformed TSV, verdict, frontier, and inbox data", async () => {""",
-            """      },
-    });
-  }, 30000);
-
-  it("rejects malformed TSV, verdict, frontier, and inbox data", async () => {""",
-        ),
-    ]
-    for old, new in graphite_timeout_pairs:
-        if old not in orch_test_text:
-            raise ConvertError("orch.test.ts: Graphite timeout anchor not found")
-        orch_test_text = orch_test_text.replace(old, new, 1)
-    orch_test.write_bytes(orch_test_text.encode("utf-8"))
+    # The orch scripts (and with them the git-signing / Graphite-timeout test
+    # patches and the T15/T16 stack-provider passes) were retired at the c742dd6
+    # re-pin: upstream #1043 deleted scripts/orch/ and made Orchestrate agentic.
     st.fixes.append(
-        "script package metadata renamed for hermes, test/typecheck scripts bootstrap deps, "
-        "git-fixture signing disabled, and Graphite fixture tests given explicit Bun timeouts"
+        "script package metadata renamed for hermes; test/typecheck scripts bootstrap deps"
     )
-    apply_stack_provider_patch(out, st)
-    apply_local_provider_patch(out, st)
 
-    # --- T1: regenerate the principles index from the leaves (R1) ---
-    pm = out / "skills" / "poteto-mode" / "SKILL.md"
-    text = pm.read_text(encoding="utf-8")
-    start = text.find(_PRINCIPLES_HEADER)
-    end = text.find(_NEXT_SECTION, start)
-    if start == -1 or end == -1:
-        raise ConvertError("poteto-mode/SKILL.md: principles block anchors not found")
-    old_block = text[start:end]
-    new_block, drift = build_principles_index(out / "skills")
-    if old_block.rstrip("\n") != new_block.rstrip("\n"):
-        st.fixes.append(
-            f"R1: poteto-mode principles index regenerated from "
-            f"{sum(len(g) for _, g in PRINCIPLE_GROUPS)} leaves "
-            "(single source of truth; hand-maintained wording replaced)"
-        )
-    for d in drift:
-        st.warnings.append(f"principles index: {d}")
-    pm.write_bytes((text[:start] + new_block + "\n" + text[end:]).encode("utf-8"))
+    # --- T1 (R1, retired): verify the upstream-curated principles index ---
+    drift = principle_index_drift(out / "skills")
+    if drift:
+        raise ConvertError(f"poteto-mode principles index drifted from the leaves: {drift}")
 
     # --- T2/T3 (F16) retired at the c47b1284 re-pin ---
     # Upstream ships the slug-agnostic fix itself (regex in check-plan.mjs;
@@ -1156,28 +348,17 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         "F16b: check-plan.mjs lane regex rejects whitespace-only slugs (review finding)"
     )
 
-    # --- T4: worktree-audit.sh portability (F10-F12) ---
+    # --- T4: worktree-audit.sh space-safe paths (F11; F10/F12 retired) ---
     wa = out / "skills" / "poteto-mode" / "scripts" / "worktree-audit.sh"
     wa_text = wa.read_text(encoding="utf-8")
-    if WORKTREE_HELPERS_ANCHOR not in wa_text:
-        raise ConvertError("worktree-audit.sh: 'set -u' anchor not found")
-    wa_text = wa_text.replace(WORKTREE_HELPERS_ANCHOR, WORKTREE_HELPERS, 1)
     for old, new in WORKTREE_AWK_PAIRS:
         if old not in wa_text:
             raise ConvertError(f"worktree-audit.sh: awk anchor not found: {old!r}")
         wa_text = wa_text.replace(old, new, 1)
-    if WORKTREE_STAT_OLD not in wa_text:
-        raise ConvertError("worktree-audit.sh: xargs stat fragment not found")
-    wa_text = wa_text.replace(WORKTREE_STAT_OLD, WORKTREE_STAT_NEW, 1)
-    if WORKTREE_DATE_OLD not in wa_text:
-        raise ConvertError("worktree-audit.sh: date -r fragment not found")
-    wa_text = wa_text.replace(WORKTREE_DATE_OLD, WORKTREE_DATE_NEW, 1)
-    if "stat -f '%m %N'" in wa_text or 'date -r "$last_ts"' in wa_text:
-        raise ConvertError("worktree-audit.sh: BSD-only construct survived the fix")
     wa.write_bytes(wa_text.encode("utf-8"))
     st.fixes.append(
-        "F10-F12: worktree-audit.sh portable via stat_mtime/date_epoch "
-        "helpers (GNU + BSD/macOS); awk no longer truncates space-paths"
+        "F11: worktree-audit.sh awk no longer truncates worktree paths with spaces "
+        "(F10/F12 GNU/BSD stat+date retired: upstream #805 ships the fix)"
     )
 
     # --- T5: neutralize localhost endpoint literals in example docs (install ---
@@ -1205,18 +386,6 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
     # --- swarm leftovers, tool-name mappings, doc links) -------------------
     T8_MAP = [
         (
-            "- `readonly`: `false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables MCP-backed investigators entirely. Investigators still shouldn't write anything.",
-            "- `readonly`: `false` (agent mode) so investigators can record findings if needed. Note: readonly on hermes restricts file writes only, so MCP access is unaffected. Investigators still shouldn't write anything.",
-        ),
-        (
-            "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.",
-            "- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly mode on hermes restricts file writes only - MCP access is unaffected - but agent mode keeps the option to record findings.",
-        ),
-        (
-            "Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly strips MCPs.",
-            "Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly on hermes restricts file writes only, so MCP access is unaffected.",
-        ),
-        (
             ' Use `environment: "local"` only when the worker needs access to something on the user\'s computer.',
             "",
         ),
@@ -1225,14 +394,10 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "When a worker must start from a non-default branch, pass the branch name explicitly in the task prompt.",
         ),
         (
-            "Use Glob to find directories and files, Grep to find key symbols, Read to understand the actual implementation.",
-            "Use search_files to find directories and files and to find key symbols, read_file to understand the actual implementation.",
+            "Every spawn is `generalPurpose` with `readonly: false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables the MCP-backed investigators and the synthesizer's citation spot-checks. Investigators still shouldn't write anything.",
+            "Every spawn is a read-only `delegate_task` task: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Hermes children keep the parent's MCP tools, so the MCP-backed investigators and the synthesizer's citation spot-checks keep their lookups. Investigators still shouldn't write anything.",
         ),
         ("Use Read, Grep, and Glob as needed.", "Use read_file and search_files as needed."),
-        (
-            "Use the tools available to you (Read, Grep, Glob) to explore.",
-            "Use the file-search and file-read tools available to you to explore.",
-        ),
         (
             "in `~/.cursor/rules/pstack-models.mdc`",
             "in the configured pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`)",
@@ -1246,23 +411,23 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`)",
         ),
         (
-            "which can require MCP access. Readonly strips MCPs.",
-            "which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected.",
-        ),
-        (
             "A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.",
             "A line whose role is not in step 5 is from a retired role. Drop it.",
         ),
         (
-            "Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.",
-            "Build its prompt from `references/explainer-prompt.md` without the explorer-findings section, and instruct the explainer to inspect the code itself before answering (there are no explorer findings to rely on). Go to Step 4.",
+            'built from `references/explainer-prompt.md` without the explorer-findings section. Go to step 4.',
+            'built from `references/explainer-prompt.md` without the explorer-findings section, and tell the explainer to inspect the code itself before answering (there are no explorer findings to rely on). Go to step 4.',
         ),
         ("`auto` or `inherit-parent`", "`inherit-parent`"),
         (
-            "(`inherit-parent`, `auto`). `unlimited` leaves every effort as in that table.",
-            "(`inherit-parent`). On a fresh configuration every role starts as `inherit-parent` (the parent chat model), so setting concrete slugs is what lets the budget's effort tiers apply. `unlimited` leaves every effort as in that table.",
+            'list, or alias (`inherit-parent`, `auto`). `unlimited`, `large`, `medium`, and `small` set',
+            "list, or alias (`inherit-parent`). On a fresh configuration every role starts as `inherit-parent` (the parent chat model), so setting concrete slugs is what lets the budget's effort tiers apply. `unlimited`, `large`, `medium`, and `small` set",
         ),
         ("`inherit-parent` and `auto` do not change.", "`inherit-parent` does not change."),
+        (
+            'An `inherit-parent` or `auto` value never judges.',
+            'An `inherit-parent` value never judges.',
+        ),
     ]
     t8_files = apply_map(sorted((out / "skills").rglob("*.md")), T8_MAP, map_name="T8_MAP", st=st)
     note_added = False
@@ -1332,12 +497,16 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "Every real slug written must be in the detected set; `inherit-parent` always passes.",
         ),
         (
-            "### 5. Write the rule\n\nWrite `~/.cursor/rules/pstack-models.mdc` with `alwaysApply: true`, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```\n---\ndescription: pstack per-role model choices (overrides skill defaults)\nalwaysApply: true\n---\n# pstack model configuration. One line per role. Delete a line to fall back to the skill default.\n# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.\n# budget: unlimited (max)\nfeature, refactoring: grok-4.7-xhigh-fast\nbug-fix: grok-4.7-xhigh-fast\nperf-issue: grok-4.7-xhigh-fast\nhillclimb: grok-4.7-xhigh-fast\njudgment and prose: claude-opus-5-5-max\nhardest tasks: claude-opus-5-5-max\nhow explorer: grok-4.7-xhigh-fast\nhow explainer: claude-opus-5-5-max\nwhy investigators: grok-4.7-xhigh-fast\nwhy synthesizer: claude-opus-5-5-max\nreflect tooling: gpt-5.6-sol-max\nreflect judgment, divergent, synthesizer: claude-opus-5-5-max\narena runners: claude-opus-5-5-max, gpt-5.6-sol-max, grok-4.7-xhigh-fast\narena cross-judge pool: claude-opus-5-5-max, gpt-5.6-sol-max, grok-4.7-xhigh-fast\nswarm workers: grok-4.7-xhigh-fast\narchitect runners: claude-opus-5-5-max, gpt-5.6-sol-max, grok-4.7-xhigh-fast\ninterrogate reviewers: claude-opus-5-5-max, gpt-5.6-sol-max, grok-4.7-xhigh-fast\n```",
-            '### 5. Write the config\n\nWrite `pstack-models.json` in the hermes config directory (next to `config.yaml`), never inside the plugin directory - a panel stored with the package is lost on the next `plugins update`. One entry per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```json\n{\n  "budget": "unlimited",\n  "roles": {\n    "feature, refactoring": "inherit-parent",\n    "bug-fix": "inherit-parent",\n    "perf-issue": "inherit-parent",\n    "hillclimb": "inherit-parent",\n    "judgment and prose": "inherit-parent",\n    "hardest tasks": "inherit-parent",\n    "how explorer": "inherit-parent",\n    "how explainer": "inherit-parent",\n    "how critics": ["inherit-parent"],\n    "why investigators": "inherit-parent",\n    "why synthesizer": "inherit-parent",\n    "reflect tooling": "inherit-parent",\n    "reflect judgment, divergent, synthesizer": "inherit-parent",\n    "arena runners": ["inherit-parent"],\n    "arena cross-judge pool": ["inherit-parent"],\n    "swarm workers": "inherit-parent",\n    "architect runners": ["inherit-parent"],\n    "interrogate reviewers": ["inherit-parent"]\n  }\n}\n```\nPanel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY; one subagent runs per entry, so the list length sets the count. `swarm workers` is the default for every worker unless a race assigns another model per arm.',
+            '### 5. Write the rule\n\nWrite `~/.cursor/rules/pstack-models.mdc` with `alwaysApply: true`, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```\n---\ndescription: pstack per-role model choices (overrides skill defaults)\nalwaysApply: true\n---\n# pstack model configuration. One line per role. Delete a line to fall back to the skill default.\n# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.\n# budget: large (xhigh)\nfeature, refactoring: grok-4.7-xhigh-fast\nbug-fix: grok-4.7-xhigh-fast\nperf-issue: grok-4.7-xhigh-fast\nhillclimb: grok-4.7-xhigh-fast\njudgment and prose: claude-opus-5-5-xhigh\nhardest tasks: claude-opus-5-5-xhigh\nhow explorer: grok-4.7-xhigh-fast\nhow explainer: claude-opus-5-5-xhigh\nwhy investigators: grok-4.7-xhigh-fast\nwhy synthesizer: claude-opus-5-5-xhigh\nreflect tooling: grok-4.7-xhigh-fast\nreflect judgment, divergent, synthesizer: claude-opus-5-5-xhigh\narena runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\narena cross-judge pool: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\nswarm workers: grok-4.7-xhigh-fast\narchitect runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\ninterrogate reviewers: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\n```',
+            '### 5. Write the config\n\nWrite `pstack-models.json` in the hermes config directory (next to `config.yaml`), never inside the plugin directory - a panel stored with the package is lost on the next `plugins update`. One entry per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```json\n{\n  "budget": "large",\n  "roles": {\n    "feature, refactoring": "inherit-parent",\n    "bug-fix": "inherit-parent",\n    "perf-issue": "inherit-parent",\n    "hillclimb": "inherit-parent",\n    "judgment and prose": "inherit-parent",\n    "hardest tasks": "inherit-parent",\n    "how explorer": "inherit-parent",\n    "how explainer": "inherit-parent",\n    "how critics": ["inherit-parent"],\n    "why investigators": "inherit-parent",\n    "why synthesizer": "inherit-parent",\n    "reflect tooling": "inherit-parent",\n    "reflect judgment, divergent, synthesizer": "inherit-parent",\n    "arena runners": ["inherit-parent"],\n    "arena cross-judge pool": ["inherit-parent"],\n    "swarm workers": "inherit-parent",\n    "architect runners": ["inherit-parent"],\n    "interrogate reviewers": ["inherit-parent"]\n  }\n}\n```\nPanel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY; one subagent runs per entry, so the list length sets the count. `swarm workers` is the default for every worker unless a race assigns another model per arm.',
         ),
         (
             "On yes, invoke `/create-verification-skill` (resolves wherever pstack is installed: workspace, user, or plugin).",
             "On yes, load the create-verification-skill skill via skill_view (it ships in this plugin) and follow it.",
+        ),
+        (
+            'On yes, invoke `/create-formal-verification-skill` (resolves wherever pstack is installed: workspace, user, or plugin).',
+            'On yes, load the create-formal-verification-skill skill via skill_view (it ships in this plugin) and follow it.',
         ),
     ]
     T9_MAP = [
@@ -1387,32 +556,20 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "Before spawning investigators, list the MCP tools available in this session (the configured MCP servers' tool catalog). If the session has no MCP tools, mark the unreachable evidence categories null in the coverage map instead of inventing a tool.",
         ),
         (
-            "- `model`: the `why investigators` line, default `grok-4.7-xhigh-fast`",
-            "- `model`: the `why investigators` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)",
+            "## 1. Locate the active transcript\n\nBefore fanning out, find this conversation's transcript in the `agent-transcripts/` directory the system prompt names. Do not glob across `~/.cursor/projects/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.\n\n```bash\nls -t <agent-transcripts>/*.jsonl <agent-transcripts>/*/*.jsonl <agent-transcripts>/*/subagents/*.jsonl 2>/dev/null | head -10\n```\n\nThat covers the legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), and subagent (`<parent>/subagents/<child>.jsonl`) layouts. For each candidate, read the first JSONL line. Take the file whose `message.content[0].text` contains the conversation's opening user prompt. If none matches, pass a tight digest of the session instead.",
+            '## 1. Locate the active transcript\n\nThe parent locates the current session via `session_search` (hermes stores sessions in its SQLite store; there are no JSONL transcript files). Query for the active conversation and take the most recent matching session id. If the exact session cannot be resolved, write a tight digest of the conversation and pass that instead.',
         ),
         (
-            "- `model`: the `why synthesizer` line, default `claude-opus-5-5-max`",
-            "- `model`: the `why synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)",
-        ),
-        (
-            "### 1. Locate the active transcript\n\nThe parent finds its own transcript file before fanning out. The system prompt names the active workspace's `agent-transcripts/` directory. Use that path. Do not glob across `~/.cursor/projects/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.\n\n```bash\nls -t <agent-transcripts>/*.jsonl <agent-transcripts>/*/*.jsonl <agent-transcripts>/*/subagents/*.jsonl 2>/dev/null | head -10\n```\n\nThree transcript layouts: legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), and subagent (`<parent>/subagents/<child>.jsonl`).\n\nFor each candidate, read the first JSONL line and check that `message.content[0].text` contains the conversation's opening user prompt. Take the matching path. If no path resolves, write a tight digest of the session and pass that instead.",
-            "### 1. Locate the active transcript\n\nThe parent locates the current session via `session_search` (hermes stores sessions in its SQLite store; there are no JSONL transcript files). Query for the active conversation and take the most recent matching session id. If the exact session cannot be resolved, write a tight digest of the conversation and pass that instead.",
-        ),
-        (
-            "| Judgment | `reflect judgment, divergent, synthesizer` | `claude-opus-5-5-max` | `references/judgment-reviewer.md` |",
+            '| Judgment | `reflect judgment, divergent, synthesizer` | `claude-opus-5-5-xhigh` | `references/judgment-reviewer.md` |',
             "| Judgment | `reflect judgment, divergent, synthesizer` | the line's value, else the parent chat model | `references/judgment-reviewer.md` |",
         ),
         (
-            "| Tooling | `reflect tooling` | `gpt-5.6-sol-max` | `references/tooling-reviewer.md` |",
+            '| Tooling | `reflect tooling` | `grok-4.7-xhigh-fast` | `references/tooling-reviewer.md` |',
             "| Tooling | `reflect tooling` | the line's value, else the parent chat model | `references/tooling-reviewer.md` |",
         ),
         (
-            "| Divergent | `reflect judgment, divergent, synthesizer` | `claude-opus-5-5-max` | `references/divergent-reviewer.md` |",
+            '| Divergent | `reflect judgment, divergent, synthesizer` | `claude-opus-5-5-xhigh` | `references/divergent-reviewer.md` |',
             "| Divergent | `reflect judgment, divergent, synthesizer` | the line's value, else the parent chat model | `references/divergent-reviewer.md` |",
-        ),
-        (
-            "One `delegate_task` call (role: `leaf`), with `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-max`), agent mode (`readonly: false`).",
-            "One `delegate_task` call (role: `leaf`), using the `reflect judgment, divergent, synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model), agent mode (`readonly: false`).",
         ),
         (
             "Read the active transcript at <ABSOLUTE_PATH> (or use the digest below if no path is given).",
@@ -1528,18 +685,12 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         "Graphite `gt` rewording)"
     )
 
-    # --- T14: option (b) from issue #33 -- re-point the stacker-role /
-    # topology lines T12 left unmapped in orchestrate.md's Stack safety
-    # block. Where a hermes equivalent exists, point at it; where the
-    # capability genuinely does not exist, keep the Graphite name and
-    # state the limitation rather than invent a false equivalence.
-    t14_files = apply_map(
-        sorted((out / "skills").rglob("*.md")), T14_MAP, map_name="T14_MAP", st=st
+    help_files = apply_map(
+        sorted((out / "skills" / "poteto-help").rglob("*.md")), HELP_MAP, map_name="HELP_MAP", st=st
     )
     st.fixes.append(
-        f"T14: stacker-role / topology rewording (option b, "
-        f"issue #33) applied across {t14_files} skill file(s) "
-        "(stacker clone, one-stacker serialization, retarget)"
+        f"P1: poteto-help Cursor-only mechanisms re-pointed at Hermes across {help_files} file(s) "
+        "(install, Custom Modes, setup-pstack panel, cross-harness note, /loop, hermesbot row)"
     )
     apply_h1_contract(out, st)
     audit_anchor_hits(
@@ -1552,7 +703,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "T12_MAP": T12_MAP,
             "T12_SCRIPT_MAP": T12_SCRIPT_MAP,
             "T13_MAP": T13_MAP,
-            "T14_MAP": T14_MAP,
+            "HELP_MAP": HELP_MAP,
             "H1_MAP": H1_MAP,
         },
         st,
@@ -1595,8 +746,8 @@ T11_MAP = [
         "Read this run's history via `session_search` over the hermes session store (query this conversation). Don't read unrelated private sessions.",
     ),
     (
-        "- `Read` tool calls against any `SKILL.md` file (workspace `.cursor/skills/`, user-level `~/.cursor/skills/`, or plugin-installed paths under `~/.cursor/plugins/`)",
-        "- `read_file` calls against any `SKILL.md` file (this plugin's `skills/`, `~/.hermes/skills/`, or other configured skills locations)",
+        'a `Read` of its `SKILL.md` (under `.cursor/skills/`, `~/.cursor/skills/`, or `~/.cursor/plugins/`)',
+        "a `read_file` or `skill_view` of its `SKILL.md` (this plugin's `skills/`, `~/.hermes/skills/`, or other configured skills locations)",
     ),
     (
         "otherwise `/tmp/arena-<slug>/candidate-<n>/`",
@@ -1615,10 +766,6 @@ T11_MAP = [
         "Set `NOTES_DATA_DIR` to a scratch directory under the system temp (e.g. `notes-verify-$RUN_ID`) so concurrent runs do not share state.",
     ),
     ("6. Simulators and other reclaimers.", "6. Simulators and other reclaimers (macOS/Xcode)."),
-    (
-        "Reading local transcripts under `agent-transcripts/`",
-        "Reading session history from the local hermes store",
-    ),
     (
         "a project-local skill (`.cursor/skills/verify-<app>/`)",
         "a project-local skill in your harness's skills directory (`%LOCALAPPDATA%\\hermes\\skills\\verify-<app>/` on hermes, `.cursor/skills/verify-<app>/` on Cursor)",
@@ -1639,6 +786,14 @@ T11_MAP = [
         "# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.",
         "# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts (Cursor-specific; on hermes, sessions live in SQLite and this check skips gracefully).",
     ),
+    (
+        'Never edit a skill under `plugins/cache/`. Before approval, show its destination, `.cursor/skills/<skill>/` or `~/.cursor/skills/<skill>/`. After approval, copy the skill folder there and edit the copy.',
+        "Never edit a skill inside an installed plugin, this package included, because `hermes plugins update` replaces it. Before approval, show its destination, a local skill under `~/.hermes/skills/<skill>/` or the project's own skills directory. After approval, copy the skill folder there and edit the copy.",
+    ),
+    (
+        '](../../docs/guide/',
+        '](https://github.com/cursor/plugins/blob/main/pstack/docs/guide/',
+    ),
 ]
 
 
@@ -1656,11 +811,17 @@ DELEGATION_MAP = [
         "`inherit-parent` or `auto` runs that role on the parent chat model (omit Task `model`)",
         "`inherit-parent` runs that role on the parent chat model (omit the delegate's `model`)",
     ),
-    ("Spawn one Task subagent", "Spawn one delegate subagent"),
-    ("`subagent_type`: `generalPurpose`", "`delegate_task`: role `leaf`"),
     (
-        'Spawn `Task` with `subagent_type: "Comment Sicko"`',
-        "Read `references/comment-sicko.md`, then spawn a delegate with `delegate_task` (role: `leaf`)",
+        'Spawn `Task` with `subagent_type: "comment-sicko"`',
+        'Read `references/comment-sicko.md`, then spawn a delegate with `delegate_task` (role: `leaf`)',
+    ),
+    (
+        'Every spawn is a Task subagent with `subagent_type: generalPurpose` and `readonly: true`.',
+        'Every spawn is a read-only `delegate_task` subagent.',
+    ),
+    (
+        'Spawn each adversary as `generalPurpose`.',
+        'Spawn each adversary as a `delegate_task` subagent.',
     ),
     ("`subagent_type: generalPurpose`", "`delegate_task` (role: `leaf`)"),
     (
@@ -1683,7 +844,6 @@ DELEGATION_MAP = [
     ),
     ("the Task tool", "delegate_task"),
     ("`Task`", "`delegate_task`"),
-    ("spawn one Task subagent", "spawn one delegate subagent"),
 ]
 # Re-exported from bans.py (single source of truth) so the converter's
 # leftover check and the scanner gate can never drift apart.
@@ -1707,42 +867,25 @@ T12_MAP = [
         "Drive a long or stubborn hunt with a hermes cron job that re-wakes this session on the hunt at a fixed interval until the mechanism is confirmed.",
     ),
     (
-        "A local root arms each tick as a real terminal `/loop`. The loop uses a monitored-shell 30-minute sleep and emits an output-notification sentinel.",
-        "A local root arms each tick as a recurring hermes cron job (30-minute interval) whose delivery re-wakes this session with the tick prompt; the cron run record, not a completion notification, is the wake.",
-    ),
-    (
         "Run `drive` and `background` under `/loop` in dynamic mode.",
         "Hold `drive` and `background` across turns with a hermes cron wake loop.",
     ),
     (
-        "Hold the watch under `/loop` in dynamic mode.",
-        "Hold the watch across turns with a hermes cron wake loop.",
+        'under `/loop` until it reports `COMPLETE` at the ceiling.',
+        'from a hermes cron wake loop until it reports `COMPLETE` at the ceiling. Each tick is a fresh run, so its prompt carries the stack and the command (`../references/hermes-delegation.md`).',
     ),
     (
         "`/loop` per component until the diff is zero.",
         "Loop per component until the diff is zero, re-arming a hermes cron wake only if the run must outlive the session.",
     ),
-    (
-        "Arm the 30-minute audit tick. In a local session, a real terminal `/loop`.",
-        "Arm the 30-minute audit tick. In a local session, a recurring hermes cron job that delivers the tick prompt.",
-    ),
     ('"/loop until X"', '"loop until X"'),
     (
-        "On that go, arm a `/goal` with the full program objective. The goal continues across turns until the queue is done.",
-        "On that go, write the full program objective to `goal.md` beside the plan in the agent store — the armed goal. The goal persists across turns until the queue is done; every wake re-reads it.",
+        "On the operator's go, arm `/loop 1h` to audit until no delegated work is left, because long runs drift and agents stall silently.",
+        "On the operator's go, arm an hourly hermes cron job to audit until no delegated work is left, because long runs drift and agents stall silently. Each tick is a fresh run, never a resume of this session, so follow the wake rules in `../references/hermes-delegation.md`: a self-contained prompt, `--continuity`, `--workdir`, and `hermes cron remove` once no delegated work is left.",
     ),
     (
-        "On the operator's explicit go, arm a `/goal` with the full program objective. The goal continues across turns until the chain is done.",
-        "On the operator's explicit go, write the full program objective to `goal.md` beside the plan in the agent store - the armed goal. The goal persists across turns until the chain is done; every wake re-reads it.",
-    ),
-    ("then re-read the armed `/goal`.", "then re-read the armed `goal.md` from the agent store."),
-    (
-        "On the operator's go, arm a `/goal` with this exact text.",
-        "On the operator's go, write this exact text to `goal.md` next to the plan file in the agent store as the armed goal.",
-    ),
-    (
-        "from trunk and the armed /goal. Audit the operation",
-        "from trunk and the armed `goal.md` from the store. Audit the operation",
+        "- [ ] On the operator's go, arm the audit tick as `/loop 1h` with the tick prompt below. Never leave the cadence to memory.",
+        "- [ ] On the operator's go, arm the audit tick as an hourly hermes cron job (`--continuity`, `--workdir <repo>`, `--deliver origin`) whose prompt is the tick prompt below plus the plan and store paths. Each tick is a fresh run, not a resume of this chat (`skills/poteto-mode/references/hermes-delegation.md`). Record the job id in the plan, and remove the job (`hermes cron remove <id>`) at close. Never leave the cadence to memory.",
     ),
 ]
 
@@ -1751,8 +894,12 @@ T12_MAP = [
 # (tolerant: either marker, so in-flight plans written with /goal still pass).
 T12_SCRIPT_MAP = [
     (
-        'const PROGRAM_MARKERS = ["/goal", "git show origin/main:", /30[- ]minute/, "status message"];',
-        'const PROGRAM_MARKERS = [/goal\\.md|\\/goal/, "git show origin/main:", /30[- ]minute/, "status message"];',
+        'const PROGRAM_MARKERS = ["git show origin/main:", "/loop 1h", "status message"];',
+        'const PROGRAM_MARKERS = ["git show origin/main:", ["hermes cron", "/loop 1h"], "status message"];',
+    ),
+    (
+        '\tfor (const marker of PROGRAM_MARKERS) {\n\t\tif (!bodyText(program).includes(marker)) fail(program.n, `Program checklist lacks "${marker}"`);\n\t}',
+        '\tfor (const marker of PROGRAM_MARKERS) {\n\t\tconst alternatives = [marker].flat();\n\t\tif (!alternatives.some((m) => bodyText(program).includes(m)))\n\t\t\tfail(program.n, `Program checklist lacks "${alternatives.join(\'" or "\')}"`);\n\t}',
     ),
 ]
 
@@ -1770,119 +917,145 @@ T13_MAP = [
     # substrings of them (e.g., [8] before [0]) so the replacement doesn't
     # break the longer match.
     (
-        "a slop-strip (the `deslop` skill from the `cursor-team-kit` plugin (`/deslop`)), `/no-comments` (the **no-comments** skill)",
-        "a slop-strip (the `deslop` skill (`/deslop`)), `/no-comments` (the **no-comments** skill)",
+        '`cursor-team-kit` publishes `control-cli` (CLIs and TUIs) and `control-ui`',
+        'When installed (they ship outside this package), the control skills are `control-cli` (CLIs and TUIs) and `control-ui`',
     ),
     (
-        "Fan out N parallel cloud workers. They may cover separate slices, race the same brief, or mix both.",
-        "Fan out N parallel delegate workers. They may cover separate slices, race the same brief, or mix both. Background `delegate_task` work is process-local; use a hermes cron wake or a background terminal run for work that must survive a session restart.",
+        'each a Cursor cloud agent, runs the change the way a user would with the matching control skill (such as `control-ui` or `control-cli` from `cursor-team-kit`), parent against head',
+        'each a local `delegate_task` child, runs the change the way a user would with the matching control skill (such as `control-ui` or `control-cli`, when installed), parent against head',
     ),
     (
-        "N is total workers, not the cloud concurrency limit.",
-        "N is total workers, not a durability guarantee.",
+        'Each owner is a Cursor cloud agent that builds',
+        'Each owner is a local `delegate_task` child that builds',
     ),
     (
-        "`cursor-team-kit` publishes `control-cli` (CLIs and TUIs) and `control-ui`",
-        "The repo's control-surface skills publish `control-cli` (CLIs and TUIs) and `control-ui`",
+        'Browser, Electron, and web UIs use `control-ui` from `cursor-team-kit`. CLIs and TUIs use `control-cli` from `cursor-team-kit`.',
+        'Browser, Electron, and web UIs use `control-ui`. CLIs and TUIs use `control-cli`. Both ship outside this package, so use them when installed.',
     ),
     (
-        "each a Cursor cloud agent, each exercising the real surface with the matching control skill (such as `control-ui` or `control-cli` from `cursor-team-kit`) against parent versus head",
-        "each a delegate subagent, each exercising the real surface with the matching control skill (such as `control-ui` or `control-cli`) against parent versus head",
+        'Each live lane runs on its own cloud VM at the PR head. Drive through `control-ui` or `control-cli` from `cursor-team-kit`.',
+        'Each live lane runs on its own lane VM at the PR head. Drive through `control-ui` or `control-cli` when installed.',
     ),
     (
-        "One Cursor cloud agent per PR owns build, the first push, a ready PR, self-proof on the real artifact (the **prove-it-works** principle skill), skeptical Bugbot triage per `../references/bugbot-triage.md`, a slop-strip (the `deslop` skill (`/deslop`)), `/no-comments` (the **no-comments** skill), a rebase onto current trunk, the babysit loop to green (`playbooks/babysit.md`), and the merge itself.",
-        "One delegate per PR owns build, the first push, a ready PR, self-proof on the real artifact (the **prove-it-works** principle skill), skeptical Bugbot triage per `../references/bugbot-triage.md`, a slop-strip (the `deslop` skill (`/deslop`)), `/no-comments` (the **no-comments** skill), a rebase onto current trunk, the babysit loop to green (`playbooks/babysit.md`), and the merge itself.",
+        'Run `/deslop` from `cursor-team-kit` over the diff before commit',
+        'Run `/deslop` (when installed; it ships outside this package) over the diff before commit',
     ),
     (
-        "One Cursor cloud agent per PR owns its change end to end: build, first push, a ready PR opened before self-proof, self-proof (gates, CI, receipts), skeptical Bugbot triage per `../references/bugbot-triage.md`, a slop-strip (the `deslop` skill (`/deslop`)), `/no-comments` (the **no-comments** skill), and babysit to green per `playbooks/babysit.md`.",
-        "One delegate per PR owns its change end to end: build, first push, a ready PR opened before self-proof, self-proof (gates, CI, receipts), skeptical Bugbot triage per `../references/bugbot-triage.md`, a slop-strip (the `deslop` skill (`/deslop`)), `/no-comments` (the **no-comments** skill), and babysit to green per `playbooks/babysit.md`.",
+        'the `deslop` skill from the `cursor-team-kit` plugin (`/deslop`)',
+        'the `deslop` skill (`/deslop`, when installed; it ships outside this package)',
     ),
     (
-        "Browser, Electron, and web UIs use `control-ui` from `cursor-team-kit`. CLIs and TUIs use `control-cli` from `cursor-team-kit`.",
-        "Browser, Electron, and web UIs use `control-ui`. CLIs and TUIs use `control-cli`.",
+        'a chart or diagram from `/visualize`',
+        'a chart or diagram from `/visualize` (when your harness has it)',
     ),
     (
-        "Each live lane runs on its own cloud VM at the PR head. Drive through `control-ui` or `control-cli` from `cursor-team-kit`.",
-        "Each live lane runs on its own lane VM at the PR head. Drive through `control-ui` or `control-cli`.",
+        'a `/visualize` chart for numbers',
+        'a `/visualize` chart for numbers when your harness has it',
     ),
     (
-        "Run `/deslop` from `cursor-team-kit` over the diff before commit.",
-        "Run `/deslop` over the diff before commit.",
+        'going offline, a Cursor restart, or imminent context compaction',
+        'going offline, a Hermes gateway restart, or imminent context compaction',
     ),
     (
-        "the `deslop` skill from the `cursor-team-kit` plugin (`/deslop`)",
-        "the `deslop` skill (`/deslop`)",
-    ),
-    (
-        "The frontier is a computed object, never narrative. Recompute `frontier.json` from `gt` after every merge and stack mutation because GitHub base refs drift mid-restack while gt tracking is authoritative: ordered PR list, branch names, head SHAs, a generation number, the lowest unmerged PR. Resolve it where gt knows the stack, normally the stacker's clone. A checkout whose gt metadata never saw the submits reports no PRs and the command errors rather than guessing.",
-        "The frontier is a computed object, never narrative. Recompute `frontier.json` from the resolved forge after every merge and stack mutation: ordered PR list, branch names, head SHAs, a generation number, and the lowest unmerged PR. `orch frontier set --provider auto` tries Graphite first and then a GitHub-native chain inferred from PR base/head branches; pin with `--provider graphite`, `--provider github`, or `--provider local` when the stack source must be explicit. `--provider local` needs no forge: it reads local branches only (the current branch plus its ancestors and descendants, ordered bottom-to-top) and marks every row with PR sentinel `0`. Resolve it in the clone that has the local branches for the stack; a checkout whose forge metadata cannot produce one connected chain errors rather than guessing.",
-    ),
-    (
-        "Prove the load-bearing behavior live on the real surface the change touches (with the matching control skill, such as `control-cli` or `control-ui` from `cursor-team-kit`, or a named driver where none exists)",
-        "Prove the load-bearing behavior live on the real surface the change touches (with the matching control skill, such as `control-cli` or `control-ui`, or a named driver where none exists)",
-    ),
-    (
-        "`control-ui` or `control-cli` runtime verification (from `cursor-team-kit`)",
-        "`control-ui` or `control-cli` runtime verification",
-    ),
-    (
-        "the cloud agent's status in the Cursor dashboard",
-        "the subagent's status in the delegate_task result",
-    ),
-    (
-        "After a Cursor restart: local agents are dead, cloud work is not.",
-        "After a gateway restart: in-flight delegate work is not automatically resumed, so re-arm any wake loop and re-read the armed `goal.md`.",
-    ),
-    (
-        "In a cloud root, a cloud-sleeper wake chain.",
-        "In a local root, a wake chain arms each tick as a recurring hermes cron job whose delivery re-wakes this session.",
-    ),
-    (
-        "A cloud root uses the existing cloud-sleeper wake chain instead.",
-        "A local root uses the existing wake chain instead.",
-    ),
-    (
-        "Never require Graphite (`gt`).",
-        "Never require Graphite (`gt`); the stacker is the only topology writer.",
-    ),
-    (
-        "Workers never rebase and never run `gt`. Babysitters follow `playbooks/babysit.md`, one per stack, scoped to one immutable frontier generation. They report conflicts to the stacker rather than restacking.",
-        "Workers never rebase and never run `gt`. Babysitters follow `playbooks/babysit.md`, one per stack, scoped to one immutable frontier generation. They report conflicts to the stacker rather than restacking.",
-    ),
-    (
-        "Never submit or register the chain through `gt`.",
-        "Never submit or register the chain through `gt`.",
+        'through its control skill (such as `control-ui` or `control-cli` from `cursor-team-kit`) or a named driver',
+        'through its control skill (such as `control-ui` or `control-cli`, when installed) or a named driver',
     ),
 ]
 
-# --- T14: stacker-role / topology rewording (option b, issue #33) ------------
-# Two of the three lines in orchestrate.md's "Stack safety" block that T12
-# left unmapped. (The third — the frontier-paragraph "Resolve it where gt
-# knows the stack" line — is re-pointed by T13_MAP's provider-selection
-# rewrite, which subsumed this map's original first entry; pruned 2026-09.)
-# Where a real hermes equivalent exists the vendor wording is
-# re-pointed at it; where the capability genuinely does not exist (stack
-# topology, restacks, retarget-through-stacker, the stack-aware merge queue)
-# the Graphite name is kept and the limitation stated explicitly. Same
-# convention as T12: never erase an absent capability, never invent an
-# equivalence that is not there.
-T14_MAP = [
+
+# --- P1: poteto-help Hermes surface (new upstream skill, c742dd6 re-pin) ----
+# poteto-help is upstream's Cursor-facing help desk: install via /add-plugin,
+# Custom Modes, cursor.com docs, Claude Code, and the excluded make-bot-ui. Each
+# pair re-points one Cursor-only mechanism at its Hermes equivalent (or states
+# it is absent); routing, tables, and advice stay upstream's. Audited.
+HELP_MAP = [
     (
-        "Exactly one stacker per stack may run `gt`, serialized within its stack. Record the holder in the standing orders. Restacks run in cloud. A local restack at this scale takes the laptop down.",
-        "Exactly one stacker per stack owns frontier work, serialized within its stack. Record the holder in the standing orders. Restacks require Graphite (`gt`) and run on the stacker's clone; at this scale a local restack takes the laptop down. The stacker is the hermes profile named in the standing orders, and its clone is the checkout whose frontier metadata saw the submits - that is the only host a restack can run on.",
+        "give the user the file's public copy: `https://github.com/cursor/plugins/blob/main/pstack/` followed by its path.",
+        "give the user the file's public copy: `https://github.com/honki12345/pstack-hermes/blob/main/` followed by its path. That is this Hermes port; upstream pstack lives at `https://github.com/cursor/plugins/tree/main/pstack`.",
     ),
     (
-        "PR closes and retargets go through the stacker only. Closing a base PR orphans every chain above it. Merges and stack surgery are units with briefs like any other.",
-        "PR closes and retargets go through the stacker only. Closing a base PR orphans every chain above it. Retargeting through the stacker requires Graphite (`gt`); ordinary base changes to an existing child or the bottom PR go through the resolved forge (`origin pr edit` / `gh pr edit`) and need no stacker. Merges and stack surgery are units with briefs like any other.",
+        'do the work under it, and mention once that a Custom Mode keeps it on.',
+        'do the work under it, and mention once that each new task starts with `/poteto-mode` again.',
+    ),
+    (
+        "- No `~/.cursor/rules/pstack-models.mdc` means `/setup-pstack` hasn't run for this user, so every role uses its default model.",
+        "- No `pstack-models.json` beside hermes' `config.yaml` means `/setup-pstack` hasn't run for this user, so every role uses its default model.",
+    ),
+    (
+        '1. Install with `/add-plugin pstack` in chat, or from Customize in the sidebar.',
+        '1. Install with `hermes plugins install honki12345/pstack-hermes --enable`. The package README covers pinning and updates.',
+    ),
+    (
+        'It asks for a reasoning budget, maps a model to each role, and writes a rule. The rule applies to new chats.',
+        "It asks for a reasoning budget, maps a model to each role, and writes `pstack-models.json` beside hermes' `config.yaml`. Spawns follow it only through the pstack delegation backend (`../poteto-mode/references/hermes-delegation.md`).",
+    ),
+    (
+        'which saves tokens when the chat runs on Auto or a cheaper model.',
+        'which saves tokens when the chat runs on a cheaper model.',
+    ),
+    (
+        'pstack is built for Cursor, and it also installs in Claude Code with `/plugin marketplace add cursor/plugins`, then `/plugin install pstack@cursor-plugins`. There, each command takes a `pstack:` prefix, such as `/pstack:poteto-mode`. The [Claude Code adapter](../../docs/harness/claude-code.md) maps the Cursor names, and a step that needs a Cursor-only feature, such as Bugbot or Automations, is skipped with a one-line note.\n\nOther tools can read the skills, because they use the Agent Skills format. But most workflow skills, including `/poteto-mode`, `/how`, `/why`, and `/teach`, spawn Cursor subagents with per-role models, and Custom Modes and `/loop` are Cursor features, so those parts may not work there.',
+        'This package is the Hermes Agent port of pstack, which upstream is built for Cursor. Spawns go through `delegate_task` per `../poteto-mode/references/hermes-delegation.md`, and wake loops are `hermes cron` jobs. For Cursor or Claude Code, install upstream pstack from `https://github.com/cursor/plugins/tree/main/pstack` instead.',
+    ),
+    (
+        "Whether `/poteto-mode` stays on depends on how the user starts it:\n\n- Enter on `/poteto-mode` attaches the skill to one message. It fades as the chat moves on.\n- Option+Enter on Mac or Alt+Enter on Windows, or Use as Mode from the skill entry, makes it a Custom Mode. It stays in context every turn until the user exits the mode, and it stays out of casual turns.\n- Cursor's docs list Custom Modes in the Agents Window and the CLI. Elsewhere, start each new task with `/poteto-mode`.\n\nLink [Cursor's skills docs](https://cursor.com/docs/skills) when this comes up.",
+        'On Hermes, `/poteto-mode` (or loading it with `skill_view`) attaches the skill to the task at hand, and it fades as the chat moves on. Hermes has no Custom Modes, so start each new task with `/poteto-mode`. The package README covers slash commands and `skill_view`.',
+    ),
+    (
+        '`/poteto-mode` already uses `poteto-agent` for the subagents its playbook steps spawn.',
+        '`/poteto-mode` already gives the subagents its playbook steps spawn the poteto-mode wrapper instructions.',
+    ),
+    (
+        '| Run parallel checks over slices, or race workers, as cloud agents |',
+        '| Run parallel checks over slices, or race workers, as parallel delegate workers |',
+    ),
+    (
+        '| Build a page whose buttons wake a Grok Bot over a webhook | [`/make-bot-ui`](../make-bot-ui/SKILL.md) |',
+        '| Build a page or dashboard whose buttons wake a hermes bot over a gateway webhook | [`/hermesbot`](../hermesbot/SKILL.md) |',
+    ),
+    (
+        '- `/deslop`, `control-cli`, and `control-ui` ship in the `cursor-team-kit` plugin.\n- `/loop` and `/create-skill` are Cursor built-ins.',
+        "- `/deslop`, `control-cli`, and `control-ui` ship in Cursor's `cursor-team-kit` plugin, outside this package. Use them when installed.\n- Hermes has no built-in `/loop` command. Wake loops are `hermes cron` jobs, and skills are authored with `skill_manage`.",
+    ),
+    (
+        "can start Cursor's own skill for the same job instead.",
+        'can start another installed skill for the same job instead.',
+    ),
+    (
+        "pstack has no planning skill. Cursor's Plan Mode works alongside it.",
+        "pstack has no planning skill. Your harness's plan mode, if it has one, works alongside it.",
+    ),
+    (
+        '| The mode stopped applying after a few turns | It was started with Enter. Start it as a Custom Mode, or start each task with `/poteto-mode`. |',
+        '| The mode stopped applying after a few turns | The skill fades as the chat moves on. Start each task with `/poteto-mode`. |',
+    ),
+    (
+        '| A new model choice had no effect | The rule from `/setup-pstack` applies to new chats. Start one. |',
+        "| A new model choice had no effect | Spawns follow `pstack-models.json` only through the pstack delegation backend (`delegation.backend: pstack`). Without it every role runs on the parent model. Check each result's `route` label. |",
+    ),
+    (
+        '| Parallel agents overwrote each other | Give each agent its own worktree, or run them as cloud agents, which each get their own machine. |',
+        '| Parallel agents overwrote each other | Give each agent its own worktree. Hermes children are local and share this machine. |',
+    ),
+    (
+        '| An overnight run moved but finished nothing | `/loop` needs a check that can pass or fail, not a duration.',
+        '| An overnight run moved but finished nothing | A hermes cron wake loop needs a check that can pass or fail, not a duration.',
+    ),
+    (
+        'give `/loop` that predicate.',
+        'give the hermes cron wake loop that predicate.',
+    ),
+    (
+        "don't ask me before committing. /loop until done.",
+        "don't ask me before committing. loop until done.",
     ),
 ]
-
 
 # --- H1: Hermes delegation contract (fork) ---------------------------------
 # Hermes v0.23.0 delegate_task has no per-task `model` (core-reserved: dropped
 # silently, the child runs on the parent model) and no `readonly` (undeclared:
 # the task is refused). Cron never resumes the arming session. These pairs
-# rewrite the post-T14 text so the skills route by `pstack_role` through the
+# rewrite the post-T13 text so the skills route by `pstack_role` through the
 # pstack delegation backend (hermes-plugin/pstack-delegation), keep read-only
 # as an advisory + verified contract, and describe cron ticks as fresh runs.
 # The contract itself ships as skills/poteto-mode/references/hermes-delegation.md
@@ -1896,52 +1069,8 @@ H1_MAP = [
         "Route each spawn per the Hermes delegation contract (" + H1_CONTRACT + "): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply.",
     ),
     (
-        "- `delegate_task`: role `leaf`\n- `model`: the `how explorer` line, default `grok-4.7-xhigh-fast`\n- `readonly`: `true`",
-        "- `delegate_task` task with `pstack_role`: `how explorer` (upstream default `grok-4.7-xhigh-fast`)\n" + H1_RO,
-    ),
-    (
-        "- `delegate_task`: role `leaf`\n- `model`: the `how explainer` line, default `claude-opus-5-5-max`\n- `readonly`: `true`",
-        "- `delegate_task` task with `pstack_role`: `how explainer` (upstream default `claude-opus-5-5-max`)\n" + H1_RO,
-    ),
-    (
-        "- `delegate_task`: role `leaf`\n- `model`: the `why investigators` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)\n- `readonly`: `false` (agent mode) so investigators can record findings if needed. Note: readonly on hermes restricts file writes only, so MCP access is unaffected. Investigators still shouldn't write anything.",
-        "- `delegate_task` task with `pstack_role`: `why investigators` (fallback: the parent chat model)\n" + H1_RO + ". Hermes children keep the parent's MCP tools, so MCP-backed investigators keep their lookups.",
-    ),
-    (
-        "- `delegate_task`: role `leaf`\n- `model`: the `why synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)\n- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly mode on hermes restricts file writes only - MCP access is unaffected - but agent mode keeps the option to record findings.",
-        "- `delegate_task` task with `pstack_role`: `why synthesizer` (fallback: the parent chat model)\n" + H1_RO + ". The synthesizer spot-verifies citations through MCP, which Hermes children keep.",
-    ),
-    (
-        "three `delegate_task` calls (role: `leaf`), with `model` set as below, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly on hermes restricts file writes only, so MCP access is unaffected.",
-        "one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (" + H1_CONTRACT + "). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript); Hermes children keep the parent's MCP tools.",
-    ),
-    (
-        "One `delegate_task` call (role: `leaf`), using the `reflect judgment, divergent, synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected.",
-        "One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (fallback: the parent chat model) and `access: read-only`. The synthesizer's quality check includes spot-verifying citations, which can require MCP access; Hermes children keep the parent's MCP tools.",
-    ),
-    (
-        "- `delegate_task`: role `leaf`\n- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line. For an `inherit-parent` entry, omit `model` so that reviewer runs on the parent model.\n- `readonly`: `true`",
-        "- `delegate_task` task with `pstack_role`: `interrogate reviewers` and `seat`: the reviewer's 0-based entry (Reviewer A is seat 0). The backend resolves the configured entry or the table default; never pass `model`.\n" + H1_RO + ". Without the pstack delegation backend, omit those keys, still spawn one reviewer per entry, and report the panel as single-model: the cross-family check is unmet.",
-    ),
-    (
-        "If delegate_task rejects a configured entry, run that reviewer on the table default of its family and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use Reviewer A's default. If it rejects a table default, check the valid slugs in delegate_task's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with it, and open a separate PR to update the default table. Do not block the review on the slug issue. Never treat an alias entry as a rejected slug or apply either fallback to it.",
-        "If delegate_task refuses a seat because its entry cannot be resolved (unknown model, provider, or profile), rerun that reviewer once without `seat` and `pstack_role`, so it runs on the parent model, say so, and fix the entry in `pstack-models.json` afterwards. Do not block the review on the slug issue. Each result's `route` label records the model a reviewer actually ran on; cite it.",
-    ),
-    (
         "For `inherit-parent`, omit `model` so the workers run on the parent model. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message. For a model race, name each arm's model up front.",
         "Route workers with `pstack_role: swarm workers` per " + H1_CONTRACT + "; never pass `model`. For a model race, give each arm a panel seat (`pstack_role: arena runners`, `seat: n`) and name each arm's resolved model from its result `route` label.",
-    ),
-    (
-        "with `delegate_task` (role: `leaf`), background execution, and the step 4 model, left unset for `inherit-parent`.",
-        "in one `delegate_task` call (Hermes always runs it in the background), each task carrying the step 4 `pstack_role`.",
-    ),
-    (
-        "An `inherit-parent` entry in this line or the cross-judge line means the parent model, so omit `model` for it. If delegate_task rejects a configured entry, run that seat on its family's default and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use `claude-opus-5-5-max`. If it rejects a default, use the closest valid slug of the same family from its error message.",
-        "Spawn runner n with `pstack_role` set to the runners line (`arena runners`, or `architect runners` from architect) and `seat: n`; the cross-judge uses `pstack_role: arena cross-judge pool` with a seat whose family differs from the parent's. Never pass `model` (" + H1_CONTRACT + "). If delegate_task refuses a seat, rerun it on the parent model, say so, and fix the panel entry.",
-    ),
-    (
-        "background execution, agent mode (readonly restricts file writes only; MCP access is unaffected), file pointers not inlined context, explicit model per role",
-        "background execution (always, on Hermes), full tool access (children inherit your toolsets; see `references/hermes-delegation.md`), file pointers not inlined context, explicit `pstack_role` per role",
     ),
     (
         "runs that role on the parent chat model (omit the delegate's `model`).",
@@ -1950,14 +1079,6 @@ H1_MAP = [
     (
         "with `delegate_task` (role: `leaf`) with the poteto-mode wrapper instructions in the task prompt and an explicit model per the Subagents section",
         "with `delegate_task` tasks carrying the poteto-mode wrapper instructions in `context` and an explicit `pstack_role` per the Subagents section",
-    ),
-    (
-        "nesting works to depth 3, and a nested spawn has the full Task schema including `environment`",
-        "nesting is bounded by `delegation.max_spawn_depth`, and a nested spawn has the same `delegate_task` schema",
-    ),
-    (
-        "Always local execution unless the task needs this machine: `control-ui` or `control-cli` runtime verification. Reading session history from the local hermes store. Simulators and local IDE state. Auth that exists only here. Cloud agents cannot read the local store, so their briefs inline what they need or point at repo paths.",
-        "Always a local `delegate_task` child; Hermes has no cloud workers. A brief names any local state the task needs: `control-ui` or `control-cli` runtime verification, session history in the local hermes store, simulators and local IDE state, auth that exists only here. Children start without this conversation, so their briefs inline what they need or point at repo paths.",
     ),
     (
         'No "standing by" reply that waits on a nested agent.',
@@ -1972,12 +1093,68 @@ H1_MAP = [
         "with a fixed-interval hermes cron job whose self-contained prompt carries the hunt state (each tick is a fresh run; see " + H1_PB_CONTRACT + "), removed once the mechanism is confirmed.",
     ),
     (
-        "In a local session, a recurring hermes cron job that delivers the tick prompt. In a local root, a wake chain arms each tick as a recurring hermes cron job whose delivery re-wakes this session.",
-        "Arm one recurring hermes cron job (`--continuity`, `--workdir <repo>`, `--deliver origin`) whose prompt is the tick prompt below plus the plan and store paths. Each tick is a fresh run, not a resume of this chat (`skills/poteto-mode/references/hermes-delegation.md`). Record the job id in the plan.",
+        "three `delegate_task` calls (role: `leaf`), agent mode (`readonly: false`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references, and readonly strips MCPs.",
+        "one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (" + H1_CONTRACT + "). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.",
     ),
     (
-        "A local root arms each tick as a recurring hermes cron job (30-minute interval) whose delivery re-wakes this session with the tick prompt; the cron run record, not a completion notification, is the wake. A local root uses the existing wake chain instead.",
-        "The root arms each tick as one recurring hermes cron job (30-minute interval) whose self-contained prompt is the tick prompt; each tick is a fresh run that re-reads the plan store, not a resume of this session (" + H1_PB_CONTRACT + "). Remove the job when the queue completes or the operator stands it down.",
+        "One `delegate_task` call (role: `leaf`), `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`), agent mode (`readonly: false`). It spot-verifies citations through MCP, and readonly strips MCPs.",
+        "One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (upstream default `claude-opus-5-5-xhigh`) and `access: read-only`. It spot-verifies citations through MCP, which Hermes children keep.",
+    ),
+    (
+        "with `delegate_task` (role: `leaf`), background execution, and the step 3 model, left unset for `inherit-parent`.",
+        "in one `delegate_task` call (Hermes always runs it in the background), each task carrying the step 3 `pstack_role`.",
+    ),
+    (
+        "An `inherit-parent` entry in this line means the parent model, so omit `model` for it. If delegate_task rejects a configured entry, run that seat on its family's default and say so. Families go by prefix: `claude-*`, and `grok-*` with `cursor-grok-*` and `composer-*`. A refused `composer-*` entry runs on `grok-4.7-xhigh-fast`. If the family has no default, or delegate_task rejects that default, use the closest valid slug of the same family from its error message, or drop the seat and say so when there is none. If dropped seats leave fewer than two runners, add runners until there are two, or one when the line has one entry. Run each added runner on a remaining runner's model, or omit `model` so it runs on the parent model when none remain, and say so.",
+        "Spawn runner n with `pstack_role` set to the runners line (`arena runners`, `architect runners` from architect, or `interrogate reviewers` from interrogate) and `seat: n`. Never pass `model` (" + H1_CONTRACT + "). Families go by prefix: `claude-*`, and `grok-*` with `cursor-grok-*` and `composer-*`; read each runner's family from its result `route` label. If delegate_task refuses a seat, rerun it once without `seat` and `pstack_role` so it runs on the parent model, say so, and fix the panel entry. If refused seats leave fewer than two runners, add runners on the parent model until there are two, or one when the line has one entry, and say so.",
+    ),
+    (
+        "background execution (a steer or resume of a running agent too, because a foreground call holds your turn while other reports wait), agent mode (readonly restricts file writes only; MCP access is unaffected), file pointers not inlined context, explicit model per role",
+        "background execution (always, on Hermes; steer a running child with `action: steer`), full tool access (children inherit your toolsets; see `references/hermes-delegation.md`), file pointers not inlined context, explicit `pstack_role` per role",
+    ),
+    (
+        "Run workers on a new cloud VM (local execution) unless the work needs this machine: a `control-ui` or `control-cli` runtime check (from `cursor-team-kit`), local transcripts, a simulator, or auth that exists only here.",
+        "Every worker is a local `delegate_task` child; Hermes has no cloud workers. A kickoff names any local state the work needs: a `control-ui` or `control-cli` runtime check (when those skills are installed), session history in the local hermes store, a simulator, or auth that exists only here.",
+    ),
+    (
+        "Every spawn is a read-only `delegate_task` subagent.",
+        "Every spawn is a read-only `delegate_task` task: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (" + H1_CONTRACT + ").",
+    ),
+    (
+        "`model`: the `why investigators` line, default `grok-4.7-xhigh-fast`.",
+        "Set each one's `pstack_role` to `why investigators` (upstream default `grok-4.7-xhigh-fast`).",
+    ),
+    (
+        "Spawn one synthesizer. `model`: the `why synthesizer` line, default `claude-opus-5-5-xhigh`.",
+        "Spawn one synthesizer with `pstack_role`: `why synthesizer` (upstream default `claude-opus-5-5-xhigh`).",
+    ),
+    (
+        "Spawn each adversary as a `delegate_task` subagent.",
+        "Spawn adversary n as a `delegate_task` task with `pstack_role: interrogate reviewers` and `seat: n` (" + H1_CONTRACT + ").",
+    ),
+    (
+        "Spawn one readonly judge subagent.",
+        "Spawn one read-only judge: `pstack_role: arena cross-judge pool`, `seat` set to the chosen entry, and `access: read-only` plus the READ-ONLY `context` line (" + H1_CONTRACT + ").",
+    ),
+    (
+        "If delegate_task rejects an entry, use a valid slug of the same model at the closest level or speed from the error message, or move to the next entry when there is none.",
+        "If delegate_task refuses that seat, move to the next entry from another family.",
+    ),
+    (
+        "**Match the model to the job.** Before each spawn, start from the role's line or default and pick the reasoning level and speed the job needs. The `/setup-pstack` budget sets each role's starting level, xhigh by default. Raise it one step, up to max, for the hardest or subtlest work. Lower it one step for judgment and two or more steps for routine work. Use fast mode only when the job is urgent, meaning CI or trunk is red or a person is blocked on the result right now. Otherwise use standard speed, the same slug without `-fast`. Verification is the exception and stays on the `swarm workers` model and speed (`grok-4.7-xhigh-fast` by default). Change only the effort level and whether the slug is fast, and keep the family the role names, so a diverse panel stays diverse. If the family has no slug at that level and speed, use its nearest slug. A role on `inherit-parent` stays on the parent model. If delegate_task rejects the adjusted slug, do not try another adjusted slug. Use the role's line or default and say so. If delegate_task rejects that too, continue with the calling skill's fallback. A slug counts as rejected once a Task error says that the model is not valid, or leaves the slug out of its list of valid slugs. Never pass a rejected slug, and skip any fallback whose slug is already rejected. When the calling skill has no fallback, use the closest valid slug of the role's family from the error's list of valid slugs, or omit `model` so the subagent runs on the parent model when the list has none. When the calling skill's fallback runs out of slugs without saying what to do next, omit `model` too. Say so in both cases.",
+        "**Match the model to the job.** Before each spawn, pick the reasoning level and speed the job needs, starting from the role's line or default. The `/setup-pstack` budget sets each role's starting level, xhigh by default. Raise it one step, up to max, for the hardest or subtlest work. Lower it one step for judgment and two or more steps for routine work. Use fast mode only when the job is urgent, meaning CI or trunk is red or a person is blocked on the result right now. Verification is the exception and stays on the `swarm workers` model and speed. Keep the family the role names, so a diverse panel stays diverse. On Hermes a spawn cannot carry its own slug: core drops `model`, and the pstack delegation backend builds each child from the role's panel entry, effort included (`<model>@<effort>` or an explicit route in `pstack-models.json`). So make the adjustment through the role you pick (`hardest tasks` for the hardest work, the playbook's code line for routine work) or through the panel entry, never by passing `model` (`references/hermes-delegation.md`). If delegate_task refuses a role's route, rerun that task once without `pstack_role` so it runs on the parent model, say so, and fix the entry in `pstack-models.json`.",
+    ),
+    (
+        "so put this file's absolute path in every `poteto-agent` prompt.",
+        "so put this file's absolute path in the `context` of every poteto-mode delegate (a `delegate_task` child carrying the poteto-mode wrapper instructions).",
+    ),
+    (
+        "Never spawn a `poteto-agent` to run the playbook itself.",
+        "Never spawn a poteto-mode delegate to run the playbook itself.",
+    ),
+    (
+        "don't override to `poteto-agent`.",
+        "don't override to the poteto-mode wrapper.",
     ),
 ]
 
@@ -2455,18 +1632,17 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | Pass | What changed |
 |---|---|
 | manifest | root `plugin.json` injected: exact agent-plugins-v1 `$schema`, 9-field whitelist |
-| frontmatter | `poteto-mode` name fixed to kebab-case (loader requirement) |
-| R1 | poteto-mode principles index regenerated from the 23 leaves |
-| F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex |
-| F10–F12 | `worktree-audit.sh` portable (GNU/BSD), space-safe |
+| R1 | retired at c742dd6: upstream curates the principles index; the build only checks every entry resolves to a shipped leaf |
+| F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex (F16b still rejects a whitespace-only slug) |
+| F11 | `worktree-audit.sh` reads worktree paths with spaces whole (F10/F12 GNU/BSD fixes retired: upstream ships them) |
 | F-publish | `benny` + `make-bot-ui` excluded (scanner verdicts); `hermesbot` fills the slot; 3 localhost literals neutralized |
 | T8/T9/T10 | `setup-pstack` writes the model panel beside hermes' `config.yaml` (outside the package, so updates do not discard it); discovery via `session_search`; hermes tool names |
 | Phase-2A | delegation vocabulary → `delegate_task` / `clarify` package-wide |
-| T11 | hardcoded Cursor paths → hermes equivalents |
-| T12 | `/loop` → `hermes cron` wake; `/goal` → `goal.md` in the agent store |
-| T13 | residual vendor coupling reworded (`cursor-team-kit`, cloud fleet, `gt`) |
-| T14 | stacker-role / topology re-pointed |
-| T15 | `orch frontier set` provider selection: `auto` / `graphite` / `github` |
+| T11 | hardcoded Cursor paths → hermes equivalents; upstream guide links → upstream URLs |
+| T12 | `/loop` → `hermes cron` wake (each tick a fresh run); check-plan accepts either marker |
+| T13 | residual vendor coupling reworded (`cursor-team-kit` skills named as optional, cloud agents → local delegates) |
+| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, panel file, `hermesbot` row |
+| H1 | spawns route by `pstack_role` / `seat` / `access` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the
@@ -2477,13 +1653,12 @@ fork-level audit lives in the repository at `docs/fork/AUDIT-ko.md`.
 - `deslop`, `control-ui`, `control-cli` are named by playbooks but ship
   outside this package; a verdict without its demanded live lane is
   incomplete, not clean. (`no-comments`, `unslop`, `technical-writing` ship.)
-- `orch frontier set` providers: `auto` (Graphite first, then GitHub-native
-  PR base/head topology), `graphite`, `github`. GitLab reserved, not
-  implemented.
-- Stack topology needs Graphite (`gt`): restacks, stack surgery, and the
-  stack-aware merge queue have no hermes equivalent. GitHub-native stacked
-  PRs (`gh stack`) cover some stack operations; ordinary base changes go
-  through the forge and need no stacker.
+- `statechart` installs TLC and Java with `mise` on its first run (network;
+  the TLC jar is checksum-pinned), and its renderer guide installs the npm
+  package `pele` outside the repo. Both happen only when the skill runs.
+- `poteto-help` links upstream's `docs/guide/` pages, which this package does
+  not ship; `/visualize` (named by `ketchup`) is a harness feature, not a
+  pstack skill.
 - No `mcp.json` shipped: research skills use whichever MCP servers the
   session configures; unreachable sources are recorded as null findings,
   never invented.

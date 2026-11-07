@@ -62,12 +62,12 @@ PANEL_ROLES = frozenset({
 
 ACCESS_MODES = ("read-only", "write")
 
-_OPUS = "claude-opus-5-5-max"
-_SOL = "gpt-5.6-sol-max"
+_OPUS = "claude-opus-5-5-xhigh"
 _GROK = "grok-4.7-xhigh-fast"
-_TRIO = (_OPUS, _SOL, _GROK)
+_PAIR = (_OPUS, _GROK)
 
-#: Upstream pstack's per-role defaults (cursor/plugins pstack ``setup-pstack``),
+#: Upstream pstack's per-role defaults (cursor/plugins pstack ``setup-pstack`` at the
+#: pinned commit; v0.15.36 dropped Sol and defaults to Opus xhigh plus Grok),
 #: used when the user's panel has no line for a role. These are Cursor slugs:
 #: they route only through ``aliases``; unmapped ones follow ``unmapped_defaults``.
 UPSTREAM_DEFAULTS: dict[str, str | tuple[str, ...]] = {
@@ -82,13 +82,13 @@ UPSTREAM_DEFAULTS: dict[str, str | tuple[str, ...]] = {
     "how critics": (_OPUS,),
     "why investigators": _GROK,
     "why synthesizer": _OPUS,
-    "reflect tooling": _SOL,
+    "reflect tooling": _GROK,
     "reflect judgment, divergent, synthesizer": _OPUS,
-    "arena runners": _TRIO,
-    "arena cross-judge pool": _TRIO,
+    "arena runners": _PAIR,
+    "arena cross-judge pool": _PAIR,
     "swarm workers": _GROK,
-    "architect runners": _TRIO,
-    "interrogate reviewers": _TRIO,
+    "architect runners": _PAIR,
+    "interrogate reviewers": _PAIR,
 }
 
 PARENT_ALIASES = frozenset({"inherit-parent", "auto"})

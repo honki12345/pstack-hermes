@@ -352,24 +352,17 @@ def check_layout(pkg: Path, rep: Report) -> None:
 
 
 def check_phase1(pkg: Path, rep: Report) -> None:
-    """Phase-1 hygiene checks: R1 index generation, F16 lane-shape invariant, F10-F12 portability."""
-    # R1: the shipped index must equal what the leaves generate
+    """Phase-1 hygiene checks: R1 index consistency, F16 lane-shape invariant, F10-F12 portability."""
+    # R1 (retired transform): the upstream-curated index must stay consistent
+    # with the shipped leaves (every entry resolves, every leaf is indexed).
     try:
-        from convert import build_principles_index  # noqa: PLC0415
-        generated, drift = build_principles_index(pkg / "skills")
+        from convert import principle_index_drift  # noqa: PLC0415
+        drift = principle_index_drift(pkg / "skills")
         if drift:
-            rep.fail(f"principles index generation reported: {drift}")
-        pm = pkg / "skills" / "poteto-mode" / "SKILL.md"
-        text = pm.read_text(encoding="utf-8")
-        start = text.find("## Principles\n\nRead the leaf skill")
-        end = text.find("## Autonomy", start)
-        if start == -1 or end == -1:
-            rep.fail("poteto-mode/SKILL.md: principles block anchors missing")
-        elif text[start:end].rstrip("\n") != generated.rstrip("\n"):
-            rep.fail("R1: shipped principles index does NOT match the leaves (drift reintroduced)")
+            rep.fail(f"R1: principles index drifted from the leaves: {drift}")
         else:
-            rep.ok("R1: poteto-mode principles index == leaf-generated (single source of truth)")
-    except Exception as exc:  # import or generation failure is itself a finding
+            rep.ok("R1: poteto-mode principles index resolves to every shipped leaf")
+    except Exception as exc:  # import or parse failure is itself a finding
         rep.fail(f"R1 check could not run: {exc}")
 
     # F16 (retired transform): the converter no longer rewrites these - the
@@ -395,31 +388,21 @@ def check_phase1(pkg: Path, rep: Report) -> None:
         else:
             rep.fail("F16: multi-phase-plan lost the lane-shape sentence")
 
-    # F10-F12: worktree-audit.sh must use portable helpers, no unguarded BSD forms
+    # F10-F12: worktree-audit.sh stays portable. F10/F12 (GNU vs BSD stat and
+    # date) ship upstream since c742dd6; F11 (space-safe awk) is the converter's.
     wa = pkg / "skills" / "poteto-mode" / "scripts" / "worktree-audit.sh"
     if wa.is_file():
         wa_text = wa.read_text(encoding="utf-8")
-        bad = [s for s in ("stat -f '%m %N'", 'date -r "$last_ts"', "awk '/^worktree /{print $2}") if s in wa_text]
-        # The GNU/BSD date discriminator must be an output-comparing epoch probe:
-        # BSD `date -d` exists with unrelated (kernel DST) semantics, so a plain
-        # exit-status probe on `-d @0` can misdetect and silently pick GNU syntax.
-        ambiguous_probe = "date -d @0 '+%Y-%m-%d'" in wa_text
-        # Must be the output-comparing form: an exit-status-only probe on
-        # `date -d @0 '+%s'` would still misdetect on BSD and pass a bare
-        # substring check, so the command substitution AND the `= "0"` test
-        # are both required.
-        strict_probe = ("\"$(date -d @0 '+%s'" in wa_text
-                        and '= "0" ]' in wa_text)
-        good = [s for s in ("stat_mtime", "date_epoch") if s in wa_text]
+        bad = [s for s in ("xargs stat -f '%m %N'", 'date -r "$last_ts"',
+                           "awk '/^worktree /{print $2}", "awk '/^worktree /{print $2;")
+               if s in wa_text]
+        probe = "if stat -c %Y / >/dev/null 2>&1; then" in wa_text and "fmt_day" in wa_text
         if bad:
-            rep.fail(f"F10-F12: BSD-only constructs survived in worktree-audit.sh: {bad}")
-        elif ambiguous_probe or not strict_probe:
-            rep.fail("F10-F12: date_epoch uses an ambiguous GNU/BSD probe (exit-status "
-                     "on 'date -d @0'); the epoch-comparing probe ('+%s' == 0) is required")
-        elif len(good) < 2:
-            rep.fail("F10-F12: portable helpers missing from worktree-audit.sh")
+            rep.fail(f"F10-F12: non-portable constructs survived in worktree-audit.sh: {bad}")
+        elif not probe:
+            rep.fail("F10-F12: worktree-audit.sh lost the GNU/BSD stat+date probe")
         else:
-            rep.ok("F10-F12: worktree-audit.sh portable (stat_mtime/date_epoch, full-path awk)")
+            rep.ok("F10-F12: worktree-audit.sh portable (GNU/BSD probe, full-path awk)")
 
 
     # Phase-2A: delegation translation must be complete
