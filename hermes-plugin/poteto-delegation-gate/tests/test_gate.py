@@ -956,9 +956,10 @@ def test_the_same_commands_without_those_flags_stay_read_only(command):
     "jq . f.json", "jq -r '.a[] | .b' f.json", "jq '.a // \"x\"' f.json", "cat f.json | jq '.x'",
     # cut only prints fields.
     "cut -d, -f1 f.csv", "cut -c1-5 f", "git log --format=%an | cut -d' ' -f1",
-    # date only prints the time when it gets a format or -u.
+    # date only prints the time with a format, -u or an output-format flag.
     "date", "date +%F", "date -u", "date '+%Y-%m-%d %H:%M:%S %Z'", "date -u +%FT%TZ",
-    "TZ=Asia/Seoul date", "TZ=UTC date '+%F %T'",
+    "TZ=Asia/Seoul date", "TZ=UTC date '+%F %T'", "date -Iseconds", "date -I", "date -R",
+    "date --iso-8601=seconds", "date --rfc-3339=seconds", "date --rfc-email", "TZ=UTC date -Iseconds",
 ])
 def test_common_question_turn_commands_are_read_only(command):
     assert gate._is_read_only_shell(command) is True
@@ -996,7 +997,7 @@ def test_common_question_turn_commands_are_read_only(command):
     "sqlite3 -readonly db '.system id'", "sqlite3 db '.output x'",
     # date sets the clock with -s or a bare time operand (BSD and GNU).
     "date -s 12:00", "date --set=12:00", "date --set 12:00", "date 0612120026", "date -f dates.txt",
-    "date -u 0612120026",
+    "date -u 0612120026", "date -Is 0612120026", "date -I -s 1",
     # Only TZ in front of date. Other assignments can change what a command runs.
     "TZ=UTC ls", "FOO=1 date", "GIT_EXTERNAL_DIFF=/tmp/x git diff", "TZ=UTC", "TZ=UTC date -s 1",
 ])
