@@ -945,15 +945,13 @@ def test_the_same_commands_without_those_flags_stay_read_only(command):
     # gh read subcommands.
     "gh pr view", "gh pr view 10", "gh pr view 10 --json title,state", "gh pr list", "gh pr checks 10",
     "gh pr diff 10", "gh issue view 3", "gh issue list --state open", "gh run view 123",
-    "gh run list --limit 5", "gh repo view", "gh pr view 10 --json title | jq -r .title",
+    "gh run list --limit 5", "gh repo view",
     # git global flags that only turn the pager off.
     "git --no-pager log", "git --no-pager diff --stat", "git -C /repo --no-pager log",
     "git --no-pager -C /repo status",
     # sed as a line printer.
     "sed -n '1,5p' f", "sed -n 10p f", "sed -n '5,$p' f", "sed -n '$p' f", "sed -n 1,5p f",
     "sed -n '/foo/,/bar/p' f", "sed -n '3,+2p' f", "cat f | sed -n '2,3p'", "sed -n -E '/a|b/p' f",
-    # jq only reads.
-    "jq . f.json", "jq -r '.a[] | .b' f.json", "jq '.a // \"x\"' f.json", "cat f.json | jq '.x'",
     # cut only prints fields.
     "cut -d, -f1 f.csv", "cut -c1-5 f", "git log --format=%an | cut -d' ' -f1",
     # date only prints the time with a format, -u or an output-format flag.
@@ -1286,3 +1284,196 @@ def test_a_notice_inside_a_marker_turn_keeps_the_marker_wording():
     turn()
     turn(message=NOTICE, turn_id="t2")
     assert block_message(tool("terminal")) == gate.BLOCK_MESSAGE
+
+
+# Audit round 2. The read-only check refuses a shape it cannot read with certainty. A refusal costs
+# one block and one todolist, so these tests pin what is refused rather than parse it more exactly.
+@pytest.mark.parametrize("command", [
+    "ls # '\nrm -f victim\n#'", 'ls # "\nrm -f victim\n#"', "echo hi # note", "ls #",
+    "git log --format='%h #%s'", "echo 'a#b'", 'echo "#"', "grep '^#' f", "ls a#b",
+    "echo 'a\nb'", 'echo "a\rb"', "ls\nls", "ls\r\nls", "echo 'a\x0bb'", "echo a\x00b",
+])
+def test_a_hash_or_a_line_break_anywhere_makes_a_command_not_read_only(command):
+    assert gate._is_read_only_shell(command) is False
+
+
+@pytest.mark.parametrize("command", [
+    "sed -n '/a\\/,/w ./p' f", "sed -n '/a\\/p' f", "sed -n '/a\\n/p' f", "sed -n '/x/,/y\\//p' f",
+    "sed -n '/a[/,/]w x/p' f", "sed -n '/[a]/p' f", "sed -n '/x/Ip' f", "sed -n '/x/I,/y/p' f",
+    "sed -n '1,/a\\/,/w x/p' f",
+])
+def test_a_sed_script_with_a_backslash_or_a_bracket_is_refused(command):
+    assert gate._is_read_only_shell(command) is False
+
+
+@pytest.mark.parametrize("command", [
+    "sed -n '/foo/,/bar/p' f", "sed -n '/a|b/p' f", "sed -n '2,/x/p' f", "sed -n '/x/,+3p' f",
+    "sed -n '$p' f", "sed -n '//p' f",
+])
+def test_a_sed_address_without_a_backslash_stays_read_only(command):
+    assert gate._is_read_only_shell(command) is True
+
+
+@pytest.mark.parametrize("command", [
+    "gh auth status --show-token=true", "gh auth status -at", "gh auth status -t", "gh auth status --json hosts",
+    "gh auth status --json hosts --jq env", "gh auth status -h github.com", "gh auth status extra",
+    "gh pr list -w=true", "gh pr list --web=true", "gh pr list --web", "gh issue list --web=true",
+    "gh pr view 1 --jq .title", "gh pr view 1 -q .title", "gh pr view 1 --json title -q .title",
+    "gh pr view 1 --json title --jq env", "gh pr view 1 --template x", "gh pr view 1 -t x",
+    "gh pr view 1 --json=title", "gh pr view 1 --json", "gh pr view 1 --json -c", "gh pr list --state=open",
+    "gh pr list --state", "gh pr list --limit=5", "gh pr list -sA", "gh pr view -cw", "gh pr view 1 -c -w",
+    "gh pr checks 1 --watch", "gh pr checks --interval 1", "gh run list -w ci.yml",
+    "gh run view 1 --log -w", "gh run view 1 --web=1", "gh repo view -w", "gh repo view --json=name",
+    "gh pr diff 1 --web", "gh pr list --search -foo", "gh pr view 1 --unknown",
+    "gh pr view 1 --repo=x/y", "gh pr view 1 -Rx/y", "gh pr view 1 --", "gh pr view -", "gh auth token",
+    "gh pr list --author", "gh run view 1 --job",
+    "jq -n env", "jq env", "jq '$ENV' f", "jq -n 'input' f", "jq . f.json", "jq -r .a f.json",
+    "cat f.json | jq .x", "gh pr view 10 --json title | jq -r .title", "jq -L /tmp 'import \"a\" as a; .' f",
+    "jq --rawfile a f -n '$a'", "jq -n '$__loc__'",
+])
+def test_gh_flags_outside_the_allowlist_and_jq_are_refused(command):
+    assert gate._is_read_only_shell(command) is False
+
+
+@pytest.mark.parametrize("command", [
+    "gh auth status", "gh pr view", "gh pr view 10", "gh pr view 10 -c", "gh pr view 10 --comments",
+    "gh pr view 10 --json title,state", "gh pr view 10 -R owner/repo --json number,title",
+    "gh pr view 10 --repo owner/repo", "gh pr list --state open --limit 5",
+    "gh pr list -s merged -L 3 --author someone --base main --head topic --search fix",
+    "gh pr list --label bug --draft --json number,title", "gh pr checks 10", "gh pr checks 10 --required",
+    "gh pr diff 10", "gh pr diff 10 --name-only", "gh issue view 3 --comments", "gh issue list --state all",
+    "gh issue list -R o/r --label bug --limit 10", "gh run view 123 --log", "gh run view 123 --log-failed",
+    "gh run view 123 --job 456 --log", "gh run view 123 -v", "gh run list --limit 5 --branch main",
+    "gh run list --workflow ci.yml --status completed", "gh repo view", "gh repo view o/r --json name",
+])
+def test_gh_read_flags_from_the_allowlist_stay_read_only(command):
+    assert gate._is_read_only_shell(command) is True
+
+
+# hermes_cli/goals.py. All four continuation templates, filled with sample text. The goal loop sends
+# them between turns of one standing goal, so the decision of the goal turn still applies.
+_GOAL_FIXTURES = {
+    "plain": "[Continuing toward your standing goal]\nGoal: fix it\n\nContinue working toward this goal. "
+    "Take the next concrete step.",
+    "contract": "[Continuing toward your standing goal]\nGoal: fix it\n\nCompletion contract:\n- done when "
+    "tests pass\n\nContinue working toward the outcome above.",
+    "subgoals": "[Continuing toward your standing goal]\nGoal: fix it\n\nAdditional criteria the user added "
+    "mid-loop:\n1. also docs\n\nContinue working toward the goal AND all additional criteria.",
+    "gate_failed": "[Continuing toward your standing goal \u2014 a quality gate failed]\nGoal: fix it\n\nThe quality "
+    "gate command below must pass before this goal can be declared done, and it just failed (attempt "
+    "1/3):\n  $ pytest -q\nExit code: 1\nOutput (tail):\n```\nFAILED\n```\n\nFix the underlying problem.",
+}
+
+
+@pytest.mark.parametrize("message", list(_GOAL_FIXTURES.values()), ids=list(_GOAL_FIXTURES))
+def test_every_goal_continuation_template_continues_the_turn(message, tmp_path):
+    turn()
+    tool("todo_list", args=DECIDED)
+    turn(message=message, turn_id="t2")
+    assert tool("terminal") is None
+    assert events(tmp_path, "turn_continued")[0]["kind"] == "notice"
+
+
+@pytest.mark.parametrize("message", [
+    "[Continuing toward your standing goal", "[Continuing toward your standing goalie]",
+    "[Continuing toward your standing goal \u2014 a gate failed", "Continuing toward your standing goal]",
+    "[Continuing toward this kanban task]",
+])
+def test_text_that_only_resembles_the_goal_header_is_a_followup(message, tmp_path):
+    turn()
+    turn(message=message, turn_id="t2")
+    assert events(tmp_path, "turn_continued")[0]["kind"] == "followup"
+
+
+# The footer is read from the end of the message in linear time. A message that repeats the footer
+# opening used to take seconds in a regex with a cubic worst case.
+def test_notice_detection_is_linear_in_the_message_length():
+    import time
+
+    hostile = "\n\n[INTERNAL NOTIFICATION generated by the Hermes gateway " * 20000
+    assert len(hostile) > 1_000_000
+    start = time.perf_counter()
+    assert gate._is_notice(hostile) is False
+    assert gate._is_notice(hostile + "]") is False
+    assert gate._is_notice("x" * 1_000_000) is False
+    assert time.perf_counter() - start < 0.1
+
+
+def test_a_huge_message_does_not_hold_the_state_lock(monkeypatch):
+    seen = []
+    monkeypatch.setattr(gate, "_is_notice", lambda message: seen.append(gate._LOCK.locked()) or False)
+    turn()
+    turn(message="plain", turn_id="t2")
+    assert seen == [False]
+
+
+def test_only_the_last_footer_block_counts_and_it_must_close_the_message(tmp_path):
+    turn()
+    both = "x\n\n" + _FOOTER + "\n\nplease explain that footer"
+    turn(message=both, turn_id="t2")
+    brackets = "x\n\n" + _FOOTER + " [and more]"
+    turn(message=brackets, turn_id="t3")
+    assert [e["kind"] for e in events(tmp_path, "turn_continued")] == ["followup", "followup"]
+
+
+def test_a_footer_followed_only_by_whitespace_is_still_a_notice(tmp_path):
+    turn()
+    turn(message="x\n\n" + _FOOTER + "\n  \n", turn_id="t2")
+    assert events(tmp_path, "turn_continued")[0]["kind"] == "notice"
+
+
+@pytest.mark.parametrize("path", [
+    "/tmp/skills/../../x/.env", "skills/../../etc/passwd.md", "/home/u/skills/a/../b/SKILL.md",
+    "../skills/x/SKILL.md", "/home/u/skills/x/.env", "/home/u/skills/x/run.py", "/home/u/skills/x/notes.txt",
+    "/home/u/skills/x/SKILL.md.bak", "/home/u/skills", "/home/u/skills/", "skills\\..\\x.md",
+])
+def test_a_path_with_dotdot_or_a_non_markdown_file_is_not_a_skill_file(path):
+    assert gate._is_skill_path(path) is False
+
+
+@pytest.mark.parametrize("path", [
+    "/home/u/.hermes/skills/pstack/poteto-mode/SKILL.md", "skills/poteto-mode/SKILL.md",
+    "/repo/skills/poteto-mode/playbooks/orchestrate.md", "/repo/skills/x/references/api.md",
+    "/home/u/skills/x/./SKILL.md", "//home/u/skills//x/SKILL.md", "~/.hermes/skills/x/SKILL.md",
+])
+def test_a_markdown_file_under_a_skills_directory_is_a_skill_file(path):
+    assert gate._is_skill_path(path) is True
+
+
+def test_a_dotdot_skills_path_costs_a_read_in_a_followup(tmp_path):
+    turn()
+    followup(message=QUESTION)
+    for _ in range(3):
+        assert read_file("/tmp/skills/../../x/.env") is None
+    assert is_blocked(read_file("/tmp/skills/../../x/.env"))
+
+
+def test_deep_json_is_read_as_unreadable_not_as_an_error():
+    assert gate._json_value("[" * 200_000) is None
+    assert gate._json_value('{"a":' * 200_000) is None
+    assert gate._entries("tool_call", {"calls": "[" * 200_000}) == []
+
+
+@pytest.mark.parametrize("args", [
+    {"calls": "[" * 200_000},
+    {"calls": [{"name": "terminal", "arguments": "[" * 200_000}]},
+    {"name": "terminal", "arguments": "[" * 200_000},
+])
+def test_a_deep_json_bridge_is_blocked_and_logged_in_a_followup(args, tmp_path):
+    turn()
+    followup(message=QUESTION)
+    assert is_blocked(tool("tool_call", args=args))
+    assert last_decision(tmp_path)["event"] == "block"
+
+
+def test_a_deep_json_bridge_is_blocked_and_logged_on_a_marker_turn(tmp_path):
+    turn()
+    assert is_blocked(tool("tool_call", args={"calls": "[" * 200_000}))
+    assert last_decision(tmp_path)["event"] == "block"
+
+
+def test_deep_json_todos_do_not_unlock_work_and_do_not_raise(tmp_path):
+    turn()
+    assert tool("todo_list", args={"todos": "[" * 200_000}) is None
+    assert is_blocked(tool("terminal"))
+    assert last_decision(tmp_path)["event"] == "block"
