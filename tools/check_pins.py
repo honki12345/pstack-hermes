@@ -2,9 +2,9 @@
 """Assert every UPSTREAM_PIN declaration agrees, and is well-formed.
 
 AGENTS.md and docs/agent/upstream-drift.md both state the rule - the pin must
-stay in lock-step across ci.yml / release.yml / publish-dist.yml - but nothing
-enforced it. A bump that missed one file would ship a package built from a pin
-that CI never validated, and only a code review would notice. This gate makes
+stay in lock-step across every workflow that declares it (today only ci.yml) -
+but nothing enforced it. A bump that missed one file would ship a package built
+from a pin that CI never validated, and only a code review would notice. This gate makes
 the documented rule machine-checked and exists specifically to de-risk the
 re-pin procedure in docs/agent/upstream-drift.md.
 
@@ -25,11 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # Every workflow that MUST declare the pin. Adding a workflow that builds or
 # describes a build from the pin means adding it here (and to the runbook).
-REQUIRED_DECLARERS = (
-    "ci.yml",
-    "release.yml",
-    "publish-dist.yml",
-)
+REQUIRED_DECLARERS = ("ci.yml",)
 
 # `UPSTREAM_PIN: <value>` at the start of a YAML mapping entry. References like
 # `${{ env.UPSTREAM_PIN }}` do not match because the value must be token-shaped.

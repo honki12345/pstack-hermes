@@ -7,7 +7,7 @@
 # builds its environment, and runs validate.py --require-gold, which exits 3
 # rather than pretending the loader passed.
 #
-# NOT a required check yet, on purpose: promote it in the `Master` ruleset only
+# NOT a required check yet, on purpose: promote it in the default-branch ruleset only
 # after it has been green across several unrelated PRs. A required check that
 # flakes on a network install is worse than an advisory one that never lies.
 
@@ -15,7 +15,7 @@ name: validate-gold
 
 on:
   push:
-    branches: [master]
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 

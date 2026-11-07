@@ -2,25 +2,25 @@ name: ci
 
 on:
   push:
-    branches: [master]
+    branches: [main, develop]
   pull_request:
 
 permissions:
   contents: read
 
-# Cancel superseded runs on PRs only. A push to master must keep its full run: its
+# Cancel superseded runs on PRs only. A push to main/develop must keep its full run: its
 # artifacts feed verify-determinism, and a cancelled build would skip the
 # cross-platform comparison entirely. cancel-in-progress protects only runs that
 # have already started; by default only ONE run may be pending per group and a
 # newer pending run cancels the older pending one, so two quick merges could
-# cancel a queued master run before it ever starts. Non-PR runs therefore take a
+# cancel a queued branch run before it ever starts. Non-PR runs therefore take a
 # per-run group and never share a queue slot.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  UPSTREAM_PIN: c47b12849e43f18d5c374c7069c744cc55b0ea00
+  UPSTREAM_PIN: c742dd61706fbacc1b95f1a20b7b988cf096ce6c
 
 jobs:
   build:
@@ -44,16 +44,6 @@ jobs:
         uses: ./.github/actions/build-package
         with:
           upstream-pin: ${{ env.UPSTREAM_PIN }}
-
-      # Consumer-side regression check (see tools/dist_checkout_check.py). The build
-      # job above validates the source package on disk, where files are LF
-      # because the converter wrote them that way. Nothing here constructs a git
-      # checkout of the dist tree, so a line-ending or binary-asset regression in the
-      # published artifacts would ship uncaught. This stages the package exactly as an
-      # install clone of the dist branch receives it (core.autocrlf=true).
-      - name: Dist checkout is LF-only under autocrlf
-        shell: bash
-        run: uv run --frozen tools/dist_checkout_check.py --package . --source-tree
 
       # The gate the previous implementation got wrong: it hashed
       # $GITHUB_WORKSPACE/pstack *after* the build step had already replaced that
@@ -246,7 +236,7 @@ jobs:
         run: uv run --frozen python tools/check_action_inputs.py
 
       - name: Lint (ruff)
-        run: uv run --frozen ruff check tools
+        run: uv run --frozen ruff check tools hermes-plugin
 
       - name: Unit tests (pytest)
         run: uv run --frozen pytest -q
@@ -268,7 +258,7 @@ jobs:
 
       - name: Unit tests (poteto-mode scripts)
         working-directory: skills/poteto-mode/scripts
-        run: bun test orch watch-pr
+        run: bun test watch-pr check-plan.test.ts
 
       - name: Typecheck (poteto-mode scripts)
         working-directory: skills/poteto-mode/scripts

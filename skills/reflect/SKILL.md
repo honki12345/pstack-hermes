@@ -8,21 +8,17 @@ disable-model-invocation: true
 
 Mine the current conversation for durable learnings, then route them into skill edits.
 
-## When to invoke
-
 Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
-## Process
-
-### 1. Locate the active transcript
+## 1. Locate the active transcript
 
 The parent locates the current session via `session_search` (hermes stores sessions in its SQLite store; there are no JSONL transcript files). Query for the active conversation and take the most recent matching session id. If the exact session cannot be resolved, write a tight digest of the conversation and pass that instead.
 
-### 2. Spawn three reviewers in parallel
+## 2. Spawn three reviewers in parallel
 
-One message, three `delegate_task` calls (role: `leaf`), with `model` set as below, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly on hermes restricts file writes only, so MCP access is unaffected.
+One message, one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (`../poteto-mode/references/hermes-delegation.md`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.
 
-Each reviewer and the synthesizer name a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `inherit-parent`. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
+Each reviewer and the synthesizer name a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
 
 | Lens | Role line | Default `model` | Prompt template |
 |---|---|---|---|
@@ -32,30 +28,32 @@ Each reviewer and the synthesizer name a role line in the pstack model panel (`p
 
 Pass each template verbatim, substituting the Hermes session id or digest where marked. Reviewers return findings in the `delegate_task` response body.
 
-### 3. Synthesize
+## 3. Synthesize
 
-One `delegate_task` call (role: `leaf`), using the `reflect judgment, divergent, synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (upstream default `claude-opus-5-5-xhigh`) and `access: read-only`. It spot-verifies citations through MCP, which Hermes children keep. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
 
-### 4. Structural enforcement check
+## 4. Structural enforcement check
 
-Sanity-check the synthesizer's Accepted list. For any item that would be enforced more reliably by a lint rule, script, metadata flag, or runtime check, move it from Accepted to Backlog. See the **encode-lessons-in-structure** principle skill.
+Move any Accepted item that a lint rule, script, metadata flag, or runtime check would enforce more reliably to Backlog. See the **encode-lessons-in-structure** principle skill.
 
-### 5. Apply
+## 5. Apply
 
-Before applying any Accepted edit, present the synthesizer's full Accepted/Rejected/Backlog output to the user and wait for explicit approval. The user picks which subset to apply and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
+Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
-Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.
+File each Backlog item to your team's devex or backlog tracker without waiting. Only the Accepted list waits for approval.
 
-For each approved Accepted item, follow the Routing field exactly:
+Never edit a skill inside an installed plugin, this package included, because `hermes plugins update` replaces it. Before approval, show its destination, a local skill under `~/.hermes/skills/<skill>/` or the project's own skills directory. After approval, copy the skill folder there and edit the copy. Never open a PR or push.
 
-- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
+Follow each approved row's Routing exactly:
+
+- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): the parent does it directly.
 - Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): hand to the hermes skill-authoring flow (the hermes-agent skill's guidance, or `skill_manage(action='create')`) and run its draft / test / iterate loop.
 - `tune description: <skill path>` (the skill exists but didn't trigger when it should have): hand to the hermes skill-authoring flow's description pass.
 - `new skill: <kebab-name>`: hand creation to the hermes skill-authoring flow. Do not invent the shape ad hoc.
 
-If your environment ships a SKILL.md validator, run it on every touched skill before declaring done. Skip this step if it doesn't.
+If your environment ships a SKILL.md validator, run it on every touched skill before declaring done.
 
-### 6. Summarize for the user
+## 6. Summarize for the user
 
 Short list, no preamble:
 

@@ -1,9 +1,3 @@
-<!-- coderabbit-ai-generated:v1 -->
-
-<!-- coderabbit-ai-generated-section:v1:ecd31f90ae3b095a6fc30d12b7919a6ea7c76eaf1ddf65fb6fdf28ec15b3394a -->
-
-<!-- coderabbit-ai-generated-section:v1:4589d1edd22a56a6c706b747698a9dd17a7da3b950efbcf2b21dcd395fe17f67 -->
-
 # Using pstack on hermes
 
 > [!NOTE]
@@ -15,8 +9,8 @@
 
 ## What you installed
 
-A **method package**: 47 instructions-for-the-agent skills (24 workflow/mode +
-23 `principle-*`) plus the converter/validator tooling that keeps them faithful
+A **method package**: 58 instructions-for-the-agent skills (34 workflow/mode +
+24 `principle-*`) plus the converter/validator tooling that keeps them faithful
 to upstream. It is not a service, a daemon, or an autopilot — it changes how
 the agent works on a task you give it.
 
@@ -39,8 +33,8 @@ convenience route when you want `/poteto-mode` style commands.
    `hermes plugins doctor pstack --ci` — the manifest must parse and all skills
    must be discovered. Pick the target explicitly: `pstack` is ambiguous
    (repo root = local directory; elsewhere = installed package). Use the name
-   as installed for the dist package, or a resolved local path for a branch
-   tree.
+   as installed for the installed package, or a resolved local path for a
+   branch tree.
 2. **Configure the model panel** — run the `setup-pstack` skill once. It writes
    the model panel **outside** the package (typically `pstack-models.json`
    beside hermes `config.yaml`) so plugin updates do not discard your choices.
@@ -53,18 +47,17 @@ convenience route when you want `/poteto-mode` style commands.
 3. **Give it a real task** and load `poteto-mode`. It classifies the work and
    routes to the right playbook; you do not pick the playbook yourself.
 
-## Stack forge (Graphite / GitHub)
+## PR forge (GitHub / Origin)
 
-When playbooks talk about stacks and frontiers:
+When playbooks open, verify, or land PRs:
 
-- **Default:** Graphite (`gt`) when installed and working.
-- **Fallback:** GitHub (`gh`) PR base/head topology when Graphite is absent or
-  when the provider is set to `github` / auto-fallback.
+- **Default:** GitHub CLI (`gh`).
+- **Origin:** when `command -v origin` succeeds and Origin can resolve the
+  repository, the playbooks use `origin pr` for every PR operation instead.
+- **Graphite (`gt`):** never required. Upstream dropped it from Orchestrate,
+  and the `orch` frontier scripts are gone (upstream v0.15.36); the Orchestrate
+  playbook now runs on `delegate_task` workers and the forge CLI directly.
 - **GitLab (`glab`):** not supported in this port (future / halted).
-
-Missing Graphite is not a hard failure if GitHub can complete the task. Some
-operations (e.g. certain restacks) still need Graphite; treat those verdicts as
-incomplete when `gt` is unavailable rather than inventing a substitute.
 
 ## What to expect
 
@@ -74,7 +67,7 @@ incomplete when `gt` is unavailable rather than inventing a substitute.
 - **External prerequisites stay external.** Some playbooks name tooling this
   package does not ship (a deslop pass, live control-surface drivers) and some
   capabilities are approximated for hermes (see the package README's Known
-  limitations and [adaptation register](https://github.com/iap/pstack-hermes/issues/94)). When a demanded live lane
+  limitations and the [fork audit](fork/AUDIT-ko.md)). When a demanded live lane
   is unavailable, a verdict is *incomplete*, not clean.
 - **MCP-dependent skills adapt.** Research skills draw on whichever MCP servers
   your session has configured; unreachable sources are recorded as null
@@ -90,22 +83,19 @@ Pick by what you want to change — one of three durable routes:
 
 | Intent | Route | Notes |
 |---|---|---|
-<!-- coderabbit-ai-generated:v1 -->
-<!-- coderabbit-ai-generated-section:v1:f7796bf073b3cb892a03dc1f85eddabec8170321dfd83d08586e78647488dcb1 -->
 | Tweak a line or two (temporary) | Edit installed `SKILL.md` in place, restart gateway | Back up edits outside the plugin first. Git updates re-apply local edits (conflicts stay in `git stash`); reinstalls replace shipped skills, so in-place edits are not durable. |
-<!-- /coderabbit-ai-generated:v1 -->
 | Own several changed skills, versioned | **Fork** this repo, install from your fork | `hermes plugins install <you>/pstack-hermes --enable`. Root layout: the generated package lives at the repository root (not a `pstack/` subdirectory). Merge upstream when you choose. |
 | New skills beside stock pstack | **Skill tap** or local `~/.hermes/skills/` | `hermes skills tap add <you>/skills-repo`, then install; or `skill_manage` / `/learn` into **local** skills / your tap. Stock pstack stays stock. |
 
 Structural changes that must survive upstream re-pins (new adaptations,
 model-panel defaults, exclusions) belong in a fork of the development repo
-(`pstack-hermes`), via the converter — see its CONTRIBUTING.md. Broadly
+(`honki12345/pstack-hermes`), via the converter — see its CONTRIBUTING.md. Broadly
 useful fixes are welcome as PRs there.
 
 > [!WARNING]
 > **Anti-pattern:** using Hermes learning / `skill_manage` to "fix" or evolve
 > **stock** pstack skills inside the plugin install (including namespaced
-> `agent-plugin-pstack-…` skills). Updates and dist republishes collide with
+> `agent-plugin-pstack-…` skills). Updates and reinstalls collide with
 > those edits. Put improvements on a tap, a fork, or local skills instead.
 
 > [!WARNING]
@@ -124,10 +114,7 @@ that reproduces without this port → `cursor/plugins`.
 
 ## See also
 
-- [adaptation register](https://github.com/iap/pstack-hermes/issues/94) — port ledger
+- [fork/AUDIT-ko.md](fork/AUDIT-ko.md) — fork audit and differences from the original port
 - [agent/README.md](agent/README.md) — agent deep ops (includes re-pin)
-- [PATCHES.md](PATCHES.md) — historical hermes-fork patches
+- [NOTICE.md](../NOTICE.md) — origins and attribution
 - [AGENTS.md](../AGENTS.md) — always-on repo contract for contributors
-
-
-<!-- /coderabbit-ai-generated:v1 -->

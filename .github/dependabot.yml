@@ -28,17 +28,17 @@
 # MERGE POLICY (review-enforced, not expressed in this file). Auto-merge
 # (`gh pr merge --auto --squash`) is allowed for the `actions-minor-patch` group
 # only. Everything else is merged by a human: any major bump, and the whole `uv`
-# group until publish-dist stops running `uv run` inside a `contents: write`
-# job. A PyPI artifact executes during the build; an Actions bump only moves a
+# group. A PyPI artifact executes during the build; an Actions bump only moves a
 # SHA inside an already-allowlisted owner/repo.
 #
-# Dependabot reads this configuration from master, the default development branch.
+# Dependabot targets `develop`, the default development branch; changes reach
+# `main` through the normal develop -> main promotion.
 
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    target-branch: "master"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -58,7 +58,7 @@ updates:
   # (cf. actions/github-script).
   - package-ecosystem: "github-actions"
     directory: "/.github/actions/build-package"
-    target-branch: "master"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -70,7 +70,7 @@ updates:
   # actionlint-py, shellcheck-py).
   - package-ecosystem: "uv"
     directory: "/"
-    target-branch: "master"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"

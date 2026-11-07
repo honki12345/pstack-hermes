@@ -14,10 +14,14 @@ longer exists. This tool checks the facts that actually broke:
 4. Hand-written docs (plus the generated `README.md`) carry no stale
    package-subdirectory paths (`pstack/skills/`, `pstack/config/`,
    `$PWD/pstack`, ...).
-5. `publish-dist.yml` copies only paths that exist in the tree (the dropped
-   `after-install.md` would have failed every master publish).
-6. Install docs (`README.md`, `docs/USING.md`) do not resurrect the dead
+5. Install docs (`README.md`, `docs/USING.md`) do not resurrect the dead
    `master` subdirectory install route.
+6. Repository identity: this is the independent `honki12345/pstack-hermes`
+   fork. Docs may name the original `iap/pstack-hermes` port only on an
+   explicit attribution line (history lives in `NOTICE.md`, `CHANGELOG.md`
+   and `docs/fork/AUDIT-ko.md`, which are not scanned), the package README
+   must give the fork's install command, and no doc may point at removed
+   original-port machinery (dist branch, release signing, bot-review gates).
 
 Exit codes: 0 clean; 1 drift found; 2 unreadable input.
 """
@@ -35,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ROUTER_DOCS = ("AGENTS.md", "docs/agent/README.md")
 HAND_WRITTEN_DOCS = (
     "AGENTS.md",
+    "CLAUDE.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
     ".github/PULL_REQUEST_TEMPLATE.md",
@@ -72,8 +77,22 @@ LEGACY_NAME_CONTINUATIONS = frozenset(
 )
 BARE_PACKAGE_RE = re.compile(r"(?<![\w./-])pstack/(?=\s|$|`)")
 CONTRACT_DOCS = frozenset({"AGENTS.md", "CONTRIBUTING.md"})
+IDENTITY_REPO = "honki12345/pstack-hermes"
+IDENTITY_INSTALL = f"hermes plugins install {IDENTITY_REPO}"
+IDENTITY_INSTALL_DOCS = ("README.md",)
+IDENTITY_EXTRA_GLOBS = (".github/ISSUE_TEMPLATE/*.yml", ".github/ISSUE_TEMPLATE/*.yaml")
+# The original port may be named only where it is credited.
+OLD_OWNER_RE = re.compile(r"iap/pstack-hermes|github\.com[/:]iap(?![\w-])", re.IGNORECASE)
+ATTRIBUTION_RE = re.compile(
+    r"attribution|deriv(?:e|es|ed)\s+from|forked\s+from", re.IGNORECASE
+)
+REMOVED_MACHINERY_RE = re.compile(
+    r"coderabbit|qodo|publish-dist|round-ledger|model-drift-watch|labels-bootstrap"
+    r"|allowed_signers|bot-reviews\.md|review-ops\.md|PATCHES\.md"
+    r"|`?dist`?\s+(?:compatibility\s+)?(?:branch|channel)",
+    re.IGNORECASE,
+)
 LAYOUT_GENERATED_EXEMPT = frozenset({"plugin.yaml"})
-CP_SOURCE_RE = re.compile(r'cp -a (?P<src>[^;\n"]+?) "\$dist/"')
 
 
 def _read(path: Path) -> str:
@@ -157,7 +176,7 @@ def _gitattributes_generated(root: Path) -> set[str]:
         line = line.split("#", 1)[0].strip()
         if not line or "linguist-generated=true" not in line:
             continue
-        path = line.split()[0]
+        path = line.split()[0].lstrip("/")  # "/x" anchors x at the repo root; same path for the layout check
         markers.add(path[:-2] if path.endswith("/**") else path)
     return markers
 
@@ -306,19 +325,38 @@ def check_stale_install_route(root: Path = ROOT) -> list[str]:
     return problems
 
 
-def check_publish_sources(root: Path = ROOT) -> list[str]:
-    workflow = root / ".github" / "workflows" / "publish-dist.yml"
-    if not workflow.is_file():
-        return [".github/workflows/publish-dist.yml: missing publish workflow"]
+def _identity_paths(root: Path) -> list[Path]:
+    paths = _doc_paths(root)
+    for pattern in IDENTITY_EXTRA_GLOBS:
+        paths.extend(sorted(root.glob(pattern)))
+    seen: dict[Path, None] = {}
+    for path in paths:
+        seen.setdefault(path, None)
+    return list(seen)
+
+
+def check_repo_identity(root: Path = ROOT) -> list[str]:
     problems: list[str] = []
-    for match in CP_SOURCE_RE.finditer(_read(workflow)):
-        for token in match.group("src").split():
-            if "$" in token or "*" in token:
-                continue
-            if not (root / token).exists():
+    for doc in _identity_paths(root):
+        if not doc.is_file():
+            continue
+        rel = doc.relative_to(root).as_posix()
+        for lineno, line in enumerate(_read(doc).splitlines(), start=1):
+            if OLD_OWNER_RE.search(line) and not ATTRIBUTION_RE.search(line):
                 problems.append(
-                    f"publish-dist.yml: cp source does not exist: {token}"
+                    f"{rel}:{lineno}: original-port repository outside an attribution line "
+                    f"(use {IDENTITY_REPO}): {line.strip()}"
                 )
+            match = REMOVED_MACHINERY_RE.search(line)
+            if match:
+                problems.append(
+                    f"{rel}:{lineno}: reference to removed original-port machinery "
+                    f"({match.group(0)}): {line.strip()}"
+                )
+    for rel in IDENTITY_INSTALL_DOCS:
+        doc = root / rel
+        if doc.is_file() and IDENTITY_INSTALL not in _read(doc):
+            problems.append(f"{rel}: missing install command `{IDENTITY_INSTALL}`")
     return problems
 
 
@@ -328,7 +366,7 @@ CHECKS = (
     ("UPSTREAM_PIN declarers match check_pins", check_pin_declarers),
     ("no stale package subdirectory paths", check_stale_paths),
     ("no stale subdirectory-install route", check_stale_install_route),
-    ("publish-dist sources exist", check_publish_sources),
+    ("repository identity is honki12345/pstack-hermes", check_repo_identity),
 )
 
 

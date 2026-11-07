@@ -68,11 +68,55 @@ def test_audit_passes_when_every_anchor_hit():
     )
 
 
-def test_worktree_helpers_use_unambiguous_epoch_probe():
-    """BSD date's -d has unrelated (kernel DST) semantics, so the GNU/BSD
-    discriminator must compare epoch output ('+%s' == 0), not exit status.
-    Both halves are pinned — the command substitution and the comparison —
-    so an exit-status-only rewording cannot pass as the safe form."""
-    assert "\"$(date -d @0 '+%s'" in convert.WORKTREE_HELPERS
-    assert '= "0" ]' in convert.WORKTREE_HELPERS
-    assert "date -d @0 '+%Y-%m-%d'" not in convert.WORKTREE_HELPERS
+def test_worktree_awk_pairs_keep_full_paths():
+    """F11: `worktree <path>` lines are read whole, so paths with spaces survive.
+    (F10/F12, the GNU/BSD stat+date helpers, retired at c742dd6: upstream ships them.)"""
+    assert convert.WORKTREE_AWK_PAIRS
+    for old, new in convert.WORKTREE_AWK_PAIRS:
+        assert "print $2" in old
+        assert "substr($0, 10)" in new and "print $2" not in new
+
+
+def test_principle_slug_follows_upstream_naming_rule():
+    assert convert.principle_slug("Test Behavior, Not Implementation") == (
+        "principle-test-behavior-not-implementation"
+    )
+    assert convert.principle_slug("Redesign from First Principles") == (
+        "principle-redesign-from-first-principles"
+    )
+
+
+def _index_tree(tmp_path, entries, leaves):
+    _write(
+        tmp_path,
+        "poteto-mode/SKILL.md",
+        "---\nname: poteto-mode\n---\n\n## Principles\n\n"
+        + "".join(f"{e}\n" for e in entries)
+        + "\n## Autonomy\n",
+    )
+    for leaf in leaves:
+        _write(tmp_path, f"{leaf}/SKILL.md", f"---\nname: {leaf}\n---\n")
+    return tmp_path
+
+
+def test_principle_index_drift_accepts_titles_and_explicit_slugs(tmp_path):
+    skills = _index_tree(
+        tmp_path,
+        [
+            "- **Prove It Works.** After a task.",
+            "- **Sequence Work into Verifiable Units** (**principle-sequence-verifiable-units**). Steps.",
+        ],
+        ["principle-prove-it-works", "principle-sequence-verifiable-units"],
+    )
+    assert convert.principle_index_drift(skills) == []
+
+
+def test_principle_index_drift_names_missing_and_orphaned_entries(tmp_path):
+    skills = _index_tree(
+        tmp_path,
+        ["- **Prove It Works.** After a task.", "- **Gone Principle.** Removed upstream."],
+        ["principle-prove-it-works", "principle-explain-the-number"],
+    )
+    drift = convert.principle_index_drift(skills)
+    assert "index entry without a shipped leaf: principle-gone-principle" in drift
+    assert "leaf missing from the index: principle-explain-the-number" in drift

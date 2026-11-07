@@ -2,7 +2,64 @@
 
 All notable changes to the pstack-hermes port tooling will be documented in this file.
 
-## [Unreleased]
+## [Unreleased] — fork
+
+Independent fork maintained by honki12345 as `honki12345/pstack-hermes`.
+Entries below this section are history inherited from the original port.
+
+### Changed
+- **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
+  skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,
+  `poteto-help` adapted to Hermes through the new audited `HELP_MAP` (P1).
+  Upstream #1043 deleted `skills/poteto-mode/scripts/orch/`, so the T15/T16
+  stack-provider passes, `tools/templates/local_frontier*.ts`, the orch test
+  patches, `T14_MAP`, and the `Stack provider` policy row are removed. R1
+  (principles index regeneration) and F10/F12 (GNU/BSD stat/date) retired
+  because upstream now ships both; validate keeps the consistency checks.
+  `check-plan.mjs` accepts the `hermes cron` tick marker or upstream's
+  `/loop 1h`. The `pstack-delegation` backend's upstream defaults follow the
+  new pin (Opus xhigh + Grok; Sol dropped). Anchor audit 147/147, 0 dead.
+- Independent fork: repository identity, install/issue URLs, and the product
+  policy now point at `honki12345/pstack-hermes`. Default branch `develop`,
+  flow `feature → develop → main`, releases are this fork's own `v*` tags.
+  Upstream source of truth stays Lauren Tan's pstack in `cursor/plugins` via
+  `tools/convert.py`; the original port is credited in the new `NOTICE.md`.
+- `tools/check_docs.py` enforces the new identity: hand-written docs and the
+  generated README may not reference the old repository outside attribution
+  lines, may not mention removed machinery (dist branch, bot review, release
+  signing), and the install docs must name `honki12345/pstack-hermes`.
+
+### Fixed
+- Upstream principles restored: the original port's T8 rewrites of
+  `principle-fix-root-causes` and `principle-test-behavior-not-implementation`
+  (adopted from a review bot on its PR #70, not a Hermes adaptation) and the G1
+  in-thread authoring exception in `feature.md` / `poteto-mode` are removed, so
+  both principle skills equal upstream byte-for-byte at the pin. Upstream's own
+  restatement (cursor/plugins #633) arrives with the re-pin. Judged with an
+  independent Claude Fable 5.1 review; record in `docs/fork/AUDIT-ko.md`.
+- The upstream "no standing-by reply" rule is mapped onto Hermes' background
+  delegation in the H1 contract instead of being worked around.
+- `config/models.json` ships an all-`inherit-parent` template (three seats per
+  panel role) instead of third-party slugs no skill read.
+
+### Removed
+- Original-port-only machinery: `publish-dist`, `release`, `round-ledger`,
+  `model-drift-watch`, `labels-bootstrap` and `labeler` workflows,
+  `.github/labeler.yml`, `.coderabbit.yaml`, the `drift-issue-upsert` action,
+  `keys/` (release signing), `patches/` + `docs/PATCHES.md` (Hermes patches,
+  including a scanner bypass that must not ship), the CodeRabbit/Qodo review
+  docs, and the dist-branch tooling (`tools/dist_checkout_check.py`,
+  `tools/assets/dist.gitattributes`, release-delivery tests). The install path
+  is the repository root, pinned with `--ref <sha>`.
+
+### Added
+- `hermes-plugin/pstack-delegation`: role-routed `delegate_task` backend that
+  maps pstack roles to real models and reasoning effort.
+- H1 converter pass: Hermes delegation and wake contract written into the
+  skills (`pstack_role` routing, advisory read-only with post-hoc checks, cron
+  as a fresh run), with an anchor audit and forbidden-string gate.
+
+## [Unreleased] — original port (pre-fork)
 
 ### Added
 - `keys/allowed_signers` (SSH ed25519, principal `iap@users.noreply.github.com`): release-signature trust material, plus a fail-closed gate in `release.yml` — a `v*` tag must verify against the SSH allowed-signers list first, OpenPGP (keys registered on the owner's GitHub profile, fetched live at release time — no key material committed) second, or the release aborts before any packaging. Dispatch-from-master from the start of this round: the release workflow is `workflow_dispatch` on `master` with the tag as an input, so the gate never executes tag-controlled workflow code (see the `Fixed` entry below). Tags go forward-only: `v0.4.3` / `v0.5.0` remain unsigned lightweight tags. CONTRIBUTING documents cutting a signed tag and the repo-local signing defaults (no global config change).

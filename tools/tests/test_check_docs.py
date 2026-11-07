@@ -2,9 +2,9 @@
 
 Each test pins one failure mode: a broken router link, a generated path
 mislabelled as hand-written (README.md), a stale `pstack/` subdirectory path,
-a pin-declarer list that disagrees with check_pins, and a publish `cp` source
-that no longer exists (after-install.md). The final test runs the gate against
-this repository so the checked-in docs cannot drift again.
+a pin-declarer list that disagrees with check_pins, and a doc that still
+carries the original port's identity or removed machinery. The repository
+test runs the gate against this checkout so the docs cannot drift again.
 """
 
 import sys
@@ -75,8 +75,8 @@ def test_layout_manifest_matches(tmp_path):
 def test_pin_declarers_match_check_pins(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
-        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml` and `publish-dist.yml`; one rule.\n",
+        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in\n"
+        "  `ci.yml`; one rule.\n",
     )
     assert check_docs.check_pin_declarers(tmp_path) == []
 
@@ -85,18 +85,18 @@ def test_removed_workflow_in_pin_list_fails(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
         "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml`, `publish-dist.yml` and `upstream-drift-watch.yml`.\n",
+        "  `release.yml` and `publish-dist.yml`.\n",
     )
     problems = check_docs.check_pin_declarers(tmp_path)
-    assert any("upstream-drift-watch.yml" in item for item in problems)
+    assert any("publish-dist.yml" in item for item in problems)
 
 
 def test_neighbouring_bullet_does_not_leak_into_pin_list(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
         "- **Dependabot.** `dependabot.yml` keeps pins current.\n\n"
-        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml` and `publish-dist.yml`.\n",
+        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in\n"
+        "  `ci.yml`.\n",
     )
     assert check_docs.check_pin_declarers(tmp_path) == []
 
@@ -400,25 +400,6 @@ def test_pr_template_bare_pstack_path_fails(tmp_path):
     assert any("PULL_REQUEST_TEMPLATE" in item for item in problems)
 
 
-def test_publish_source_missing_fails(tmp_path):
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  cp -a plugin.json after-install.md "$dist/"\n',
-    )
-    problems = check_docs.check_publish_sources(tmp_path)
-    assert any("after-install.md" in item for item in problems)
-
-
-def test_publish_sources_exist(tmp_path):
-    _write(tmp_path / "plugin.json", "{}\n")
-    _write(tmp_path / "README.md", "# x\n")
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  cp -a plugin.json README.md "$dist/"\n',
-    )
-    assert check_docs.check_publish_sources(tmp_path) == []
-
-
 def test_repository_docs_are_clean():
     code, lines = check_docs.check(Path(check_docs.ROOT))
     assert code == 0, "\n".join(lines)
@@ -437,24 +418,6 @@ def test_bare_pstack_prose_is_not_flagged(tmp_path):
         "subdirectory).\n",
     )
     assert check_docs.check_stale_paths(tmp_path) == []
-
-
-def test_inline_conditional_publish_source_missing_fails(tmp_path):
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  if [ -d assets ]; then cp -a assets "$dist/"; fi\n',
-    )
-    problems = check_docs.check_publish_sources(tmp_path)
-    assert any("assets" in item for item in problems)
-
-
-def test_inline_conditional_publish_source_exists(tmp_path):
-    _write(tmp_path / "assets" / "keep.txt", "x\n")
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  if [ -d assets ]; then cp -a assets "$dist/"; fi\n',
-    )
-    assert check_docs.check_publish_sources(tmp_path) == []
 
 
 def test_bare_package_path_in_agent_contract_fails(tmp_path):
@@ -480,3 +443,57 @@ def test_generated_marker_listed_in_layout_passes(tmp_path):
         "| Path | Kind | Notes |\n|---|---|---|\n| `LICENSE` | generated | x |\n",
     )
     assert check_docs.check_layout_manifest(tmp_path) == []
+
+
+def test_old_owner_install_url_fails(tmp_path):
+    _write(tmp_path / "README.md", "hermes plugins install iap/pstack-hermes --enable\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("original-port repository" in item for item in problems)
+
+
+def test_old_owner_issue_url_in_issue_template_fails(tmp_path):
+    _write(
+        tmp_path / ".github" / "ISSUE_TEMPLATE" / "config.yml",
+        "url: https://github.com/iap/pstack-hermes/blob/master/docs/USING.md\n",
+    )
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("ISSUE_TEMPLATE/config.yml" in item for item in problems)
+
+
+def test_old_owner_on_attribution_line_passes(tmp_path):
+    _write(
+        tmp_path / "AGENTS.md",
+        "Tooling derives from <https://github.com/iap/pstack-hermes>.\n"
+        "| Upstream | `iap/pstack-hermes` is attribution only |\n",
+    )
+    assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_unscanned_history_files_may_name_old_owner(tmp_path):
+    _write(tmp_path / "NOTICE.md", "forked from iap/pstack-hermes\n")
+    _write(tmp_path / "CHANGELOG.md", "keep the iap/pstack-hermes repository\n")
+    _write(tmp_path / "docs" / "fork" / "AUDIT-ko.md", "대상: iap/pstack-hermes\n")
+    assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_removed_machinery_reference_fails(tmp_path):
+    _write(tmp_path / "CONTRIBUTING.md", "Trigger `@coderabbitai full review`.\n")
+    _write(tmp_path / "docs" / "USING.md", "Use the name as installed for the dist branch.\n")
+    _write(tmp_path / ".github" / "PULL_REQUEST_TEMPLATE.md", "- [ ] Qodo findings triaged\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    for rel in ("CONTRIBUTING.md", "docs/USING.md", "PULL_REQUEST_TEMPLATE.md"):
+        assert any(rel in item and "removed original-port machinery" in item for item in problems)
+
+
+def test_readme_must_name_fork_install_command(tmp_path):
+    _write(tmp_path / "README.md", "hermes plugins install someone/else --enable\n")
+    problems = check_docs.check_repo_identity(tmp_path)
+    assert any("missing install command" in item for item in problems)
+    _write(tmp_path / "README.md", "hermes plugins install honki12345/pstack-hermes --enable\n")
+    assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_root_anchored_gitattributes_marker_matches_the_root_path(tmp_path):
+    (tmp_path / ".gitattributes").write_text("/plugin.yaml linguist-generated=true\nskills/** linguist-generated=true\n",
+                                            encoding="utf-8")
+    assert check_docs._gitattributes_generated(tmp_path) == {"plugin.yaml", "skills/"}

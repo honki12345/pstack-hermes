@@ -81,3 +81,4 @@ docs/superpowers/
 /r42rev.json
 /rc42.json
 /rv42.json
+!hermes-plugin/*/plugin.yaml

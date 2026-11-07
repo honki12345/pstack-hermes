@@ -1,6 +1,6 @@
 """check_pins must fail when the pin drifts, is missing, or is malformed.
 
-The gate exists so a bump that misses one of the four workflows cannot reach a
+The gate exists so a bump that misses a declaring workflow cannot reach a
 release (the failure mode called out in CONTRIBUTING.md and the re-pin runbook).
 These tests pin exactly that property, plus the false-positive case a naive
 implementation would hit: a `${{ env.UPSTREAM_PIN }}` reference is not a
@@ -15,7 +15,7 @@ import check_pins  # noqa: E402
 
 SHA = "93b00b89ef425a9c1bac0d0b317dfc49c930ac99"
 OTHER = "4e5b1cf2ccb0ea3716f08c8ee0a5856b5ab93536"
-REQUIRED = ("ci.yml", "release.yml", "publish-dist.yml")
+REQUIRED = ("ci.yml",)
 
 
 def _decl(value: str) -> str:
@@ -34,25 +34,24 @@ def _all(value: str) -> dict:
     return {name: _decl(value) for name in REQUIRED}
 
 
-def test_all_four_agree_passes(tmp_path):
+def test_all_required_declarers_agree_passes(tmp_path):
     code, _ = check_pins.check(_tree(tmp_path, _all(SHA)))
     assert code == 0
 
 
 def test_one_disagreeing_value_fails(tmp_path):
     bodies = _all(SHA)
-    bodies["ci.yml"] = _decl(OTHER)
+    bodies["extra.yml"] = _decl(OTHER)
     code, report = check_pins.check(_tree(tmp_path, bodies))
     assert code == 1
     assert any("disagree" in line for line in report)
 
 
 def test_missing_declaration_fails(tmp_path):
-    bodies = _all(SHA)
-    del bodies["release.yml"]
+    bodies = {"extra.yml": _decl(SHA)}
     code, report = check_pins.check(_tree(tmp_path, bodies))
     assert code == 1
-    assert any("release.yml" in line and "does not declare" in line for line in report)
+    assert any("ci.yml" in line and "does not declare" in line for line in report)
 
 
 def test_duplicate_declaration_in_one_file_fails(tmp_path):

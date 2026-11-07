@@ -5,6 +5,8 @@
 > Cursor's *pstack* agent method to the **Hermes Agent** platform
 > (`NousResearch/hermes-agent`). The runtime target is **hermes**. Cursor is
 > upstream attribution only — never the implementation or verification path.
+> Independently maintained by honki12345 as `honki12345/pstack-hermes`;
+> origins and attribution are in [NOTICE.md](NOTICE.md).
 
 This file is the always-on contract: read it, then open **one** row of the
 router. Humans contributing start at [CONTRIBUTING.md](CONTRIBUTING.md); end
@@ -42,8 +44,6 @@ Everything below follows from that rule.
   plugin skills. Personal procedure → local skills, skill tap, or a fork.
 - Implement GitLab (`glab`), or treat missing Graphite as a hard failure while
   GitHub fallback can satisfy the task.
-- Rewrite or delete the `dist` compatibility branch while installed clones
-  depend on it.
 - "Clean up" attribution, or re-add the excluded `benny` / `make-bot-ui`
   slots — that is the scanner / publisher contract.
 
@@ -55,7 +55,7 @@ Everything below follows from that rule.
 | Change converter maps/assets/bans, rebuild, verify | [docs/agent/convert-adapt.md](docs/agent/convert-adapt.md) |
 | Re-pin upstream / resolve dead anchors | [docs/agent/upstream-drift.md](docs/agent/upstream-drift.md) |
 | Scope and parallel-work discipline | [docs/agent/dev-ops.md](docs/agent/dev-ops.md) |
-| Reply to CodeRabbit / Qodo findings | [docs/agent/review-ops.md](docs/agent/review-ops.md) |
+| Fork audit and differences from the original port | [docs/fork/AUDIT-ko.md](docs/fork/AUDIT-ko.md) |
 | Setup, CI/Actions policy, PR, release | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Invoke or configure the installed package | [docs/USING.md](docs/USING.md) |
 
@@ -68,8 +68,9 @@ a focused file under `docs/agent/`. Do not grow this file.
 uv sync
 uv run --frozen tools/validate.py
 uv run --frozen pytest -q
-uv run --frozen ruff check tools
+uv run --frozen ruff check tools hermes-plugin
 uv run --frozen python tools/check_docs.py
+uv run --frozen actionlint
 ```
 
 Docs-only changes need no rebuild. Package-shaped changes rebuild from a clone
@@ -86,7 +87,7 @@ Poteto-mode checkers (CI runs these):
 
 ```sh
 cd skills/poteto-mode/scripts
-bun run test        # deps + bun test orch watch-pr
+bun run test        # deps + bun test watch-pr check-plan.test.ts
 bun run typecheck   # deps + tsc --noEmit --strict
 ```
 
@@ -94,29 +95,20 @@ bun run typecheck   # deps + tsc --noEmit --strict
 
 | Area | Decision |
 |---|---|
-| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
-| Package identity | Plugin/repo name `pstack`; upstream version follows the pin (`plugin.json`); keep the `iap/pstack-hermes` repository — never create or rename one for an install alias (#100); update mechanics live in the package README |
-| Releases | Tooling releases recorded in `CHANGELOG.md`; never move an existing tag |
+| Package identity | Plugin name `pstack`; repository `honki12345/pstack-hermes`, installed from the repo root (pin with `--ref <sha>`); upstream version follows the pin (`plugin.json`); update mechanics live in the package README |
+| Upstream | Lauren Tan's pstack in `cursor/plugins`, tracked through `tools/convert.py` at `UPSTREAM_PIN`; `iap/pstack-hermes` is attribution only ([NOTICE.md](NOTICE.md)) |
+| Releases | Our own `v*` tags on `main`, recorded in `CHANGELOG.md`; never move an existing tag |
 | Planning | GitHub issues, native sub-issues and milestones own plans; `docs/` holds instructions only |
 | Encoding | LF-only, no BOM, UTF-8 (CI-enforced) |
-| Default branch | `master` |
+| Branches | Default `develop`; flow `feature → develop → main` |
 
 ## Where to edit
 
 | Path | Kind |
 |---|---|
 | `tools/`, `tools/assets/` | hand-written source of package truth |
-| `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` | hand-written docs |
+| `docs/`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `NOTICE.md`, `CHANGELOG.md` | hand-written docs |
 | `README.md` template in `tools/convert.py` | hand-written source; `README.md` itself is generated |
 | `.github/` | hand-written CI; `UPSTREAM_PIN` stays in lock-step across the declarers listed by `tools/check_pins.py`; action pins are bumped by dependabot, not by hand |
-| `patches/` | historical reference only ([docs/PATCHES.md](docs/PATCHES.md)) |
 | `plugin.json`, `skills/`, `config/`, `assets/`, `README.md`, `LICENSE`, `.build-provenance.txt` | generated — never hand-edit |
 | `.venv/`, `.pytest-tmp/`, `.validate-data/`, `pstack.tmp-build/` | local scratch; never commit |
-
-<!-- coderabbit-ai-generated:v1 -->
-## Bot review findings
-
-Follow [docs/agent/review-ops.md](docs/agent/review-ops.md). Verify every
-finding against the contract and current code before changing behavior, reply
-in the same thread with evidence, and never resolve threads yourself.
-<!-- /coderabbit-ai-generated:v1 -->
