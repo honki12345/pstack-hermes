@@ -78,10 +78,40 @@ _READ_ONLY_GIT = frozenset({
     "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
 })
 # 이 인자가 하나라도 있으면 읽기 전용으로 보지 않는다. 파일을 바꾸거나 다른 명령을 실행한다.
+# 각 명령의 man 페이지에서 쓰기와 실행을 하는 플래그를 골랐다. find 의 -exec 계열과 파일 출력 동작.
 _UNSAFE_ARGS = frozenset({
     "-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls",
 })
-_UNSAFE_PREFIXES = ("--output", "--pre", "--ext-diff", "--textconv")
+# 앞부분이 같으면 막는 플래그. 명령마다 따로 둔다. 공통으로 두면 `git log --pretty` 가 rg 의 `--pre`
+# 에 걸린다. git 은 옵션 줄임 표기를 받으므로(`--ext-di` 는 `--ext-diff`) 줄임까지 막으려고 앞부분만 쓴다.
+#   rg  --pre, --pre-glob  전처리 프로그램 실행. --hostname-bin  프로그램 실행.
+#   git --output  파일에 쓴다. --ext-diff, --textconv  설정된 외부 프로그램 실행. -O  순서 파일.
+_UNSAFE_PREFIXES = {
+    "rg": ("--pre", "--hostname-bin"),
+    "git": ("--out", "--ext", "--text", "-O"),
+}
+# `file` 은 `-C`(--compile)가 파일을 쓴다. GNU getopt 의 줄임 표기도 받아서 막는 쪽 목록으로는 새는
+# 구멍이 생긴다. 그래서 허용 플래그만 통과시킨다.
+_FILE_SHORT_FLAGS = frozenset("biIkLhnNsp")
+_FILE_LONG_FLAGS = frozenset({
+    "--brief", "--mime", "--mime-type", "--mime-encoding", "--extension", "--keep-going",
+    "--dereference", "--no-dereference", "--no-buffer", "--no-pad", "--special-files",
+    "--preserve-date",
+})
+
+
+def _file_args_are_read_only(args: list[str]) -> bool:
+    for arg in args:
+        if arg == "--":
+            continue
+        if arg.startswith("--"):
+            if arg not in _FILE_LONG_FLAGS:
+                return False
+        elif arg.startswith("-") and len(arg) > 1 and not set(arg[1:]) <= _FILE_SHORT_FLAGS:
+            return False
+    return True
+
+
 # 리다이렉션, 명령 치환, `;`, 줄바꿈, 백슬래시, 괄호, 중괄호, 단독 `&`(백그라운드 실행).
 _SHELL_META_RE = re.compile(r"[;<>`$\n\r\\(){}]|(?<!&)&(?!&)")
 
@@ -206,9 +236,11 @@ def _shell_segment_is_read_only(segment: str) -> bool:
         return False
     if not words:
         return False
-    if any(w in _UNSAFE_ARGS or w.startswith(_UNSAFE_PREFIXES) for w in words):
-        return False
     head, rest = words[0], words[1:]
+    if any(w in _UNSAFE_ARGS or w.startswith(_UNSAFE_PREFIXES.get(head, ())) for w in words):
+        return False
+    if head == "file":
+        return _file_args_are_read_only(rest)
     if head == "cd":
         # 에이전트는 `cd <저장소> && git diff` 형태로 조회한다. 경로 하나만 읽기 전용으로 본다.
         return len(rest) == 1
