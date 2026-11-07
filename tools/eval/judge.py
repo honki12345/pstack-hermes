@@ -307,7 +307,8 @@ def _recovered(pairing: Pairing) -> bool | None:
             if written:
                 return True
             continue
-        if event.get("reason") == "preparatory_tool":
+        # A todolist written without a delegation decision is a step toward the todolist, not a miss.
+        if event.get("reason") in {"preparatory_tool", "todo_pending_decision"}:
             continue
         return written
     return False
