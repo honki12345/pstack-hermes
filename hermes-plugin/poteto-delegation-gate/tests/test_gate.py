@@ -960,6 +960,10 @@ def test_the_same_commands_without_those_flags_stay_read_only(command):
     "date", "date +%F", "date -u", "date '+%Y-%m-%d %H:%M:%S %Z'", "date -u +%FT%TZ",
     "TZ=Asia/Seoul date", "TZ=UTC date '+%F %T'", "date -Iseconds", "date -I", "date -R",
     "date --iso-8601=seconds", "date --rfc-3339=seconds", "date --rfc-email", "TZ=UTC date -Iseconds",
+    # git branch and git remote in their listing forms, and gh auth status without the token.
+    "git branch --show-current", "git branch", "git branch -a", "git branch -vv", "git remote",
+    "git remote -v", "git remote get-url origin", "gh auth status",
+    "date '+%F'; git status --short; git branch --show-current; git remote -v",
 ])
 def test_common_question_turn_commands_are_read_only(command):
     assert gate._is_read_only_shell(command) is True
@@ -980,7 +984,10 @@ def test_common_question_turn_commands_are_read_only(command):
     # gh: only the listed read subcommands.
     "gh api repos/x/y", "gh api graphql", "gh pr merge 1", "gh pr create", "gh pr close 1",
     "gh pr comment 1 -b x", "gh pr checkout 1", "gh pr review 1 --approve", "gh issue create",
-    "gh issue close 1", "gh run rerun 1", "gh repo delete x", "gh repo clone x/y", "gh auth status",
+    "gh issue close 1", "gh run rerun 1", "gh repo delete x", "gh repo clone x/y",
+    "gh auth status --show-token", "gh auth status -t", "gh auth login", "gh auth token",
+    "git branch new-branch", "git branch -D old", "git branch -m a b", "git branch --set-upstream-to=o/x",
+    "git remote add o url", "git remote remove o", "git remote set-url o url", "git remote prune o",
     "gh alias set x y", "gh pr view 1 --web", "gh pr view -w 1", "gh repo view -w",
     "gh run view 1 --web", "gh issue view 1 --web", "gh", "gh pr",
     # git global flags that change behaviour stay refused.
