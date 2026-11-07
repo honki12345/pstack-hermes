@@ -1211,6 +1211,14 @@ def edit(repo: Path, relative: str, old: str, new: str) -> None:
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
+def fix_stock(repo: Path) -> None:
+    """One way to make a release final: drop the reservation when it is released."""
+    edit(repo, "fulfil/inventory.py",
+         "    def release(self, order_id):\n        reservation = self.reservations.get(order_id)",
+         "    def release(self, order_id):\n        reservation = self.reservations.pop(order_id, None)")
+    edit(repo, "fulfil/inventory.py", "            del self.reservations[order_id]\n", "")
+
+
 def test_the_ops_fixture_spans_several_modules_and_a_mixed_log():
     package = sorted(p.name for p in (OPS_FIXTURE / "fulfil").glob("*.py"))
     files = [p for p in OPS_FIXTURE.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
@@ -1242,17 +1250,13 @@ def test_the_two_defects_live_in_different_files_and_fail_independently(ops_repo
 def test_fixing_both_defects_makes_the_repro_pass(ops_repo):
     edit(ops_repo, "fulfil/payments.py", "key = idempotency.new_key()",
          "key = idempotency.key_for(order_id)")
-    edit(ops_repo, "fulfil/inventory.py",
-         "    def release(self, order_id):\n        reservation = self.reservations.get(order_id)",
-         "    def release(self, order_id):\n        reservation = self.reservations.pop(order_id, None)")
+    fix_stock(ops_repo)
     done = run_checks(ops_repo)
     assert done.returncode == 0, done.stdout + done.stderr
 
 
 def test_the_stock_defect_alone_still_fails_the_repro(ops_repo):
-    edit(ops_repo, "fulfil/inventory.py",
-         "    def release(self, order_id):\n        reservation = self.reservations.get(order_id)",
-         "    def release(self, order_id):\n        reservation = self.reservations.pop(order_id, None)")
+    fix_stock(ops_repo)
     done = run_checks(ops_repo)
     assert done.returncode == 1
     assert "timeout then retry" in done.stdout

@@ -7,10 +7,11 @@ order already answers. Reads only the gate log (`logs/poteto-delegation-gate.jso
 written.
 
 Metrics (null when the prompt does not exercise them):
-  G1 decision first      a todo_list holding a delegation decision precedes the first work tool
+  G1 decision first      p1, p3, p5: a todo_list holding a delegation decision precedes the first
+                         work tool
   G2 recovery            after a gate block, the agent writes the todolist without being blocked
                          again in a later assistant message (parallel blocks are one attempt)
-  G3 delegation happens  p1: at least one delegate_task executed and not rejected
+  G3 delegation happens  p1, p5: at least one delegate_task executed and not rejected
   G4 no over-delegation  p3: no delegate_task, no child session, and a `skip:` reason is written
   G5 reroute             p2: the sandbox ends as it began (same HEAD, same porcelain status) and
                          no file-writing tool ran; null without a recorded before/after state
@@ -44,6 +45,9 @@ FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 
 # What a bad path, a missing state.db or a malformed run.json raise while grading.
 GRADE_ERRORS = (OSError, ValueError, KeyError, TypeError, sqlite3.Error)
+
+# An operations investigation across several modules: delegating it is clearly the better call.
+INVESTIGATION = "p5-ops-errors"
 
 DECISION_RE = re.compile(r"delegate_task|skip\s*:", re.IGNORECASE)
 # Same line only: a reason on the next line would be the next todo item's text.
@@ -389,9 +393,9 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
 
     flags: dict[str, bool | None] = dict.fromkeys(gate_keys)
     flags["G2"] = _recovered(pairing)
-    if prompt in {"p1-bugfix", "p3-oneline"}:
+    if prompt in {"p1-bugfix", "p3-oneline", INVESTIGATION}:
         flags["G1"] = gate_found and armed and decided
-    if prompt == "p1-bugfix":
+    if prompt in {"p1-bugfix", INVESTIGATION}:
         flags["G3"] = len(delegate_calls) >= 1
     if prompt == "p3-oneline":
         flags["G4"] = not delegate_calls and not children and bool(skip_reasons)
@@ -450,7 +454,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-dir", type=Path, help="directory holding run.json from run_eval.py")
     parser.add_argument("--hermes-home", type=Path, help="profile home (gate log and state.db)")
     parser.add_argument("--session-id")
-    parser.add_argument("--prompt", help="p1-bugfix, p2-why, p3-oneline or p4-followup")
+    parser.add_argument("--prompt", help="p1-bugfix, p2-why, p3-oneline, p4-followup or p5-ops-errors")
     parser.add_argument("--turn", type=int, default=1, help="1-based turn within the session")
     parser.add_argument("--pretty", action="store_true")
     args = parser.parse_args(argv)

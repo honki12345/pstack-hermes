@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run one fixed poteto-mode prompt against a Hermes profile, then grade it with judge.py.
 
-Everything the agent sees is an ordinary user request in a throwaway shop-api checkout. The run
+Everything the agent sees is an ordinary user request in a throwaway checkout of a small service
+(`shop-api`, or `fulfilment-api` for p5-ops-errors). The run
 goes through `hermes_side.py` in a process of its own by default (`--runner inproc`), so stopping
 it stops the model calls and it reads the plugin code as it is on disk. `--runner cli` uses
 `hermes -z` instead, which hands the session to the shared gateway: killing the client does not
@@ -33,7 +34,9 @@ import judge
 HERE = Path(__file__).resolve().parent
 PROMPTS = HERE / "prompts"
 FIXTURE = HERE / "fixtures" / "shop-api"
-PROMPT_IDS = ("p1-bugfix", "p2-why", "p3-oneline", "p4-followup")
+PROMPT_IDS = ("p1-bugfix", "p2-why", "p3-oneline", "p4-followup", "p5-ops-errors")
+# A prompt that needs a checkout of its own names it here; the others use `FIXTURE`.
+PROMPT_FIXTURES = {"p5-ops-errors": HERE / "fixtures" / "fulfilment-api"}
 # The follow-up only means something after the first turn, in the same process and session.
 FOLLOW_UP = {"p4-followup": "p1-bugfix"}
 CHILD_ENV_KEYS = ("HOME", "PATH", "LANG", "TMPDIR")
@@ -79,12 +82,17 @@ def _git(repo: Path, *command: str) -> str:
     return done.stdout
 
 
-def make_sandbox() -> Path:
+def fixture_for(prompt_id: str) -> Path:
+    return PROMPT_FIXTURES.get(prompt_id, FIXTURE)
+
+
+def make_sandbox(fixture: Path | None = None) -> Path:
     """A project-shaped checkout: a path and a repo that read like real work."""
-    root = Path(tempfile.mkdtemp(prefix="shop-"))
+    source = fixture or FIXTURE
+    root = Path(tempfile.mkdtemp(prefix=f"{source.name.split('-')[0]}-"))
     try:
-        repo = root / "shop-api"
-        shutil.copytree(FIXTURE, repo)
+        repo = root / source.name
+        shutil.copytree(source, repo)
         _git(repo, "init", "-q")
         (repo / ".git" / "info" / "exclude").write_text(SANDBOX_EXCLUDES, encoding="utf-8")
         _git(repo, "add", "-A")
@@ -225,7 +233,7 @@ def run(args: argparse.Namespace) -> int:
         plain.write_text(prompt_text(follow) + "\n", encoding="utf-8")
         messages.append(plain)
 
-    repo = make_sandbox()
+    repo = make_sandbox(fixture_for(chain[0]))
     try:
         attempt_start = time.time()
         started = time.monotonic()
@@ -294,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
                              "gateway, which keeps running and billing after a stop")
     parser.add_argument("--timeout", type=float, default=900, help="seconds per run")
     parser.add_argument("--allow-default-profile", action="store_true")
-    parser.add_argument("--cleanup", action="store_true", help="delete the shop-api checkout after")
+    parser.add_argument("--cleanup", action="store_true", help="delete the sandbox checkout after")
     args = parser.parse_args(argv)
     # SIGHUP is a closed terminal or window; it must unwind like SIGTERM, not kill us mid-run.
     previous = {sig: signal.signal(sig, _terminate) for sig in (signal.SIGTERM, signal.SIGHUP)}
