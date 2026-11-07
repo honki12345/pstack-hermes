@@ -15,7 +15,7 @@ still reaches for a working tool such as `terminal` first, and the gate blocks t
 
 | Hook | What it does |
 |---|---|
-| `pre_llm_call` | Arms the gate for the session when the user message opens with the skill invocation header that names `poteto-mode`. A later turn without that header disarms it. A subagent turn (one with a parent session) is never armed. Returns nothing, so it injects no context. |
+| `pre_llm_call` | Arms the gate for the session when the user message opens with the skill invocation header that names `poteto-mode`. A later turn in the same session without that header keeps the gate on and starts a fresh turn, as described under follow-up turns below. A subagent turn (one with a parent session) is never armed. Returns nothing, so it injects no context. |
 | `pre_tool_call` | While the gate is armed and no decision has been written, blocks every tool except the preparatory ones below. Writing a todolist that holds a decision item through `todo_list`, directly or inside a `tool_call` bridge, unlocks everything for the rest of the turn. |
 
 Tools allowed before a decision is written are `read_file`, `skill_view`, `skills_list`,
@@ -81,6 +81,65 @@ and the judge in `tools/eval/` counts it as a failed recovery.
 State is kept in process memory per session id. Two sessions in one profile do not affect each
 other.
 
+## Follow-up turns
+
+Once a session has had a `/poteto-mode` turn, the gate stays on for its later turns. Before this,
+the first turn without the skill header switched the gate off, so an agent that moved from a
+bug fix to a wide investigation in a follow-up never had to record a delegation decision.
+
+The gate cannot read intent. It does not try to tell a follow-up that continues the work from a
+new task. It sorts the input by its shape and gives every markerless user turn the same rule.
+
+| Input | What the gate does | Log |
+|---|---|---|
+| Message that opens with the `poteto-mode` header | Arms a fresh turn. Nothing from the earlier turn carries over. | `turn_armed` |
+| Message that opens with the header of another skill | Turns the gate off for the session. The user chose a different skill on purpose. | `turn_disarmed` |
+| Gateway notice that opens with `[ASYNC DELEGATION` or `[IMPORTANT: Background process` or `[IMPORTANT: <n> background processes` | Continues the previous turn. The todolist, the decision, the block count and a release stay as they were, so the agent can read a child's result with the tools it already had. | `turn_continued`, `kind: "notice"` |
+| Any other message in the same session, such as a question or a new instruction | A new turn. The todolist and decision state start empty, and the read allowance below applies. | `turn_continued`, `kind: "followup"` |
+| Any message in a session with no `poteto-mode` turn, and any subagent turn | Not gated. | none |
+
+A repeat of the hook inside one turn (same `turn_id`) changes nothing, so a todolist written in
+that turn is not forgotten.
+
+**Read allowance.** A follow-up turn can use up to three read-only calls before it needs a
+decision. A question such as "what did you just change?" usually ends after `git status` and
+`git diff`, and asking for a todolist first would block the user's turn for nothing. The calls that
+count as read-only are `search_files`, `session_search`, and a `terminal` command made of
+`ls`, `cat`, `head`, `tail`, `wc`, `pwd`, `grep`, `rg`, `stat`, `file`, `which`, `du`, `find`, or `git`
+with `diff`, `log`, `status`, `show`, `blame`, `shortlog`, `rev-parse`, `ls-files` or `describe`.
+Pipes and `&&` are fine when every part is read-only. A redirection, a substitution, `;`, a lone
+`&`, a newline, `find -exec` or `-delete`, `git diff --output` and anything not on the list are not
+read-only. A `tool_call` bridge counts each read-only call inside it. Preparatory tools do not count.
+The allowance is logged as `followup_read`.
+
+The fourth read-only call, any other working tool, and any call after the first block need the
+decision first. That is the original failure, an agent that starts a broad investigation or a
+change in a follow-up without a decision, and it is blocked like a marker turn is (`work_before_todo`,
+then `todo_without_decision`, then release after two blocks). Once a block or an undecided
+todolist has happened in the turn, the allowance is closed, so the log reads as a block followed
+by a recovery.
+
+What this costs the user: a question turn that stays within three read-only calls is never
+blocked. A follow-up that edits files is blocked once, then goes ahead after the todolist.
+Blocks per follow-up turn are bounded by the same rule as a marker turn, one before the
+todolist and at most two after an undecided one.
+
+**Limits.**
+
+- A message that arrives with no `poteto-mode` turn earlier in the same process is not gated. State
+  lives in process memory, so a restart of Hermes or of the gateway forgets which sessions had a
+  `poteto-mode` turn. Send the `/pstack:poteto-mode` header again to arm the session.
+- The gate stays on for the rest of the session. To work without it, start a new session or
+  disable the plugin. A message that opens with another skill's header also turns it off.
+- The read allowance is a pattern over the command string. It does not run the command and does
+  not understand every shell. It can be wrong in both directions, and a read-only command can
+  still read a lot, so the cap of three calls is what keeps an investigation from starting for free.
+- Notice detection reads the first characters of the message. A user who types text that begins
+  with one of those headers is treated as a notice.
+- Memory is bounded. A session that has been idle for 24 hours is dropped, and when more than 256
+  sessions are tracked the least recently used one is dropped. A dropped session behaves like a
+  session that never had a `poteto-mode` turn.
+
 ## Install
 
 Install it per profile. The profile's `plugins` directory holds a symlink to this directory, so a
@@ -125,7 +184,8 @@ per line. The log holds decisions only. It never records the user message or too
 | `event` | Other fields |
 |---|---|
 | `turn_armed` | `session_id`, `turn_id` |
-| `turn_disarmed` | `session_id`, `turn_id` |
+| `turn_continued` | `session_id`, `turn_id`, `kind` (`followup` or `notice`) |
+| `turn_disarmed` | `session_id`, `turn_id` (the user invoked another skill) |
 | `allow` | `session_id`, `tool_name`, `bridged`, `reason`, `delegated`, `tool_call_id` |
 | `block` | `session_id`, `tool_name`, `bridged`, `reason`, `delegated`, `tool_call_id` |
 
@@ -141,6 +201,7 @@ Every line also has `ts`, the Unix time in seconds.
 | `decision_missing_released` | The block limit was reached, so this call unlocked the turn without a decision. |
 | `released` | Every later call in a turn that was unlocked without a decision. A log reader can tell this turn from one that has `todo_written`. |
 | `preparatory_tool` | A preparatory tool, or a `todo_list` that only reads. |
+| `followup_read` | A read-only call inside the read allowance of a follow-up turn. |
 
 `reason` on `block` is `work_before_todo` when no todolist was written and `todo_without_decision`
 when one was written without a decision item. `bridged` lists the tool names inside a `tool_call` bridge, and is
@@ -161,7 +222,7 @@ uv run --frozen pytest -q hermes-plugin/poteto-delegation-gate/tests
 
 The cases live in `tests/test_gate.py` and run without Hermes. CI scans only `tools/tests/`, so
 the wrapper `tools/tests/test_poteto_delegation_gate.py` loads that file and collects the same
-cases. Both commands run all 91.
+cases. Both commands run all 152.
 
 ## Measure its effect
 
