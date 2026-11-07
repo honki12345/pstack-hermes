@@ -47,11 +47,13 @@ each panel role has three seats. Copy it as the starting point for your
 
 ## Fan-out limits
 
-A one-shot run (`hermes -z`) and a cron tick allow at most
-`delegation.oneshot_max_children` children. The default is 2. A three-seat panel
-such as `interrogate reviewers` needs that value raised to 3 or more in the
-profile that runs it, or the whole call is refused before any child starts.
-Interactive sessions use `delegation.max_concurrent_children`.
+A one-shot run (`hermes -z`) and a cron tick may spawn at most
+`delegation.oneshot_max_children` children in total over the whole run. The
+default is 2, and 0 means unlimited. One `interrogate reviewers` round already
+spends 3, so size the budget for every round the run may do (for example 12),
+or the call that crosses it is refused before any of its children start.
+Interactive sessions are not charged. They are bounded per call by
+`delegation.max_concurrent_children` (default 10).
 
 Verified live: one `delegate_task` call asked for seats 0, 1, and 2 of
 `["claude-opus-5-5", "profile:reviewer", "inherit-parent"]`. The children ran on
