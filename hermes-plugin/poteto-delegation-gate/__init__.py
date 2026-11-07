@@ -72,7 +72,7 @@ MAX_SESSIONS = 256
 READ_ONLY_TOOLS = frozenset({"search_files", "session_search"})
 _READ_ONLY_COMMANDS = frozenset({
     "ls", "cat", "head", "tail", "wc", "pwd", "grep", "rg", "stat", "file", "which", "du", "find",
-    "echo",
+    "echo", "jq",
 })
 _READ_ONLY_GIT = frozenset({
     "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
@@ -112,8 +112,12 @@ def _file_args_are_read_only(args: list[str]) -> bool:
     return True
 
 
-# 리다이렉션, 명령 치환, `;`, 줄바꿈, 백슬래시, 괄호, 중괄호, 단독 `&`(백그라운드 실행).
-_SHELL_META_RE = re.compile(r"[;<>`$\n\r\\(){}]|(?<!&)&(?!&)")
+# 따옴표 밖에서 나오면 읽기 전용으로 보지 않는 문자. 명령 치환, 변수 확장, 리다이렉션, 줄바꿈,
+# 백슬래시, 괄호, 중괄호. `;` `|` `&&` 는 조각 구분자이고 단독 `&`(백그라운드 실행)와 `||` 는 거른다.
+_SHELL_META = frozenset("\\\n\r`$<>(){}")
+# 출력을 버리거나 stderr 를 stdout 에 합치는 리다이렉션만 허용한다. 파일에 쓰는 `>` 는 그대로 거른다.
+# 뒤에 공백, 끝, 구분자가 와야 해서 `/dev/nullx` 나 `>&3` 은 걸리지 않는다.
+_HARMLESS_REDIRECT_RE = re.compile(r"(?:&>|[12]?>)[ \t]*/dev/null(?=$|[\s;&|])|[12]?>&[12](?=$|[\s;&|])")
 
 # Hermes 가 에이전트 턴으로 끼워 넣는 알림. 사용자가 새로 시킨 작업이 아니다. 신호는 둘이고 하나만
 # 맞아도 알림이다.
@@ -229,6 +233,59 @@ def _is_notice(user_message: object) -> bool:
     )
 
 
+_GH_READ = {
+    "pr": frozenset({"view", "list", "checks", "diff"}),
+    "issue": frozenset({"view", "list"}),
+    "run": frozenset({"view", "list"}),
+    "repo": frozenset({"view"}),
+}
+# 브라우저를 여는 플래그. 읽기 조회가 아니라 바깥 프로그램을 띄운다.
+_GH_UNSAFE_ARGS = frozenset({"-w", "--web"})
+# `sed -n '<주소>p'` 만 읽기 전용으로 본다. 주소는 줄 번호, `$`, `/정규식/`, `+N`(앞 주소 뒤 N줄).
+# 스크립트에 `w`(파일 쓰기), `e`(실행), `s///e`, `;` 로 이은 둘째 명령이 들어갈 자리가 없다.
+_SED_ADDR = r"(?:\d+|\$|/[^/\n\r]*/I?)"
+_SED_SCRIPT_RE = re.compile(rf"{_SED_ADDR}(?:,(?:{_SED_ADDR}|\+\d+))?p")
+_SED_SHORT_FLAGS = frozenset("nErsz")
+_SED_LONG_FLAGS = frozenset({
+    "--quiet", "--silent", "--regexp-extended", "--separate", "--null-data",
+})
+
+
+def _sed_is_read_only(args: list[str]) -> bool:
+    script_seen = False
+    for arg in args:
+        if arg.startswith("--"):
+            if arg not in _SED_LONG_FLAGS:
+                return False
+        elif arg.startswith("-") and len(arg) > 1:
+            if not set(arg[1:]) <= _SED_SHORT_FLAGS:
+                return False
+        elif not script_seen:
+            if not _SED_SCRIPT_RE.fullmatch(arg):
+                return False
+            script_seen = True
+    return script_seen
+
+
+def _gh_is_read_only(args: list[str]) -> bool:
+    if len(args) < 2 or args[1] not in _GH_READ.get(args[0], ()):
+        return False
+    return not any(a in _GH_UNSAFE_ARGS for a in args)
+
+
+def _git_is_read_only(args: list[str]) -> bool:
+    # 읽기 전용 전역 플래그만 건너뛴다. `-C <경로>` 와 `--no-pager`. `-c` 나 `--paginate` 는 남아서
+    # 하위 명령 자리에 와 거른다.
+    while args:
+        if args[0] == "--no-pager":
+            args = args[1:]
+        elif args[0] == "-C" and len(args) >= 3:
+            args = args[2:]
+        else:
+            break
+    return bool(args) and args[0] in _READ_ONLY_GIT
+
+
 def _shell_segment_is_read_only(segment: str) -> bool:
     try:
         words = shlex.split(segment)
@@ -245,19 +302,67 @@ def _shell_segment_is_read_only(segment: str) -> bool:
         # 에이전트는 `cd <저장소> && git diff` 형태로 조회한다. 경로 하나만 읽기 전용으로 본다.
         return len(rest) == 1
     if head == "git":
-        if rest[:1] == ["-C"] and len(rest) >= 3:
-            rest = rest[2:]
-        return bool(rest) and rest[0] in _READ_ONLY_GIT
+        return _git_is_read_only(rest)
+    if head == "sed":
+        return _sed_is_read_only(rest)
+    if head == "gh":
+        return _gh_is_read_only(rest)
     return head in _READ_ONLY_COMMANDS
 
 
+def _split_shell(command: str) -> list[str] | None:
+    """따옴표 밖의 `;` `|` `&&` 에서 조각으로 나눈다. 안전하지 않은 문법이 있으면 None.
+
+    작은따옴표 안은 모두 글자 그대로다. 큰따옴표 안은 `$`, 백틱, 백슬래시가 살아 있어서 거른다.
+    따옴표 밖에서는 _SHELL_META 문자, 단독 `&`, `||` 를 거르고 무해한 리다이렉션만 지운다.
+    """
+    command = _HARMLESS_REDIRECT_RE.sub(" ", command)
+    segments: list[str] = []
+    current: list[str] = []
+    quote = ""
+    i = 0
+    while i < len(command):
+        ch = command[i]
+        if quote == "'":
+            quote = "" if ch == "'" else quote
+        elif quote == '"':
+            if ch in "$`\\":
+                return None
+            quote = "" if ch == '"' else quote
+        elif ch in "'\"":
+            quote = ch
+        elif ch in _SHELL_META:
+            return None
+        elif ch in ";|&":
+            nxt = command[i + 1 : i + 2]
+            if ch == "&" and nxt != "&":
+                return None
+            if ch == "|" and nxt == "|":
+                return None
+            if nxt == ch and ch != ";":
+                i += 1
+            segments.append("".join(current))
+            current = []
+            i += 1
+            continue
+        current.append(ch)
+        i += 1
+    if quote:
+        return None
+    segments.append("".join(current))
+    # 끝의 `;` 한 개는 빈 조각을 남긴다. 중간의 빈 조각(`;;`, `&& &&`)은 문법 오류라 거른다.
+    if len(segments) > 1 and not segments[-1].strip() and command.rstrip().endswith(";"):
+        segments.pop()
+    return segments
+
+
 def _is_read_only_shell(command: object) -> bool:
-    """읽기만 하는 쉘 명령이면 참. 리다이렉션, 치환, `;`, 백그라운드 실행이 있으면 거짓이다.
-    `|` 와 `&&` 로 이은 명령은 조각마다 읽기 전용일 때만 참이다."""
-    if not isinstance(command, str) or not command.strip() or _SHELL_META_RE.search(command):
+    """읽기만 하는 쉘 명령이면 참. 파일에 쓰는 리다이렉션, 치환, 백그라운드 실행이 있으면 거짓이다.
+    `;` `|` `&&` 로 이은 명령은 조각마다 읽기 전용일 때만 참이다."""
+    if not isinstance(command, str) or not command.strip():
         return False
-    segments = [part for chunk in command.split("&&") for part in chunk.split("|")]
-    return all(_shell_segment_is_read_only(seg) for seg in segments)
+    segments = _split_shell(command)
+    return bool(segments) and all(_shell_segment_is_read_only(seg) for seg in segments)
 
 
 def _read_cost(entries: list[tuple[str, dict]]) -> int | None:

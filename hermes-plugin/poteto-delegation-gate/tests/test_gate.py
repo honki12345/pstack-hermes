@@ -927,7 +927,7 @@ def test_the_same_commands_without_those_flags_stay_read_only(command):
     "ls 2>/dev/null", "git log 2>&1", "grep x f 2>/dev/null | head", "git status 2>&1 | head -5",
     "ls >/dev/null 2>&1", "ls > /dev/null", "git diff 1>&2",
     # gh read subcommands.
-    "gh pr view 10", "gh pr view 10 --json title,state", "gh pr list", "gh pr checks 10",
+    "gh pr view", "gh pr view 10", "gh pr view 10 --json title,state", "gh pr list", "gh pr checks 10",
     "gh pr diff 10", "gh issue view 3", "gh issue list --state open", "gh run view 123",
     "gh run list --limit 5", "gh repo view", "gh pr view 10 --json title | jq -r .title",
     # git global flags that only turn the pager off.
@@ -960,7 +960,7 @@ def test_common_question_turn_commands_are_read_only(command):
     "gh pr comment 1 -b x", "gh pr checkout 1", "gh pr review 1 --approve", "gh issue create",
     "gh issue close 1", "gh run rerun 1", "gh repo delete x", "gh repo clone x/y", "gh auth status",
     "gh alias set x y", "gh pr view 1 --web", "gh pr view -w 1", "gh repo view -w",
-    "gh run view 1 --web", "gh issue view 1 --web", "gh", "gh pr", "gh pr view",
+    "gh run view 1 --web", "gh issue view 1 --web", "gh", "gh pr",
     # git global flags that change behaviour stay refused.
     "git --no-pager commit -m x", "git --no-pager", "git --paginate log", "git -c core.pager=x log",
     "git --no-pager -c core.pager=x log", "git --exec-path=/x status",
