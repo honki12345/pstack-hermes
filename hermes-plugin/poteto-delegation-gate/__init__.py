@@ -30,9 +30,13 @@ _SKILL_NAME_RE = re.compile(re.escape(_INVOCATION_PREFIX) + r'"([^"]*)"')
 TODO_TOOL = "todo_list"
 BRIDGE_TOOL = "tool_call"
 DELEGATE_TOOL = "delegate_task"
+# skill_manage 는 저장소 작업이 아니라 memory 와 같은 학습 도구다. Hermes 의 백그라운드 스킬·메모리
+# 리뷰 포크가 부모 session_id 를 공유하고 훅 kwargs 에 포크 표지가 없어서(agent/background_review.py),
+# 게이트가 포크 호출을 가려내지 못한다. 막으면 결정 없는 턴 뒤의 스킬 학습이 조용히 실패한다.
 ALLOWED_BEFORE_TODO = frozenset({
-    "read_file", "skill_view", "skills_list", "tool_search", "tool_describe", TODO_TOOL,
-    DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect", "hindsight_retain",
+    "read_file", "skill_view", "skills_list", "skill_manage", "tool_search", "tool_describe",
+    TODO_TOOL, DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect",
+    "hindsight_retain",
 })
 
 # 결정 항목의 형식. 한 항목 안에서 다음 둘 중 하나여야 한다.

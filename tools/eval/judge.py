@@ -36,9 +36,15 @@ DELEGATE_TOOL = "delegate_task"
 # Mirrors the gate's ALLOWED_BEFORE_TODO. Kept as a copy so the judge works on logs written by
 # any gate version.
 PREPARATORY_TOOLS = frozenset({
-    "read_file", "skill_view", "skills_list", "tool_search", "tool_describe", TODO_TOOL,
-    DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect", "hindsight_retain",
+    "read_file", "skill_view", "skills_list", "skill_manage", "tool_search", "tool_describe",
+    TODO_TOOL, DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect",
+    "hindsight_retain",
 })
+# Hermes' background skill and memory review runs a fork under the parent's session id, and the fork's
+# messages never reach state.db. The gate logs its calls anyway, so an event for one of these tools
+# that no stored call owns is the fork's, not a mismatch. Tools the parent shares with the fork
+# (read_file, search_files) are not listed, so a real unpaired event of those still shows.
+REVIEW_FORK_TOOLS = frozenset({"skill_view", "skills_list", "skill_manage", "memory"})
 # Hermes' file-writing tools. Shell and code tools are judged by their effect on the sandbox.
 FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 
@@ -264,7 +270,7 @@ def _pair_by_id(calls: list[Call], tool_events: list[dict]) -> Pairing:
         call = by_id.pop(event["tool_call_id"], None) if isinstance(
             event.get("tool_call_id"), str) else None
         if call is None:
-            unpaired += 1
+            unpaired += event.get("tool_name") not in REVIEW_FORK_TOOLS
             continue
         kept.append(event)
         owner.append(call.message)
@@ -299,7 +305,9 @@ def _pair_by_name(calls: list[Call], tool_events: list[dict]) -> Pairing:
         if used:
             # Whatever precedes a matched event belongs to calls this turn never recorded.
             free = [i for i in free if i > max(used)]
-    return Pairing("name", tool_events, owner, sum(1 for o in owner if o < 0))
+    unpaired = sum(1 for o, e in zip(owner, tool_events, strict=True)
+                   if o < 0 and e.get("tool_name") not in REVIEW_FORK_TOOLS)
+    return Pairing("name", tool_events, owner, unpaired)
 
 
 def _recovered(pairing: Pairing) -> bool | None:
