@@ -1156,6 +1156,13 @@ H1_MAP = [
         "don't override to `poteto-agent`.",
         "don't override to the poteto-mode wrapper.",
     ),
+    (
+        "A step you choose not to do stays in the list with a one-line `skip: <reason>`. Match the task",
+        "A step you choose not to do stays in the list with a one-line `skip: <reason>`. "
+        "A playbook's delegation instruction counts as a step even when it sits in the intro "
+        "instead of the numbered list: write its item (`delegate_task` or `skip: <reason>`) "
+        "before your first work tool. Match the task",
+    ),
 ]
 
 #: Text the H1 pass must leave nowhere in skills/**/*.md.
