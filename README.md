@@ -123,7 +123,6 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | T13 | residual vendor coupling reworded (`cursor-team-kit`, cloud fleet, `gt`) |
 | T14 | stacker-role / topology re-pointed |
 | T15 | `orch frontier set` provider selection: `auto` / `graphite` / `github` |
-| G1 | delegation escape hatch: in-thread surgical edits with mandatory delegate review |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the

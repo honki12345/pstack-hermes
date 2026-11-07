@@ -492,16 +492,6 @@ def check_phase1(pkg: Path, rep: Report) -> None:
         except Exception as exc:
             rep.fail(f"T10: config/models.json unparseable: {exc}")
 
-    # G1: delegation escape hatch present in both files
-    g1_targets = [pkg / "skills" / "poteto-mode" / "playbooks" / "feature.md",
-                  pkg / "skills" / "poteto-mode" / "SKILL.md"]
-    g1_missing = [str(p.relative_to(pkg)) for p in g1_targets
-                  if "Exception (hermes port)" not in p.read_text(encoding="utf-8")]
-    if g1_missing:
-        rep.fail(f"G1: escape hatch missing in {g1_missing}")
-    else:
-        rep.ok("G1: delegation escape hatch present (in-thread + independent delegate review)")
-
     # F-publish: no banned constructs anywhere in the shipped package
     # (definitions shared with the CI scanner gate via tools/bans.py)
     violations = find_violations(pkg)

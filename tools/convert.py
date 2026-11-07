@@ -407,49 +407,6 @@ def replace_required(path: Path, old: str, new: str, label: str) -> None:
     path.write_bytes(text.replace(old, new, 1).encode("utf-8"))
 
 
-# G1 (T7) anchor for poteto-mode/SKILL.md.
-#
-# Anchored on the POST-Phase-2A text on purpose, and tolerant of both pins.
-# Two transformations happen before the T7 pass reads the file:
-#   1. Phase-2A maps `subagent_type` -> "delegate role", so the anchor has to be
-#      written against that wording rather than upstream's;
-#   2. upstream c47b1284 additionally split the sentence, so it now reads
-#      "review. Respect". No map undoes that part.
-# Both tails are accepted so this pass builds against 93b00b8 and c47b1284 alike,
-# which keeps the re-pin from having to rewrite it as collateral damage.
-#
-# Module-level (not a local of apply_phase1_transforms) so tools/tests can drive
-# the real substitution rather than a copy of it.
-G1_PM_HEAD = (
-    "Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set "
-    "their own delegate role for diverse-model review"
-)
-G1_PM_TAILS = (
-    "; respect what the skill prescribes, don't override to `poteto-agent`.",
-    ". Respect what the skill prescribes, don't override to `poteto-agent`.",
-)
-G1_PM_ESCATHAT = (
-    " Exception (hermes port): for surgical, fully-specified edits to files "
-    "already resident in your context, implement in-thread and use a "
-    "`delegate_task` leaf as the independent reviewer of the diff instead "
-    "of the author."
-)
-
-
-def g1_pm_substitute(text: str) -> str | None:
-    """Append the hermes delegation escape hatch to the poteto-mode Subagents note.
-
-    Returns the rewritten text, or None when the anchor is absent. Accepts either
-    known upstream separator but preserves whichever one it found: the port
-    appends, it does not normalise upstream's own punctuation.
-    """
-    matched = next((G1_PM_HEAD + t for t in G1_PM_TAILS if G1_PM_HEAD + t in text), None)
-    if matched is None:
-        return None
-    tail = next(t for t in G1_PM_TAILS if matched.endswith(t))
-    return text.replace(matched, G1_PM_HEAD + tail + G1_PM_ESCATHAT, 1)
-
-
 def apply_stack_provider_patch(out: Path, st: Stats) -> None:
     """Add provider-neutral frontier discovery to the generated orch scripts."""
     store = out / "skills" / "poteto-mode" / "scripts" / "orch" / "store.ts"
@@ -1293,18 +1250,6 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected.",
         ),
         (
-            "- Do not add guards (adding a nil check to silence a crash is a symptom fix)",
-            "- Do not add guards solely to silence symptoms; validate optional or externally supplied values at their boundary when absence is valid.",
-        ),
-        (
-            "- **Weak or no assertion.** No `expect`, or only `toBeDefined`, `toBeTruthy`, `not.toThrow`, `toBeInstanceOf`, `toBeGreaterThan(0)`.",
-            "- **Weak or no assertion.** No `expect`, or only `toBeDefined`, or `not.toThrow` when non-throwing behavior is not the contract.",
-        ),
-        (
-            "- **Mock or absence only.** Only `toHaveBeenCalled`, `not.toHaveBeenCalled`, `toBeUndefined`, `toEqual([])`, `toHaveLength(0)`, `not.toBe(wrongValue)`.",
-            "- **Mock or absence only.** Only `toHaveBeenCalled`, `not.toHaveBeenCalled`, `toBeUndefined`, `not.toBe(wrongValue)`.",
-        ),
-        (
             "A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.",
             "A line whose role is not in step 5 is from a retired role. Drop it.",
         ),
@@ -1318,10 +1263,6 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "(`inherit-parent`). On a fresh configuration every role starts as `inherit-parent` (the parent chat model), so setting concrete slugs is what lets the budget's effort tiers apply. `unlimited` leaves every effort as in that table.",
         ),
         ("`inherit-parent` and `auto` do not change.", "`inherit-parent` does not change."),
-        (
-            "For a mock, assert the payload it received or the state after the call, not that it was called. When no such assertion exists, delete the test.",
-            "For a mock, assert the payload it received or the state after the call when those are part of its contract; for an invocation-only callback such as `onClose()`, assert that it was called. When no such assertion exists, delete the test.",
-        ),
     ]
     t8_files = apply_map(sorted((out / "skills").rglob("*.md")), T8_MAP, map_name="T8_MAP", st=st)
     note_added = False
@@ -1560,38 +1501,6 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         "(.cursor rules/projects/skills "
         "paths, agent-transcripts recipes, /tmp scratch dirs, malformed-link "
         "checks, worktree-cleanup macOS note)"
-    )
-
-    # --- T7: playbook delegation escape hatch (G1 fix, preserves review
-    # --- separation: in-thread authoring + independent delegate reviewer) ---
-    G1_FEATURE_OLD = (
-        "Mandatory: no skip-with-reason escape, and Laziness Protocol does not override it "
-        "(the gain is review separation, not lines saved)."
-    )
-    G1_FEATURE_NEW = (
-        G1_FEATURE_OLD + " Exception (hermes port): when every target file is already resident in "
-        "your context and the edit is surgical and fully specified, you may "
-        "implement in-thread — but review separation is still mandatory: spawn "
-        "a leaf delegate as an independent reviewer of the diff before "
-        "committing, and note the in-thread implementation in the todolist."
-    )
-    feat_md = out / "skills" / "poteto-mode" / "playbooks" / "feature.md"
-    fm_text = feat_md.read_text(encoding="utf-8")
-    if G1_FEATURE_OLD not in fm_text:
-        raise ConvertError("feature.md: G1 anchor not found")
-    feat_md.write_bytes(fm_text.replace(G1_FEATURE_OLD, G1_FEATURE_NEW, 1).encode("utf-8"))
-    pm_md = out / "skills" / "poteto-mode" / "SKILL.md"
-    pm_text = pm_md.read_text(encoding="utf-8")
-    g1_pm_text = g1_pm_substitute(pm_text)
-    if g1_pm_text is None:
-        raise ConvertError(
-            "poteto-mode/SKILL.md: G1 anchor not found (tried both sentence separators)"
-        )
-    pm_md.write_bytes(g1_pm_text.encode("utf-8"))
-    st.fixes.append(
-        "G1: delegation escape hatch added to feature.md + poteto-mode "
-        "Subagents (in-thread authoring allowed for resident surgical "
-        "edits, with mandatory independent delegate review)"
     )
 
     # --- T12: Cursor built-in /loop + /goal rewording (Phase-2 wrap-up) ----
@@ -2049,6 +1958,10 @@ H1_MAP = [
     (
         "Always local execution unless the task needs this machine: `control-ui` or `control-cli` runtime verification. Reading session history from the local hermes store. Simulators and local IDE state. Auth that exists only here. Cloud agents cannot read the local store, so their briefs inline what they need or point at repo paths.",
         "Always a local `delegate_task` child; Hermes has no cloud workers. A brief names any local state the task needs: `control-ui` or `control-cli` runtime verification, session history in the local hermes store, simulators and local IDE state, auth that exists only here. Children start without this conversation, so their briefs inline what they need or point at repo paths.",
+    ),
+    (
+        'No "standing by" reply that waits on a nested agent.',
+        'No "standing by" reply that waits on a nested agent. On Hermes a delegate\'s own spawns return inside its call, and the top-level chat ends its turn with a one-line status after dispatching (' + H1_PB_CONTRACT + ', background rule); neither is a standing-by reply.',
     ),
     (
         "arms a recurring or one-shot job whose delivery re-wakes this session with the wake prompt.",
@@ -2554,7 +2467,6 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | T13 | residual vendor coupling reworded (`cursor-team-kit`, cloud fleet, `gt`) |
 | T14 | stacker-role / topology re-pointed |
 | T15 | `orch frontier set` provider selection: `auto` / `graphite` / `github` |
-| G1 | delegation escape hatch: in-thread surgical edits with mandatory delegate review |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the

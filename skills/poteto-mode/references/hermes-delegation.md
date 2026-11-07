@@ -18,6 +18,10 @@ A legacy `role` (`leaf`) is accepted and ignored: depth decides capability.
 - Top-level delegations always run in the background. Results arrive between
   your turns as a new message. Finish what does not depend on them, then end the
   turn. Children inside an orchestrator child run synchronously.
+  Upstream's "no standing-by reply that waits on a nested agent" maps here: a
+  delegate never ends its run to wait (its own spawns return inside the call),
+  and the top-level chat's one-line status after dispatching is not a
+  standing-by reply. Do not idle or poll; the results wake you.
 - Children inherit the parent's toolsets. Nothing narrows a child's tools per
   task.
 

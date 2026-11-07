@@ -1,38 +1,42 @@
 {
   "roles": {
-    "feature, refactoring": "z-ai/glm-5.2",
-    "bug-fix": "z-ai/glm-5.2",
-    "perf-issue": "z-ai/glm-5.2",
-    "hillclimb": "z-ai/glm-5.2",
-    "judgment and prose": "meituan/longcat-2.0",
-    "hardest tasks": "z-ai/glm-5.2",
-    "how explorer": "meituan/longcat-2.0",
-    "how explainer": "meituan/longcat-2.0",
+    "feature, refactoring": "inherit-parent",
+    "bug-fix": "inherit-parent",
+    "perf-issue": "inherit-parent",
+    "hillclimb": "inherit-parent",
+    "judgment and prose": "inherit-parent",
+    "hardest tasks": "inherit-parent",
+    "how explorer": "inherit-parent",
+    "how explainer": "inherit-parent",
     "how critics": [
-      "meituan/longcat-2.0",
-      "meta/muse-spark-1.2-contributor"
+      "inherit-parent",
+      "inherit-parent",
+      "inherit-parent"
     ],
-    "why investigators": "meituan/longcat-2.0",
-    "why synthesizer": "z-ai/glm-5.2",
-    "reflect tooling": "qwen/qwen-2.5-7b-instruct",
-    "reflect judgment, divergent, synthesizer": "z-ai/glm-5.2",
+    "why investigators": "inherit-parent",
+    "why synthesizer": "inherit-parent",
+    "reflect tooling": "inherit-parent",
+    "reflect judgment, divergent, synthesizer": "inherit-parent",
     "arena runners": [
-      "meituan/longcat-2.0",
-      "meta/muse-spark-1.2-contributor"
+      "inherit-parent",
+      "inherit-parent",
+      "inherit-parent"
     ],
     "arena cross-judge pool": [
-      "z-ai/glm-5.2",
-      "meituan/longcat-2.0"
+      "inherit-parent",
+      "inherit-parent",
+      "inherit-parent"
     ],
-    "swarm workers": "meituan/longcat-2.0",
+    "swarm workers": "inherit-parent",
     "architect runners": [
-      "z-ai/glm-5.2",
-      "meta/muse-spark-1.2-contributor"
+      "inherit-parent",
+      "inherit-parent",
+      "inherit-parent"
     ],
     "interrogate reviewers": [
-      "z-ai/glm-5.2",
-      "meituan/longcat-2.0",
-      "meta/muse-spark-1.2-contributor"
+      "inherit-parent",
+      "inherit-parent",
+      "inherit-parent"
     ]
   }
 }

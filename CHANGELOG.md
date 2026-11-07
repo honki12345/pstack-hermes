@@ -18,6 +18,19 @@ Entries below this section are history inherited from the original port.
   lines, may not mention removed machinery (dist branch, bot review, release
   signing), and the install docs must name `honki12345/pstack-hermes`.
 
+### Fixed
+- Upstream principles restored: the original port's T8 rewrites of
+  `principle-fix-root-causes` and `principle-test-behavior-not-implementation`
+  (adopted from a review bot on its PR #70, not a Hermes adaptation) and the G1
+  in-thread authoring exception in `feature.md` / `poteto-mode` are removed, so
+  both principle skills equal upstream byte-for-byte at the pin. Upstream's own
+  restatement (cursor/plugins #633) arrives with the re-pin. Judged with an
+  independent Claude Fable 5.1 review; record in `docs/fork/AUDIT-ko.md`.
+- The upstream "no standing-by reply" rule is mapped onto Hermes' background
+  delegation in the H1 contract instead of being worked around.
+- `config/models.json` ships an all-`inherit-parent` template (three seats per
+  panel role) instead of third-party slugs no skill read.
+
 ### Removed
 - Original-port-only machinery: `publish-dist`, `release`, `round-ledger`,
   `model-drift-watch`, `labels-bootstrap` and `labeler` workflows,
