@@ -158,6 +158,16 @@ BLOCK_MESSAGE = (
     "on a playbook step does not count. Then retry this call."
 )
 
+# 마커 없는 후속 턴의 첫 차단. 마커 턴 문구는 앞 요청의 playbook 단계를 복사하라고 해서, 후속 턴의
+# 에이전트가 이미 끝난 요청의 playbook 을 다시 붙이게 한다. 새 요청이라는 점과 playbook 을 다시 고른다는
+# 점을 알리고 위임 결정 항목만 요구한다.
+FOLLOWUP_BLOCK_MESSAGE = (
+    "poteto-mode gate: this message is a new request, so the earlier todolist does not cover it. "
+    "Choose the playbook that fits this request again, or write an item saying none fits. Then write "
+    "a todolist with one item that records the delegation decision. " + _FORMAT_HINT + " Then retry "
+    "this call."
+)
+
 DECISION_MESSAGE = (
     "poteto-mode gate: your todolist has no delegation decision, so working tools stay blocked. "
     "Add one item that names `delegate_task`, or that mentions delegation and reads `skip: <reason>` "
@@ -559,14 +569,17 @@ def _on_pre_tool_call(**kwargs):
             if state is None or not state.active:
                 return None
             decision, reason = _decide(state, tool_name, kwargs.get("args"))
-            delegated = state.delegated
+            delegated, followup = state.delegated, state.followup
             state.seen = _now()
         names = _bridged_names(kwargs.get("args")) if tool_name == BRIDGE_TOOL else []
         # 풀린 tool_call bridge는 로그와 세션 DB의 도구 이름이 달라서, 읽는 쪽이 이름 대신 id로 짝짓게 한다.
         _audit(decision, session_id=session_id, tool_name=tool_name, bridged=names, reason=reason,
                delegated=delegated, tool_call_id=kwargs.get("tool_call_id") or None)
         if decision == "block":
-            message = DECISION_MESSAGE if reason == "todo_without_decision" else BLOCK_MESSAGE
+            if reason == "todo_without_decision":
+                message = DECISION_MESSAGE
+            else:
+                message = FOLLOWUP_BLOCK_MESSAGE if followup else BLOCK_MESSAGE
             return {"action": "block", "message": message}
     except Exception:
         logger.debug("poteto-delegation-gate: pre_tool_call failed", exc_info=True)

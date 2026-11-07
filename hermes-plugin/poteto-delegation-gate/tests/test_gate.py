@@ -1200,11 +1200,6 @@ def test_the_session_table_stays_capped_when_the_current_session_is_new(clock, m
     assert sorted(gate._STATES) == ["s2", "s3"]
 
 
-def block_message(result):
-    assert is_blocked(result)
-    return result["message"]
-
-
 def test_followup_first_block_says_it_is_a_new_request_and_asks_for_the_playbook_again():
     turn()
     tool("todo_list", args=DECIDED)
