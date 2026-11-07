@@ -913,3 +913,66 @@ def test_flags_that_write_or_execute_are_not_read_only(command):
 ])
 def test_the_same_commands_without_those_flags_stay_read_only(command):
     assert gate._is_read_only_shell(command) is True
+
+
+# Commands a question turn really runs. Each of these used to be refused, which made the read
+# allowance rarely apply.
+@pytest.mark.parametrize("command", [
+    # `;` splits pieces like `&&` does, and every piece must be read-only.
+    "git status; git diff", "ls; pwd", "cd /repo; git status", "echo ----; ls", "ls ;", "ls;",
+    # A quoted `;`, `|`, `&&`, `(`, `$` or backslash is data, not syntax.
+    "echo 'a;b'", "grep -E 'a|b' f", 'grep "a&&b" f', "grep -rn 'foo(' .", "git log --grep='fix('",
+    "grep '^foo$' f", r"grep 'a\|b' f", "git log --format='%h %s'", "echo '$(id)'",
+    # Redirections that only discard output or merge stderr.
+    "ls 2>/dev/null", "git log 2>&1", "grep x f 2>/dev/null | head", "git status 2>&1 | head -5",
+    "ls >/dev/null 2>&1", "ls > /dev/null", "git diff 1>&2",
+    # gh read subcommands.
+    "gh pr view 10", "gh pr view 10 --json title,state", "gh pr list", "gh pr checks 10",
+    "gh pr diff 10", "gh issue view 3", "gh issue list --state open", "gh run view 123",
+    "gh run list --limit 5", "gh repo view", "gh pr view 10 --json title | jq -r .title",
+    # git global flags that only turn the pager off.
+    "git --no-pager log", "git --no-pager diff --stat", "git -C /repo --no-pager log",
+    "git --no-pager -C /repo status",
+    # sed as a line printer.
+    "sed -n '1,5p' f", "sed -n 10p f", "sed -n '5,$p' f", "sed -n '$p' f", "sed -n 1,5p f",
+    "sed -n '/foo/,/bar/p' f", "sed -n '3,+2p' f", "cat f | sed -n '2,3p'", "sed -n -E '/a|b/p' f",
+    # jq only reads.
+    "jq . f.json", "jq -r '.a[] | .b' f.json", "jq '.a // \"x\"' f.json", "cat f.json | jq '.x'",
+])
+def test_common_question_turn_commands_are_read_only(command):
+    assert gate._is_read_only_shell(command) is True
+
+
+@pytest.mark.parametrize("command", [
+    # `;` pieces are all checked, and an empty piece is never fine.
+    "ls; rm a", "git status; git commit -am x", "; ls", "ls;; ls", "ls; ; ls", "ls || ls",
+    "ls & ls", "ls &", "{ ls; }", "(ls)", "ls\nrm a",
+    # Quotes do not hide a real separator, and a broken quote is refused.
+    "echo 'a;b'; rm x", 'echo "a;b" ; rm x', "echo 'a", 'echo "a', "grep 'x; rm y' f; rm z",
+    "echo '$(id)'; $(id)", 'echo "$(id)"', 'echo "`id`"', "echo $HOME", "echo `id`", "ls $(id)",
+    r"ls a\ b", 'grep "a\\|b" f',
+    # Only the harmless redirections pass.
+    "ls > out", "ls >> out", "ls 2>out", "ls 2>/dev/null > out", "ls 2>&1 > out", "ls &>out",
+    "ls >/dev/nullx", "ls > /dev/null.bak", "ls >&3", "ls 3>/dev/null2", "cat < f", "cat <<EOF",
+    "echo hi 2>/dev/null >out", "git diff > out.patch", "ls 2>/tmp/err",
+    # gh: only the listed read subcommands.
+    "gh api repos/x/y", "gh api graphql", "gh pr merge 1", "gh pr create", "gh pr close 1",
+    "gh pr comment 1 -b x", "gh pr checkout 1", "gh pr review 1 --approve", "gh issue create",
+    "gh issue close 1", "gh run rerun 1", "gh repo delete x", "gh repo clone x/y", "gh auth status",
+    "gh alias set x y", "gh pr view 1 --web", "gh pr view -w 1", "gh repo view -w",
+    "gh run view 1 --web", "gh issue view 1 --web", "gh", "gh pr", "gh pr view",
+    # git global flags that change behaviour stay refused.
+    "git --no-pager commit -m x", "git --no-pager", "git --paginate log", "git -c core.pager=x log",
+    "git --no-pager -c core.pager=x log", "git --exec-path=/x status",
+    # sed: anything but a print of an address.
+    "sed -i s/a/b/ f", "sed -i.bak s/a/b/ f", "sed -ni 1p f", "sed -n -i 1p f", "sed --in-place s/a/b/ f",
+    "sed -n 's/a/b/p' f", "sed s/a/b/ f", "sed -n '1,5p;w /tmp/x' f", "sed -n '1w /tmp/x' f",
+    "sed -n '/x/w out' f", "sed -n '1e id' f", "sed -n 'e id' f", "sed 'e id' f", "sed -f s.sed f",
+    "sed -e 1p f", "sed -n '1p;2p' f", "sed -n '$!p' f", "sed -n '1,5p' f > out", "sed", "sed -n",
+    "sed -n '1p' -f s.sed f", "sed -s -n 1w f",
+    # sqlite3 has dot commands that run shells and write files.
+    "sqlite3 db 'select 1'", "sqlite3 -readonly db 'select 1'", "sqlite3 db .shell",
+    "sqlite3 -readonly db '.system id'", "sqlite3 db '.output x'",
+])
+def test_commands_that_could_write_or_run_something_stay_refused(command):
+    assert gate._is_read_only_shell(command) is False
