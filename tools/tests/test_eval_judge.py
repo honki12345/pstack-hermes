@@ -91,10 +91,13 @@ class Transcript:
         return "block", "work_before_todo"
 
     @staticmethod
-    def spec(name, args=None, *, blocked=False, bridged=False, result=None, unseen=False):
-        """`unseen`: the call never reached the gate (bad arguments, scope block), so no event."""
+    def spec(name, args=None, *, blocked=False, bridged=False, result=None, unseen=False,
+             decision=None):
+        """`unseen`: the call never reached the gate (bad arguments, scope block), so no event.
+        `decision`: the (event, reason) the gate logged, for the decisions `_decide` does not model
+        (a todolist without a delegation decision, a release)."""
         return {"name": name, "args": args or {}, "blocked": blocked, "bridged": bridged,
-                "result": result, "unseen": unseen, "batch": None}
+                "result": result, "unseen": unseen, "batch": None, "decision": decision}
 
     @staticmethod
     def batch(*inner, result=None):
@@ -103,7 +106,8 @@ class Transcript:
         args = {"calls": [{"name": n, "arguments": a} for n, a in inner]}
         rejected = result or json.dumps({"error": "tool_call takes exactly one entry for local tools"})
         return {"name": "tool_call", "args": args, "blocked": True, "bridged": False,
-                "result": rejected, "unseen": False, "batch": [n for n, _ in inner]}
+                "result": rejected, "unseen": False, "batch": [n for n, _ in inner],
+                "decision": None}
 
     def parallel(self, *specs, log_order=None):
         """One assistant message carrying several tool calls.
@@ -131,7 +135,8 @@ class Transcript:
         logged = {}
         for index, (call_id, stored_name, inner, spec) in enumerate(decisions):
             names = spec["batch"] or [inner]
-            decision = None if spec["unseen"] else self._decide(inner, names, spec["blocked"])
+            decision = spec["decision"] or (
+                None if spec["unseen"] else self._decide(inner, names, spec["blocked"]))
             if decision:
                 event, reason = decision
                 # Hermes unwraps a single-entry local `tool_call` bridge before pre_tool_call, so
@@ -299,6 +304,36 @@ def test_g2_fails_when_a_parallel_block_is_followed_by_another_block(run):
     run.call("terminal", {"command": "ls"})
     run.todo(DECIDED)
     assert run.grade("p1-bugfix")["G2"] is False
+
+
+UNDECIDED_WRITE = ("allow", "todo_pending_decision")
+
+
+def test_g2_passes_when_an_undecided_todolist_is_followed_by_the_decision(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("todo_list", {"todos": [{"id": "2", "content": DECIDED}], "merge": True})
+    assert run.grade("p1-bugfix")["G2"] is True
+
+
+def test_g2_fails_when_the_undecided_todolist_is_followed_by_a_block(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("terminal", {"command": "ls"}, decision=("block", "todo_without_decision"),
+             result=BLOCK_RESULT)
+    run.call("todo_list", {"todos": [{"id": "2", "content": DECIDED}], "merge": True})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["blocks"] == 2
+    assert verdict["G2"] is False
+
+
+def test_g2_fails_when_the_gate_releases_the_turn_without_a_decision(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("terminal", {"command": "ls"}, decision=("allow", "decision_missing_released"))
+    verdict = run.grade("p1-bugfix")
+    assert verdict["G1"] is False
+    assert verdict["G2"] is False
 
 
 def test_g2_fails_when_the_agent_never_recovers(run):
