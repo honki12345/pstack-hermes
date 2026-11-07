@@ -1124,3 +1124,77 @@ def test_skill_manage_is_not_a_decision_and_does_not_unlock_work():
     turn()
     assert tool("skill_manage", args={"action": "patch", "name": "x"}) is None
     assert is_blocked(tool("patch", args={"path": "x"}))
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(gate, "_now", lambda: now[0])
+    return now
+
+
+def test_a_lone_session_idle_past_the_ttl_is_forgotten_when_it_returns(clock, tmp_path):
+    turn()
+    tool("todo_list", args=DECIDED)
+    clock[0] += gate.SESSION_TTL_SECONDS + 1
+    followup(message=QUESTION)
+    assert tool("patch", args={"path": "x"}) is None
+    assert "s1" not in gate._STATES
+    assert events(tmp_path, "turn_continued") == []
+
+
+def test_expiry_gives_the_same_result_with_or_without_another_session_running(clock):
+    results = []
+    for other_session_runs in (False, True):
+        gate._STATES.clear()
+        clock[0] = 1000.0
+        turn()
+        clock[0] += gate.SESSION_TTL_SECONDS + 1
+        if other_session_runs:
+            turn(session="other", turn_id="o1")
+        followup(message=QUESTION)
+        results.append(tool("patch", args={"path": "x"}) is None)
+    assert results == [True, True]
+
+
+def test_a_marker_turn_after_the_ttl_arms_a_fresh_turn(clock, tmp_path):
+    turn()
+    tool("todo_list", args=DECIDED)
+    clock[0] += gate.SESSION_TTL_SECONDS + 1
+    turn(turn_id="t2")
+    assert is_blocked(tool("terminal"))
+    assert [r["event"] for r in events(tmp_path) if r["event"].startswith("turn_")] == [
+        "turn_armed", "turn_armed",
+    ]
+
+
+def test_a_session_just_inside_the_ttl_keeps_its_gate(clock, tmp_path):
+    turn()
+    clock[0] += gate.SESSION_TTL_SECONDS - 1
+    followup(message=QUESTION)
+    assert is_blocked(tool("patch", args={"path": "x"}))
+    assert events(tmp_path, "turn_continued")[0]["kind"] == "followup"
+
+
+def test_a_notice_after_the_ttl_is_not_gated(clock):
+    turn()
+    clock[0] += gate.SESSION_TTL_SECONDS + 1
+    turn(message=NOTICE, turn_id="t2")
+    assert tool("terminal") is None
+
+
+def test_tool_calls_keep_a_long_turn_alive(clock):
+    turn()
+    clock[0] += gate.SESSION_TTL_SECONDS - 10
+    assert is_blocked(tool("patch", args={"path": "x"}))
+    clock[0] += gate.SESSION_TTL_SECONDS - 10
+    followup(message=QUESTION)
+    assert gate._STATES["s1"].followup is True
+
+
+def test_the_session_table_stays_capped_when_the_current_session_is_new(clock, monkeypatch):
+    monkeypatch.setattr(gate, "MAX_SESSIONS", 2)
+    for i in range(4):
+        clock[0] += 1
+        turn(session=f"s{i}", turn_id=f"t{i}")
+    assert sorted(gate._STATES) == ["s2", "s3"]
