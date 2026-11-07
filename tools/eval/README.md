@@ -79,6 +79,7 @@ its own line.
     "prompt": "p2-why",
     "session_id": "20260101_000000_aaaaaa",
     "turn": 1,
+    "pairing": "id",
     "G1": null,
     "G2": null,
     "G3": null,
@@ -98,6 +99,7 @@ its own line.
       "gate_log_found": true,
       "turn_armed": true,
       "gate_events": ["turn_armed", "allow", "allow"],
+      "unpaired_events": 0,
       "first_work_tool": "terminal",
       "todo_written_before_work": true,
       "todo_decision_before_work": false,
@@ -127,10 +129,27 @@ The judge reads the gate log (`logs/poteto-delegation-gate.jsonl`), `messages` a
 from `state.db`, and the sandbox state in `run.json`. "Work tool" is anything outside the
 gate's preparatory set (`read_file`, `skill_view`, `tool_search`, `todo_list`, `delegate_task`,
 ...). `tool_call` bridges are unpacked to the tools they carry. A call is "blocked" when the
-gate log has a `block` event for it: the judge pairs the log's allow/block events with the
-session's tool calls in order, and never reads the result text. G5 does not interpret shell or
-code strings: whatever a command did to the sandbox, including from a delegated child session,
-shows up in the porcelain status.
+gate log has a `block` event for it. The judge never reads the result text.
+
+**Pairing.** The gate log's `allow`/`block` rows carry the `tool_call_id` Hermes passed to the
+hook (`null` if the hook got none), and `state.db` keeps the same id per call
+(`tool_calls[].id`). When the turn's rows have ids the judge pairs by id and reports
+`"pairing": "id"`:
+
+- a call with no row never reached the gate (bad arguments, a scope block) and counts as executed;
+- a row whose id matches no call is ignored and counted in `evidence.unpaired_events`, so a clean
+  run reads `0`;
+- a rejected `tool_call` batch keeps its outer id and is refused as a whole, whatever order
+  parallel calls reached the hook in.
+
+A log written before the gate recorded ids is paired by tool name and order and reports
+`"pairing": "name"`. That is an approximation: Hermes unwraps a one-entry `tool_call` bridge
+before the hook, parallel calls may log in any order, and a call the gate never saw can take the
+next call's row, so G2, G5 and the delegation counts can be wrong on such logs. Trust a number
+only from an `"id"` run.
+
+G5 does not interpret shell or code strings: whatever a command did to the sandbox, including
+from a delegated child session, shows up in the porcelain status.
 
 A bad path or a profile without a `state.db` ends `judge.py` with one `judge: cannot grade: ...`
 line and exit code 2. `run_eval.py` does the same when grading its own run fails, after

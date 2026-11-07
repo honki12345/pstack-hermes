@@ -42,10 +42,12 @@ class Transcript:
     """Builds a state.db and a gate log the way a gated session writes them.
 
     Every tool call logs the decision the real gate would make: a work call before the todolist
-    is blocked, the first todo_list is `todo_written_now`, and so on.
+    is blocked, the first todo_list is `todo_written_now`, and so on. Events carry the call id the
+    hook received; `ids=False` writes the older log shape without it.
     """
 
-    def __init__(self, tmp_path: Path):
+    def __init__(self, tmp_path: Path, ids: bool = True):
+        self.ids = ids
         self.home = tmp_path
         (tmp_path / "logs").mkdir()
         self.db = sqlite3.connect(tmp_path / "state.db")
@@ -89,12 +91,26 @@ class Transcript:
         return "block", "work_before_todo"
 
     @staticmethod
-    def spec(name, args=None, *, blocked=False, bridged=False, result=None):
+    def spec(name, args=None, *, blocked=False, bridged=False, result=None, unseen=False):
+        """`unseen`: the call never reached the gate (bad arguments, scope block), so no event."""
         return {"name": name, "args": args or {}, "blocked": blocked, "bridged": bridged,
-                "result": result}
+                "result": result, "unseen": unseen, "batch": None}
 
-    def parallel(self, *specs):
-        """One assistant message carrying several tool calls."""
+    @staticmethod
+    def batch(*inner, result=None):
+        """A `tool_call` bridge holding several local entries. Hermes rejects it before the hook
+        unwraps it, so the gate sees (and blocks) the wrapper name."""
+        args = {"calls": [{"name": n, "arguments": a} for n, a in inner]}
+        rejected = result or json.dumps({"error": "tool_call takes exactly one entry for local tools"})
+        return {"name": "tool_call", "args": args, "blocked": True, "bridged": False,
+                "result": rejected, "unseen": False, "batch": [n for n, _ in inner]}
+
+    def parallel(self, *specs, log_order=None):
+        """One assistant message carrying several tool calls.
+
+        `log_order` lists the indexes of `specs` in the order the gate logged them; parallel calls
+        reach the hook in any order.
+        """
         stored, decisions = [], []
         for spec in specs:
             self.call_count += 1
@@ -105,22 +121,30 @@ class Transcript:
                 name, args = "tool_call", {"calls": [{"name": inner, "arguments": args}]}
             stored.append({"id": call_id, "function": {"name": name, "arguments": json.dumps(args)}})
             decisions.append((call_id, name, inner, spec))
-        self._insert(stored, decisions)
+        self._insert(stored, decisions, log_order or range(len(decisions)))
 
-    def _insert(self, stored, decisions):
+    def _insert(self, stored, decisions, log_order):
         self.db.execute(
             "INSERT INTO messages (session_id, role, tool_calls, timestamp) "
             "VALUES (?, 'assistant', ?, ?)", (SID, json.dumps(stored), self.tick()),
         )
-        for call_id, stored_name, inner, spec in decisions:
-            decision = self._decide(inner, [inner], spec["blocked"])
+        logged = {}
+        for index, (call_id, stored_name, inner, spec) in enumerate(decisions):
+            names = spec["batch"] or [inner]
+            decision = None if spec["unseen"] else self._decide(inner, names, spec["blocked"])
             if decision:
                 event, reason = decision
-                # Hermes unwraps a local `tool_call` bridge before pre_tool_call, so the gate
-                # logs the inner name while state.db keeps `tool_call`.
-                self.events.append({
-                    "ts": self.tick(), "event": event, "session_id": SID, "tool_name": inner,
-                    "bridged": [], "reason": reason})
+                # Hermes unwraps a single-entry local `tool_call` bridge before pre_tool_call, so
+                # the gate logs the inner name while state.db keeps `tool_call`.
+                logged[index] = {
+                    "ts": 0, "event": event, "session_id": SID, "tool_name": inner,
+                    "bridged": [], "reason": reason,
+                    **({"tool_call_id": call_id} if self.ids else {})}
+            decisions[index] = (call_id, stored_name, inner, spec, decision)
+        for index in log_order:
+            if index in logged:
+                self.events.append({**logged[index], "ts": self.tick()})
+        for call_id, stored_name, _, spec, decision in decisions:
             content = spec["result"]
             if content is None:
                 content = BLOCK_RESULT if decision and decision[0] == "block" else "{}"
@@ -130,8 +154,8 @@ class Transcript:
                 (SID, content, call_id, stored_name, self.tick()),
             )
 
-    def call(self, name, args=None, *, blocked=False, bridged=False, result=None):
-        self.parallel(self.spec(name, args, blocked=blocked, bridged=bridged, result=result))
+    def call(self, name, args=None, **kwargs):
+        self.parallel(self.spec(name, args, **kwargs))
 
     def todo(self, *items, **kwargs):
         todos = [{"id": str(i), "content": text, "status": "pending"} for i, text in enumerate(items)]
@@ -153,11 +177,16 @@ class Transcript:
 
 
 @pytest.fixture
-def run(tmp_path):
-    t = Transcript(tmp_path)
+def run(tmp_path, request):
+    t = Transcript(tmp_path, ids=getattr(request, "param", True))
     t.user()
     t.gate("turn_armed", turn_id="t1")
     return t
+
+
+# A test marked with either one runs against a gate log with call ids or the older one without.
+both_log_shapes = pytest.mark.parametrize("run", [True, False], ids=["id", "name"], indirect=True)
+old_log_shape = pytest.mark.parametrize("run", [False], ids=["name"], indirect=True)
 
 
 def test_g1_passes_when_the_decision_todolist_precedes_work(run):
@@ -226,6 +255,7 @@ def test_g2_passes_when_the_next_real_step_writes_the_todolist(run):
     assert run.grade("p1-bugfix")["G2"] is True
 
 
+@both_log_shapes
 def test_g2_passes_after_a_parallel_block_in_one_message(run):
     run.parallel(run.spec("terminal", {"command": "ls"}), run.spec("session_search"))
     run.call("tool_search")
@@ -236,6 +266,7 @@ def test_g2_passes_after_a_parallel_block_in_one_message(run):
     assert verdict["G2"] is True
 
 
+@both_log_shapes
 def test_g2_passes_when_a_bridged_call_is_blocked_with_a_plain_one_in_the_same_message(run):
     run.parallel(run.spec("terminal", {"command": "ls"}),
                  run.spec("session_search", {"query": "x"}, bridged=True))
@@ -246,6 +277,7 @@ def test_g2_passes_when_a_bridged_call_is_blocked_with_a_plain_one_in_the_same_m
     assert verdict["G2"] is True
 
 
+@both_log_shapes
 def test_g2_fails_when_a_bridged_call_is_blocked_again_in_the_next_message(run):
     run.call("terminal", {"command": "ls"})
     run.call("process_manage", {"action": "poll"}, bridged=True)
@@ -433,6 +465,7 @@ def test_g5_ignores_a_write_the_gate_refused(run):
     assert run.grade("p2-why", sandbox=UNCHANGED)["G5"] is True
 
 
+@both_log_shapes
 def test_g5_ignores_writes_the_gate_refused_after_a_refused_bridged_call(run):
     run.call("session_search", {"query": "x"}, bridged=True)
     run.call("write_file", {"path": "x.py"})
@@ -443,6 +476,7 @@ def test_g5_ignores_writes_the_gate_refused_after_a_refused_bridged_call(run):
     assert verdict["counts"]["tool_calls"] == 1
 
 
+@both_log_shapes
 def test_g5_sees_an_executed_write_that_follows_a_refused_bridged_call(run):
     # The refused write is a different tool so a mispaired block cannot hide behind the executed one.
     run.call("session_search", {"query": "x"}, bridged=True)
@@ -454,6 +488,7 @@ def test_g5_sees_an_executed_write_that_follows_a_refused_bridged_call(run):
     assert verdict["evidence"]["write_tools"] == ["write_file"]
 
 
+@both_log_shapes
 def test_a_refused_bridged_call_is_not_counted_as_executed(run):
     run.call("session_search", {"query": "x"}, bridged=True)
     run.todo(DECIDED)
@@ -461,6 +496,90 @@ def test_a_refused_bridged_call_is_not_counted_as_executed(run):
     verdict = run.grade("p1-bugfix")
     assert verdict["counts"]["blocks"] == 1
     assert verdict["counts"]["tool_calls"] == 2
+
+
+# --- pairing by tool_call_id --------------------------------------------------------------------
+
+
+def test_events_with_call_ids_are_paired_by_id(run):
+    run.todo(DECIDED)
+    assert run.grade("p1-bugfix")["pairing"] == "id"
+
+
+@old_log_shape
+def test_events_without_call_ids_are_paired_by_name(run):
+    run.todo(DECIDED)
+    assert run.grade("p1-bugfix")["pairing"] == "name"
+
+
+def test_a_rejected_multi_entry_bridge_does_not_hide_a_later_blocked_write(run):
+    # The wrapper is blocked under its own name; both writes it held never ran.
+    run.parallel(run.batch(("write_file", {"path": "a"}), ("write_file", {"path": "b"})))
+    run.call("write_file", {"path": "c"}, blocked=True)
+    run.call("patch", {"path": "d"}, blocked=True)
+    run.todo("Explain")
+    verdict = run.grade("p2-why", sandbox=UNCHANGED)
+    assert verdict["G5"] is True
+    assert verdict["counts"]["write_tool_calls"] == 0
+    assert verdict["counts"]["tool_calls"] == 1
+    assert verdict["pairing"] == "id"
+
+
+def test_a_call_the_gate_never_saw_does_not_take_the_next_messages_block(run):
+    # Bad arguments or a scope block stop a call before the hook, so it has no event.
+    run.todo(DECIDED)
+    run.call("delegate_task", {"goal": "a", "pstack_role": "unseen"}, unseen=True)
+    run.call("delegate_task", {"goal": "b", "pstack_role": "refused"}, blocked=True)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["evidence"]["delegate_roles"] == ["unseen"]
+    assert verdict["evidence"]["unpaired_events"] == 0
+
+
+def test_parallel_calls_of_one_name_are_paired_whatever_order_the_gate_logged_them(run):
+    run.todo(DECIDED)
+    run.parallel(
+        run.spec("delegate_task", {"goal": "a", "pstack_role": "refused"}, blocked=True),
+        run.spec("delegate_task", {"goal": "b", "pstack_role": "ran"}),
+        log_order=[1, 0],
+    )
+    verdict = run.grade("p1-bugfix")
+    assert verdict["evidence"]["delegate_roles"] == ["ran"]
+    assert verdict["counts"]["delegate_task_calls"] == 1
+
+
+def test_two_blocked_writes_of_one_name_in_one_message_are_one_attempt(run):
+    run.parallel(run.spec("write_file", {"path": "a"}), run.spec("write_file", {"path": "b"}))
+    run.todo("Explain")
+    verdict = run.grade("p2-why", sandbox=UNCHANGED)
+    assert verdict["counts"]["blocks"] == 2
+    assert verdict["counts"]["block_messages"] == 1
+    assert verdict["G2"] is True
+    assert verdict["G5"] is True
+
+
+def test_an_event_no_call_claims_is_ignored(run):
+    run.todo(DECIDED)
+    run.gate("block", tool_name="write_file", reason="work_before_todo", tool_call_id="ghost")
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["blocks"] == 0
+    assert verdict["G2"] is None
+    assert verdict["evidence"]["unpaired_events"] == 1
+
+
+def test_an_event_with_no_id_is_ignored_when_the_log_carries_ids(run):
+    run.call("write_file", {"path": "a"}, blocked=True)
+    run.gate("block", tool_name="write_file", reason="work_before_todo", tool_call_id=None)
+    verdict = run.grade("p2-why", sandbox=UNCHANGED)
+    assert verdict["pairing"] == "id"
+    assert verdict["counts"]["blocks"] == 1
+    assert verdict["evidence"]["unpaired_events"] == 1
+
+
+def test_a_clean_id_run_has_no_unpaired_events(run):
+    run.todo(DECIDED)
+    run.call("terminal", {"command": "ls"})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["evidence"]["unpaired_events"] == 0
 
 
 def test_g5_sees_a_change_even_when_a_result_quotes_the_block_message(run):

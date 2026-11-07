@@ -216,15 +216,56 @@ def _tool_events(events: list[dict]) -> list[dict]:
     return [e for e in events if e.get("event") in {"block", "allow"} and e.get("tool_name")]
 
 
-def pair_gate_events(calls: list[Call], events: list[dict]) -> list[int]:
+@dataclass
+class Pairing:
+    """The gate decisions that belong to this turn's calls, and the message each belongs to."""
+
+    mode: str  # "id" or "name"
+    events: list[dict]
+    owner: list[int]
+    unpaired: int
+
+
+def pair_gate_events(calls: list[Call], events: list[dict]) -> Pairing:
     """Match each tool call to the gate decision logged for it and mark the blocked ones.
 
-    The gate logs one allow/block per tool call it sees, in call order; calls it never saw (gate
-    off, hook failure) have none. Parallel calls of one assistant message may log in any order, so
-    a call is matched within the window of its message. Returns, for each tool event, the
-    assistant message it belongs to; an event no call claims is its own message.
+    A log whose events carry `tool_call_id` is paired by id, exactly. An older log is paired by
+    name and order, which is an approximation.
     """
     tool_events = _tool_events(events)
+    if any(isinstance(e.get("tool_call_id"), str) and e["tool_call_id"] for e in tool_events):
+        return _pair_by_id(calls, tool_events)
+    return _pair_by_name(calls, tool_events)
+
+
+def _pair_by_id(calls: list[Call], tool_events: list[dict]) -> Pairing:
+    """A call with no event never reached the gate; an event no call owns is ignored.
+
+    Hermes hands the hook the id of the outer call, so a `tool_call` bridge keeps its own id
+    however many entries it held, and a rejected batch is refused as a whole.
+    """
+    by_id = {call.id: call for call in calls if call.id}
+    kept: list[dict] = []
+    owner: list[int] = []
+    unpaired = 0
+    for event in tool_events:
+        call = by_id.pop(event["tool_call_id"], None) if isinstance(
+            event.get("tool_call_id"), str) else None
+        if call is None:
+            unpaired += 1
+            continue
+        kept.append(event)
+        owner.append(call.message)
+        call.refused = [event["event"] == "block"] * len(call.names)
+    return Pairing("id", kept, owner, unpaired)
+
+
+def _pair_by_name(calls: list[Call], tool_events: list[dict]) -> Pairing:
+    """The gate logs one allow/block per tool call it sees, in call order; calls it never saw
+    (gate off, hook failure) have none. Parallel calls of one assistant message may log in any
+    order, so a call is matched within the window of its message. An event no call claims is its
+    own message.
+    """
     owner = [-(i + 1) for i in range(len(tool_events))]
     free = list(range(len(tool_events)))
     messages: dict[int, list[Call]] = {}
@@ -246,16 +287,16 @@ def pair_gate_events(calls: list[Call], events: list[dict]) -> list[int]:
         if used:
             # Whatever precedes a matched event belongs to calls this turn never recorded.
             free = [i for i in free if i > max(used)]
-    return owner
+    return Pairing("name", tool_events, owner, sum(1 for o in owner if o < 0))
 
 
-def _recovered(events: list[dict], owner: list[int]) -> bool | None:
+def _recovered(pairing: Pairing) -> bool | None:
     """None without a block; else whether the agent got past the gate without a second block.
 
     Blocks from one assistant message are one attempt. Only a block in a later message is a
     failed recovery.
     """
-    tool_events = _tool_events(events)
+    tool_events, owner = pairing.events, pairing.owner
     first = next((i for i, e in enumerate(tool_events) if e["event"] == "block"), None)
     if first is None:
         return None
@@ -312,7 +353,7 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     turns = load_turns(db_path, session_id)
     current = next((t for t in turns if t.number == turn), None)
     gate_found = gate_log.is_file()
-    verdict: dict = {"prompt": prompt, "session_id": session_id, "turn": turn}
+    verdict: dict = {"prompt": prompt, "session_id": session_id, "turn": turn, "pairing": None}
     gate_keys = [f"G{i}" for i in range(1, 7)]
     if current is None:
         verdict.update(dict.fromkeys(gate_keys))
@@ -322,7 +363,7 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     events = (
         load_gate_events(gate_log, session_id, current.start, current.end) if gate_found else []
     )
-    owner = pair_gate_events(current.calls, events)
+    pairing = pair_gate_events(current.calls, events)
     children = load_children(db_path, session_id, current.start, current.end)
     executed = [
         (c, i, n, a)
@@ -341,13 +382,13 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     skip_reasons = [
         reason for t in todo_text for m in SKIP_RE.finditer(t) if (reason := m.group(1).strip())
     ]
-    blocks = sum(1 for e in events if e.get("event") == "block")
+    blocks = sum(1 for e in pairing.events if e["event"] == "block")
     block_messages = len({
-        o for e, o in zip(_tool_events(events), owner, strict=True) if e["event"] == "block"
+        o for e, o in zip(pairing.events, pairing.owner, strict=True) if e["event"] == "block"
     })
 
     flags: dict[str, bool | None] = dict.fromkeys(gate_keys)
-    flags["G2"] = _recovered(events, owner)
+    flags["G2"] = _recovered(pairing)
     if prompt in {"p1-bugfix", "p3-oneline"}:
         flags["G1"] = gate_found and armed and decided
     if prompt == "p1-bugfix":
@@ -358,7 +399,7 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
         flags["G5"] = not (change["head_changed"] or change["status_changed"] or writes)
     if prompt == "p4-followup":
         flags["G6"] = gate_found and _follow_up_kept(events)
-    verdict.update(flags)
+    verdict.update(flags, pairing=pairing.mode)
     verdict["counts"] = {
         "blocks": blocks,
         "block_messages": block_messages,
@@ -372,6 +413,7 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
         "gate_log_found": gate_found,
         "turn_armed": armed,
         "gate_events": [e.get("event") for e in events],
+        "unpaired_events": pairing.unpaired,
         "first_work_tool": first_work,
         "todo_written_before_work": todo_written,
         "todo_decision_before_work": decided,
