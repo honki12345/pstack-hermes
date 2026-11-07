@@ -88,6 +88,9 @@ _TZ_ASSIGN_RE = re.compile(r"TZ=[A-Za-z0-9_+\-/:.]*\Z")
 _READ_ONLY_GIT = frozenset({
     "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
 })
+_GIT_BRANCH_LIST_FLAGS = frozenset({
+    "--show-current", "-a", "--all", "-r", "--remotes", "-v", "-vv", "--verbose",
+})
 # 이 인자가 하나라도 있으면 읽기 전용으로 보지 않는다. 파일을 바꾸거나 다른 명령을 실행한다.
 # 각 명령의 man 페이지에서 쓰기와 실행을 하는 플래그를 골랐다. find 의 -exec 계열과 파일 출력 동작.
 _UNSAFE_ARGS = frozenset({
@@ -262,9 +265,10 @@ _GH_READ = {
     "issue": frozenset({"view", "list"}),
     "run": frozenset({"view", "list"}),
     "repo": frozenset({"view"}),
+    "auth": frozenset({"status"}),
 }
-# 브라우저를 여는 플래그. 읽기 조회가 아니라 바깥 프로그램을 띄운다.
-_GH_UNSAFE_ARGS = frozenset({"-w", "--web"})
+# 브라우저를 여는 플래그는 바깥 프로그램을 띄우고, `auth status` 의 토큰 출력 플래그는 비밀값을 낸다.
+_GH_UNSAFE_ARGS = frozenset({"-w", "--web", "-t", "--show-token"})
 # `sed -n '<주소>p'` 만 읽기 전용으로 본다. 주소는 줄 번호, `$`, `/정규식/`, `+N`(앞 주소 뒤 N줄).
 # 스크립트에 `w`(파일 쓰기), `e`(실행), `s///e`, `;` 로 이은 둘째 명령이 들어갈 자리가 없다.
 _SED_ADDR = r"(?:\d+|\$|/[^/\n\r]*/I?)"
@@ -307,7 +311,15 @@ def _git_is_read_only(args: list[str]) -> bool:
             args = args[2:]
         else:
             break
-    return bool(args) and args[0] in _READ_ONLY_GIT
+    if not args:
+        return False
+    # `branch` 와 `remote` 는 인자에 따라 만들고 지운다. 목록을 보는 꼴만 받는다.
+    if args[0] == "branch":
+        return all(a in _GIT_BRANCH_LIST_FLAGS for a in args[1:])
+    if args[0] == "remote":
+        rest = args[1:]
+        return rest in ([], ["-v"], ["--verbose"]) or (len(rest) == 2 and rest[0] == "get-url")
+    return args[0] in _READ_ONLY_GIT
 
 
 def _date_args_are_read_only(args: list[str]) -> bool:

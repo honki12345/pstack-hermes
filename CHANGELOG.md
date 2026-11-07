@@ -35,6 +35,11 @@ Entries below this section are history inherited from the original port.
   its own message. `skill_manage` is a preparatory tool because Hermes' background review fork shares
   the parent session, and the `tools/eval/` judge leaves those fork calls out of
   `unpaired_events`. The 24-hour expiry now applies to the speaking session too.
+- `poteto-delegation-gate` follow-up turns, third round. `cut`, `date` (format, `-u` and the
+  output-format flags, optionally after `TZ=`), the listing forms of `git branch` and `git remote`,
+  and `gh auth status` without the token are read-only. On the same terminal history the check
+  now refuses 23% of read-only commands. The goal loop's `[Continuing toward your standing goal]`
+  prompt continues the previous turn like a notice.
 - `poteto-delegation-gate` reads the todolist. Working tools stay blocked until a `todo_list` item
   names `delegate_task`, or mentions delegation and holds `skip:` with a same-line reason, instead
   of unlocking on any `todo_list` call. A `skip:` on a playbook step does not count. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
