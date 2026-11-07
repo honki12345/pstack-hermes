@@ -33,7 +33,7 @@ refuses the default profile.
 hermes profile create pstacklane-demo --clone-from <profile> --no-alias
 env -i HOME=$HOME PATH=$PATH HERMES_HOME=$HOME/.hermes/profiles/pstacklane-demo \
   uv run --frozen tools/eval/run_eval.py --prompt p1-bugfix --out /tmp/lane/p1-$(date +%H%M%S)
-hermes profile delete pstacklane-demo
+hermes profile delete pstacklane-demo -y
 ```
 
 - `<profile>` is an existing profile that already has the `pstack` plugin and
@@ -48,10 +48,12 @@ hermes profile delete pstacklane-demo
   on disk.
 - `--runner cli` runs `hermes -z`, which always hands the session to the shared gateway. Stopping
   the client does not stop the gateway: its run continues to the end, and the cost keeps coming.
-  The gateway also keeps the plugin code it loaded until it restarts, so an edited gate is not
-  the gate that runs. Pick it only to measure the path a person's `hermes -z` takes. A stopped
-  `cli` run (Ctrl-C, SIGTERM, SIGHUP or `--timeout`) says so in one stderr line. It cannot
-  continue a session, so `p4-followup` needs `inproc`.
+  A profile the gateway has already served may keep the plugin code it loaded until the gateway
+  restarts, while a profile it serves for the first time reads the code on disk. Read the
+  verdict's `pairing` before trusting a `cli` run: `"name"` means the gate that ran did not log
+  call ids. Pick `cli` only to measure the path a person's `hermes -z` takes. A stopped `cli` run
+  (Ctrl-C, SIGTERM, SIGHUP or `--timeout`) prints one warning line on stderr; Ctrl-C also prints
+  Python's traceback after it. It cannot continue a session, so `p4-followup` needs `inproc`.
 - A signal that unwinds the harness (Ctrl-C, SIGTERM, SIGHUP) kills the child and its processes
   and deletes the sandbox, including when it arrives while the sandbox is being built. SIGKILL
   cannot be handled.
