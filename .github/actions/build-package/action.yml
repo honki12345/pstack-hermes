@@ -2,18 +2,16 @@ name: Build pstack package
 description: >-
   Shared build prologue for every workflow that produces the generated pstack/
   package: pin the upstream clone, verify it resolved, convert, validate and
-  scanner-gate. Extracted from the step bodies that ci.yml, release.yml and
-  publish-dist.yml each carried their own copy of, so all three callers now
-  get the same fail-loud SHA verification.
+  scanner-gate. Kept as one composite action so every caller (today ci.yml)
+  gets the same fail-loud SHA verification.
 
 # WHY A COMPOSITE ACTION AND NOT A REUSABLE WORKFLOW
 # A reusable workflow (`uses: ./.github/workflows/build.yml`) would have to contain
 # the caller's ENTIRE job, because a `uses:` job cannot be followed by more steps
-# in that same job. All three callers continue past the shared prologue with
-# their own steps (ci: reproducibility gate + artifact upload; release: zip +
-# notes + gh release; publish: dist sync), so a reusable workflow cannot
-# express
-# this shape without duplicating those steps into the called file. A composite
+# in that same job. The caller continues past the shared prologue with its own
+# steps (ci: reproducibility gate + artifact upload), so a reusable workflow
+# cannot express this shape without duplicating those steps into the called
+# file. A composite
 # action composes into the middle of a job and is the correct tool here.
 # The usual reason to prefer a reusable workflow - secrets - does not apply: this
 # prologue clones upstream anonymously and never reads the `secrets` context.

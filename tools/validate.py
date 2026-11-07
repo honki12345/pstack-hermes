@@ -888,7 +888,7 @@ def main() -> int:
 
         # Optional: repo YAML structural check (only when pyyaml is available,
         # e.g. via `uv sync` dev group or CI). The package itself ships no YAML;
-        # this validates the repo's CI configs, labeler, and issue templates.
+        # this validates the repo's CI configs, dependabot, and issue templates.
         try:
             import yaml  # type: ignore
         except ImportError:

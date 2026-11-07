@@ -75,8 +75,8 @@ def test_layout_manifest_matches(tmp_path):
 def test_pin_declarers_match_check_pins(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
-        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml` and `publish-dist.yml`; one rule.\n",
+        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in\n"
+        "  `ci.yml`; one rule.\n",
     )
     assert check_docs.check_pin_declarers(tmp_path) == []
 
@@ -85,18 +85,18 @@ def test_removed_workflow_in_pin_list_fails(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
         "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml`, `publish-dist.yml` and `upstream-drift-watch.yml`.\n",
+        "  `release.yml` and `publish-dist.yml`.\n",
     )
     problems = check_docs.check_pin_declarers(tmp_path)
-    assert any("upstream-drift-watch.yml" in item for item in problems)
+    assert any("publish-dist.yml" in item for item in problems)
 
 
 def test_neighbouring_bullet_does_not_leak_into_pin_list(tmp_path):
     _write(
         tmp_path / "CONTRIBUTING.md",
         "- **Dependabot.** `dependabot.yml` keeps pins current.\n\n"
-        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in `ci.yml`,\n"
-        "  `release.yml` and `publish-dist.yml`.\n",
+        "- **`UPSTREAM_PIN` moves in lock-step.** It is declared in\n"
+        "  `ci.yml`.\n",
     )
     assert check_docs.check_pin_declarers(tmp_path) == []
 
@@ -400,25 +400,6 @@ def test_pr_template_bare_pstack_path_fails(tmp_path):
     assert any("PULL_REQUEST_TEMPLATE" in item for item in problems)
 
 
-def test_publish_source_missing_fails(tmp_path):
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  cp -a plugin.json after-install.md "$dist/"\n',
-    )
-    problems = check_docs.check_publish_sources(tmp_path)
-    assert any("after-install.md" in item for item in problems)
-
-
-def test_publish_sources_exist(tmp_path):
-    _write(tmp_path / "plugin.json", "{}\n")
-    _write(tmp_path / "README.md", "# x\n")
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  cp -a plugin.json README.md "$dist/"\n',
-    )
-    assert check_docs.check_publish_sources(tmp_path) == []
-
-
 def test_repository_docs_are_clean():
     code, lines = check_docs.check(Path(check_docs.ROOT))
     assert code == 0, "\n".join(lines)
@@ -437,24 +418,6 @@ def test_bare_pstack_prose_is_not_flagged(tmp_path):
         "subdirectory).\n",
     )
     assert check_docs.check_stale_paths(tmp_path) == []
-
-
-def test_inline_conditional_publish_source_missing_fails(tmp_path):
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  if [ -d assets ]; then cp -a assets "$dist/"; fi\n',
-    )
-    problems = check_docs.check_publish_sources(tmp_path)
-    assert any("assets" in item for item in problems)
-
-
-def test_inline_conditional_publish_source_exists(tmp_path):
-    _write(tmp_path / "assets" / "keep.txt", "x\n")
-    _write(
-        tmp_path / ".github" / "workflows" / "publish-dist.yml",
-        'run: |\n  if [ -d assets ]; then cp -a assets "$dist/"; fi\n',
-    )
-    assert check_docs.check_publish_sources(tmp_path) == []
 
 
 def test_bare_package_path_in_agent_contract_fails(tmp_path):

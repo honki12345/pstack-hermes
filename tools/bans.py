@@ -53,7 +53,7 @@ def is_package_path(rel: Path) -> bool:
 # These may legitimately reference banned constructs in explanatory context.
 EXEMPT_REPO_FILES: frozenset[str] = frozenset({
     "AGENTS.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md",
-    "pyproject.toml", ".gitattributes", ".coderabbit.yaml",
+    "pyproject.toml", ".gitattributes",
 })
 
 

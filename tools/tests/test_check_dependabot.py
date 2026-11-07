@@ -105,20 +105,6 @@ def test_composite_action_scoped_entry_passes(tmp_path):
     assert code == 0
 
 
-def test_labeler_covers_github_yml():
-    from pathlib import Path
-
-    import yaml
-    root = Path(__file__).resolve().parents[2]
-    data = yaml.safe_load((root / ".github" / "labeler.yml").read_text(encoding="utf-8"))
-    tooling = data.get("tooling", [])
-    globs = []
-    for entry in tooling:
-        for cf in entry.get("changed-files", []):
-            globs.append(cf.get("any-glob-to-any-file"))
-    assert ".github/*.yml" in globs
-
-
 def test_action_without_uses_does_not_require_entry(tmp_path):
     action = "name: x\nruns:\n  using: composite\n  steps:\n    - run: echo hi\n"
     code, _ = check_dependabot.check(

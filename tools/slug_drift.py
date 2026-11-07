@@ -18,8 +18,8 @@ because it is a regex heuristic (it cannot tell a model slug from a
 backtick-quoted shell token) and is therefore reported separately.
 
 Exit codes: 0 = every configured slug present; 1 = missing slug(s);
-2 = tool error (catalog unreachable or unparseable). The weekly
-model-drift-watch workflow turns exit 1 into one tracking issue.
+2 = tool error (catalog unreachable or unparseable). Run it by hand before
+a panel refresh; no scheduled workflow invokes it.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ DEFAULT_PANEL = SCRIPT_DIR / "assets" / "model-panel.json"
 DEFAULT_CONFIG = REPO_ROOT / "config" / "models.json"
 DEFAULT_SKILLS_DIR = REPO_ROOT / "skills"
 DEFAULT_CATALOG_URL = "https://openrouter.ai/api/v1/models"
-USER_AGENT = "pstack-hermes-model-drift-watch"
+USER_AGENT = "pstack-hermes-slug-drift"
 SELECTOR = "inherit-parent"  # always valid; not a provider slug
 
 # Backtick-quoted tokens that look like provider model slugs. The prose

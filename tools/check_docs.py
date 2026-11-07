@@ -73,7 +73,6 @@ LEGACY_NAME_CONTINUATIONS = frozenset(
 BARE_PACKAGE_RE = re.compile(r"(?<![\w./-])pstack/(?=\s|$|`)")
 CONTRACT_DOCS = frozenset({"AGENTS.md", "CONTRIBUTING.md"})
 LAYOUT_GENERATED_EXEMPT = frozenset({"plugin.yaml"})
-CP_SOURCE_RE = re.compile(r'cp -a (?P<src>[^;\n"]+?) "\$dist/"')
 
 
 def _read(path: Path) -> str:
@@ -306,29 +305,12 @@ def check_stale_install_route(root: Path = ROOT) -> list[str]:
     return problems
 
 
-def check_publish_sources(root: Path = ROOT) -> list[str]:
-    workflow = root / ".github" / "workflows" / "publish-dist.yml"
-    if not workflow.is_file():
-        return [".github/workflows/publish-dist.yml: missing publish workflow"]
-    problems: list[str] = []
-    for match in CP_SOURCE_RE.finditer(_read(workflow)):
-        for token in match.group("src").split():
-            if "$" in token or "*" in token:
-                continue
-            if not (root / token).exists():
-                problems.append(
-                    f"publish-dist.yml: cp source does not exist: {token}"
-                )
-    return problems
-
-
 CHECKS = (
     ("router links resolve", check_router_links),
     ("layout matches .gitattributes", check_layout_manifest),
     ("UPSTREAM_PIN declarers match check_pins", check_pin_declarers),
     ("no stale package subdirectory paths", check_stale_paths),
     ("no stale subdirectory-install route", check_stale_install_route),
-    ("publish-dist sources exist", check_publish_sources),
 )
 
 
