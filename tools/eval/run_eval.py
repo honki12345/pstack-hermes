@@ -150,6 +150,11 @@ def _kill(proc: subprocess.Popen) -> None:
     proc.wait()
 
 
+def _terminate(signum: int, frame: object) -> None:
+    """Unwind like Ctrl-C so the runners kill their child and the sandbox is deleted."""
+    raise SystemExit(128 + signum)
+
+
 def run_cli(home: Path, message: Path, repo: Path, out: Path, *, expect_gate: bool,
             timeout: float, arm_timeout: float) -> dict:
     """`hermes -z` with a watch on the gate log; reports why it gave up, if it did."""
@@ -164,17 +169,22 @@ def run_cli(home: Path, message: Path, repo: Path, out: Path, *, expect_gate: bo
             cwd=repo, env=child_env(home), stdout=so, stderr=se, start_new_session=True,
         )
         armed = not expect_gate
-        while proc.poll() is None:
-            elapsed = time.monotonic() - started
-            armed = armed or gate_armed_since(home, offset)
-            if not armed and elapsed > arm_timeout:
-                _kill(proc)
-                return {"ok": False, "usage": [usage],
-                        "reason": f"no turn_armed within {arm_timeout:.0f}s"}
-            if elapsed > timeout:
-                _kill(proc)
-                return {"ok": True, "timed_out": True, "usage": [usage], "exit": None}
-            time.sleep(1)
+        try:
+            while proc.poll() is None:
+                elapsed = time.monotonic() - started
+                armed = armed or gate_armed_since(home, offset)
+                if not armed and elapsed > arm_timeout:
+                    _kill(proc)
+                    return {"ok": False, "usage": [usage],
+                            "reason": f"no turn_armed within {arm_timeout:.0f}s"}
+                if elapsed > timeout:
+                    _kill(proc)
+                    return {"ok": True, "timed_out": True, "usage": [usage], "exit": None}
+                time.sleep(1)
+        except BaseException:
+            # The child has its own session, so a Ctrl-C aimed at us never reaches it.
+            _kill(proc)
+            raise
     if not armed and not gate_armed_since(home, offset):
         return {"ok": False, "usage": [usage], "reason": "process ended without turn_armed"}
     return {"ok": True, "timed_out": False, "usage": [usage], "exit": proc.returncode}
@@ -195,6 +205,9 @@ def run_inproc(home: Path, messages: list[Path], repo: Path, out: Path, *, timeo
         except subprocess.TimeoutExpired:
             _kill(proc)
             return {"ok": True, "timed_out": True, "usage": usages, "exit": None}
+        except BaseException:
+            _kill(proc)
+            raise
     return {"ok": True, "timed_out": False, "usage": usages, "exit": proc.returncode}
 
 
@@ -327,11 +340,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="the profile has the gate off: skip the turn_armed check")
     parser.add_argument("--allow-default-profile", action="store_true")
     parser.add_argument("--cleanup", action="store_true", help="delete the shop-api checkout after")
+    previous = signal.signal(signal.SIGTERM, _terminate)
     try:
         return run(parser.parse_args(argv))
     except RunError as exc:
         print(f"run_eval: {exc}", file=sys.stderr)
         return 2
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 if __name__ == "__main__":

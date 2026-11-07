@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -796,3 +799,88 @@ def test_run_json_records_the_sandbox_before_and_after(tmp_path, monkeypatch, sa
     state = record["sandbox_state"]
     assert re.fullmatch(r"[0-9a-f]{40}", state["before"]["head"])
     assert state["before"] == state["after"]
+
+
+# --- run_eval: interrupted runs ----------------------------------------------------------------
+
+FAKE_HERMES = """#!/bin/sh
+echo $$ > {dir}/parent.pid
+sleep 300 &
+echo $! > {dir}/child.pid
+wait
+"""
+
+
+def pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def wait_for(condition, seconds=5.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.05)
+    return condition()
+
+
+@pytest.fixture
+def stuck_hermes(monkeypatch, tmp_path):
+    """A `hermes` that never finishes and leaves a child behind, for both runners."""
+    fake = tmp_path / "fake"
+    for script in (fake / "bin" / "hermes", fake / "agent" / "venv" / "bin" / "python"):
+        script.parent.mkdir(parents=True)
+        script.write_text(FAKE_HERMES.format(dir=fake), encoding="utf-8")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake / 'bin'}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(run_eval.hermes_side, "agent_dir", lambda: fake / "agent")
+
+    def marker(home, prompt_id, out):
+        path = out / "m.txt"
+        path.write_text("go\n", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(run_eval, "build_marker", marker)
+    # A signal the test sends must not kill pytest if the harness fails to handle it.
+    saved = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    yield fake
+    for sig, handler in saved.items():
+        signal.signal(sig, handler)
+    for name in ("parent.pid", "child.pid"):
+        path = fake / name
+        if path.exists() and path.read_text().strip():
+            try:
+                os.killpg(int(path.read_text()), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+
+def signal_when_started(fake: Path, sig: int) -> None:
+    def send() -> None:
+        child = fake / "child.pid"
+        wait_for(lambda: child.exists() and child.read_text().strip() != "")
+        os.kill(os.getpid(), sig)
+
+    threading.Thread(target=send, daemon=True).start()
+
+
+@pytest.mark.parametrize("runner", ["cli", "inproc"])
+@pytest.mark.parametrize(("sig", "raised"), [
+    (signal.SIGINT, KeyboardInterrupt), (signal.SIGTERM, SystemExit)])
+def test_an_interrupted_run_leaves_no_child_process_and_no_sandbox(
+        tmp_path, stuck_hermes, sandboxes, runner, sig, raised):
+    home = fake_profile(tmp_path)
+    signal_when_started(stuck_hermes, sig)
+    with pytest.raises(raised):
+        run_eval.main(["--prompt", "p2-why", "--runner", runner, "--hermes-home", str(home),
+                       "--out", str(tmp_path / "out2"), "--timeout", "30"])
+    parent = int((stuck_hermes / "parent.pid").read_text())
+    child = int((stuck_hermes / "child.pid").read_text())
+    assert wait_for(lambda: not pid_alive(parent) and not pid_alive(child))
+    assert list(sandboxes.iterdir()) == []
