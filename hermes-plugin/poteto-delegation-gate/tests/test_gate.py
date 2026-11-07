@@ -561,7 +561,7 @@ def test_a_different_skill_invocation_ends_the_gate(tmp_path):
     "git diff", "git status --short", "git log --oneline -5", "git -C /repo diff HEAD~1",
     "ls -la", "cat README.md", "rg foo src", "grep -rn foo .", "git diff | head -50",
     "git status && git diff --stat", "cd /repo && git status --short && git diff",
-    "cd 'my repo' && ls",
+    "cd 'my repo' && ls", "cd /repo && git status --short && echo ---- && git diff",
 ])
 def test_followup_allows_read_only_shell_commands_within_budget(command, tmp_path):
     turn()
