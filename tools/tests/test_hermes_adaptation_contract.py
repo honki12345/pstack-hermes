@@ -72,18 +72,26 @@ UPSTREAM_PRINCIPLE_SHA256 = {
     "principle-fix-root-causes": "8df3c8c3fe57eb0055a5c8efab8ab144557fdf301da70b1cdc77a3a3ef3f3052",
     "principle-test-behavior-not-implementation": "f7223698623b6a26fea49c751e466b38e6691b1f32ce841d3983e7ffbe2b74a6",
 }
+UPSTREAM_TODOLIST_RULE = (
+    "A step you choose not to do stays in the list with a one-line `skip: <reason>`."
+)
 DELEGATION_DECISION_SENTENCE = (
-    "Record every delegation instruction a playbook gives, preamble included, "
-    "as a todolist item: a `delegate_task` item, or `skip: <reason>` when you do not delegate."
+    "A playbook's delegation instruction counts as a step even when it sits in the intro "
+    "instead of the numbered list: write its item (`delegate_task` or `skip: <reason>`) "
+    "before your first work tool."
 )
 
 
-def test_h1_contract_records_delegation_decisions_in_the_todolist():
-    asset = validate.REPO_ROOT / "tools" / "assets" / "hermes-delegation.md"
-    shipped = validate.REPO_ROOT / "skills" / "poteto-mode" / "references" / "hermes-delegation.md"
+def test_poteto_todolist_rule_records_delegation_decisions_before_the_first_work_tool():
+    skill = validate.REPO_ROOT / "skills" / "poteto-mode" / "SKILL.md"
+    rule = next(
+        line
+        for line in skill.read_text(encoding="utf-8").splitlines()
+        if line.startswith("Open a todolist")
+    )
 
-    assert DELEGATION_DECISION_SENTENCE in asset.read_text(encoding="utf-8")
-    assert shipped.read_bytes() == asset.read_bytes()
+    assert UPSTREAM_TODOLIST_RULE in rule
+    assert DELEGATION_DECISION_SENTENCE in rule
 
 
 def test_rebuild_leaves_upstream_principle_files_byte_identical():
