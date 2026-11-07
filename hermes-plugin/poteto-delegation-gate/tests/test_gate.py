@@ -560,7 +560,8 @@ def test_a_different_skill_invocation_ends_the_gate(tmp_path):
 @pytest.mark.parametrize("command", [
     "git diff", "git status --short", "git log --oneline -5", "git -C /repo diff HEAD~1",
     "ls -la", "cat README.md", "rg foo src", "grep -rn foo .", "git diff | head -50",
-    "git status && git diff --stat",
+    "git status && git diff --stat", "cd /repo && git status --short && git diff",
+    "cd 'my repo' && ls",
 ])
 def test_followup_allows_read_only_shell_commands_within_budget(command, tmp_path):
     turn()
@@ -574,6 +575,7 @@ def test_followup_allows_read_only_shell_commands_within_budget(command, tmp_pat
     "cat a; rm a", "echo hi | tee x", "git diff $(rm x)", "ls `rm x`", "find . -delete",
     "find . -exec rm {} +", "sed -i s/a/b/ f", "git checkout main", "curl http://x", "",
     "git diff --output=x.patch", "cat a\nrm a", "git stash", "npm test",
+    "cd /repo && rm -rf build", "cd", "cd a b", "cd /repo && make",
 ])
 def test_followup_blocks_shell_commands_that_may_change_things(command):
     turn()
