@@ -455,10 +455,15 @@ def _has_decision(args: dict) -> bool:
     return any(_is_decision(text) for text in _item_texts(args))
 
 
-def _expire(now: float, keep: str) -> None:
-    """락 안에서 호출한다. 오래 쉰 세션을 지우고, 상한을 넘으면 가장 오래된 것부터 지운다."""
-    for sid in [k for k, v in _STATES.items() if k != keep and now - v.seen > SESSION_TTL_SECONDS]:
+def _expire_idle(now: float) -> None:
+    """락 안에서 호출한다. 유휴 시간이 TTL 을 넘은 세션을 지운다. 지금 오는 세션도 예외가 없다. 예외가
+    있으면 혼자 돌아온 세션은 상태가 남고 다른 세션이 중간에 돌면 버려져서 결과가 그때그때 달라진다."""
+    for sid in [k for k, v in _STATES.items() if now - v.seen > SESSION_TTL_SECONDS]:
         del _STATES[sid]
+
+
+def _evict_over_cap(keep: str) -> None:
+    """락 안에서 호출한다. 개수 상한을 넘으면 `keep` 이 아닌 가장 오래된 세션부터 지운다."""
     while len(_STATES) > MAX_SESSIONS:
         oldest = min((k for k in _STATES if k != keep), key=lambda k: _STATES[k].seen, default=None)
         if oldest is None:
@@ -478,6 +483,7 @@ def _on_pre_llm_call(**kwargs):
         marked = _is_poteto_invocation(message)
         now = _now()
         with _LOCK:
+            _expire_idle(now)
             state = _STATES.get(session_id)
             # 같은 턴의 재호출이 todolist 기록을 지우면 안 된다.
             same_turn = bool(state and turn_id and state.turn_id == turn_id)
@@ -500,7 +506,7 @@ def _on_pre_llm_call(**kwargs):
             current = _STATES.get(session_id)
             if current:
                 current.seen = now
-            _expire(now, session_id)
+            _evict_over_cap(session_id)
     except Exception:
         logger.debug("poteto-delegation-gate: pre_llm_call failed", exc_info=True)
     return None
