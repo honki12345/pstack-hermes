@@ -1,10 +1,73 @@
 # pstack-hermes 포크 감사 · 비교 · 고급 위임 기록
 
-대상: `iap/pstack-hermes` master `e6beab0`. 패키지는 `cursor/plugins` pstack
-`c47b128`(v0.15.5)에서 변환한 것입니다. 포크는 `honki12345/pstack-hermes`이고,
-작업 브랜치는 `feature/hermes-delegation-routing`입니다.
+이 문서는 `honki12345/pstack-hermes` 포크의 감사 기록입니다. 현재 기준은 `develop`의
+`dcdcf21`입니다. 패키지는 `cursor/plugins` pstack
+`c742dd61706fbacc1b95f1a20b7b988cf096ce6c`(v0.15.36)에서 변환했습니다.
+`uv run --frozen python tools/check_pins.py`는 `ci.yml`의 `UPSTREAM_PIN`으로 같은 SHA를
+보고하고, `plugin.json`의 `version`은 `0.15.36`입니다.
 
-## 1. 판정: 보안상 그대로 써도 되고, 기능상으로는 고쳐야 쓸 수 있다
+원 감사는 원래 포트 `iap/pstack-hermes` master `e6beab0`과 그 포트가 고정한 업스트림
+`c47b128`(v0.15.5)을 대상으로 했습니다. 그때의 판정과 표는 2장에 그대로 남겼습니다.
+2026-11-08에 업스트림 `origin/main`을 다시 받았을 때 pin 이후 `pstack/` 아래 커밋은
+0개였습니다(`git log c742dd6..origin/main -- pstack/`).
+
+남은 일과 담당은 [BACKLOG-ko.md](BACKLOG-ko.md)에 있습니다.
+
+## 1. 원 감사 항목의 현재 상태
+
+원 감사의 지적과 권장 17건 중 14건이 해소됐습니다. 아래 해소 표는 같은 커밋으로 고친
+항목을 한 행으로 묶어 10행입니다. 미해결은 3건이고, 모두 백로그 항목이 담당을 정합니다.
+명령은 저장소 루트에서 실행합니다. `<upstream>`은 `cursor/plugins` 클론 경로입니다.
+
+### 해소된 항목
+
+| # | 원 감사 항목 | 해소 커밋 | 다시 확인하는 방법과 결과 |
+|---|---|---|---|
+| 1 | 보안 표의 `publish-dist.yml` 자동 push, 스캐너 우회 패치, 출처를 검증할 수 없는 서명 키, `model-drift-watch.yml` 주간 이슈 | `9521d12` | `ls .github/workflows`는 `ci.yml`과 `validate-gold.yml`만 보여 줍니다. `patches/`와 `keys/`는 없습니다. |
+| 2 | `delegate_task`에 넘긴 `model`이 오류 없이 무시되어 다중 모델 패널이 한 모델로 줄어듦 | `a703a0d`, `8458f13` | 스킬은 `pstack_role`로 경로를 고릅니다(`skills/poteto-mode/references/hermes-delegation.md:32-55`). `grep -rnE 'delegate_task\([^)]*model' skills`는 0건입니다. `uv run --frozen pytest -q tools/tests/test_pstack_delegation_routing.py`는 14개 통과입니다. |
+| 3 | `readonly: true`를 넘기면 작업이 거부됨 | `8458f13` | `grep -rn 'readonly: true' skills`는 0건입니다. 변환기의 `H1_FORBIDDEN`(`tools/convert.py:1162-1168`)은 그 지시가 다시 생기면 빌드를 실패시킵니다. |
+| 4 | "readonly는 파일 쓰기만 막고 MCP는 유지"라는 사실과 다른 서술 | `8458f13` | 계약 문서의 읽기 전용 절이 권고 지시와 `git status` 사후 검증으로 바뀌었습니다(`hermes-delegation.md:57-69`). `H1_FORBIDDEN`이 `MCP access is unaffected`를 금지합니다. |
+| 5 | `/loop`를 cron으로 바꾸면서 "이 세션을 다시 깨운다"고 서술 | `8458f13` | `grep -rn 're-wakes this session' skills`는 0건이고 `H1_FORBIDDEN`이 이 문구를 금지합니다. 계약 문서는 cron 틱을 새 실행으로 다룹니다(`hermes-delegation.md:71-86`). 스킬 문서에서 `/loop`는 `skills/poteto-help/SKILL.md:109`의 설명 한 곳뿐입니다(`grep -rn '/loop' skills --include=*.md`). |
+| 6 | orchestrate의 "Always local execution ..."와 autopilot의 "A local root ..." 자기모순 | `8458f13` | `git grep -l 'A local root' e6beab0 -- skills`는 2개 파일을, `Always local execution`은 1개 파일을 찾습니다. 현재 `skills/`에서는 둘 다 0건입니다. |
+| 7 | 아무 스킬도 읽지 않는 `config/models.json`에 이질적인 slug가 있음 | `63b83c1` | 모든 역할이 `inherit-parent`인 템플릿입니다. `grep -c -e qwen -e muse-spark config/models.json`은 0입니다. `docs/MODELS.md:43-46`이 템플릿이라고 밝힙니다. |
+| 8 | 원칙 문구 완화(T8)와 feature 플레이북의 직접 구현 예외(G1) | `63b83c1` | `principle-fix-root-causes`와 `principle-test-behavior-not-implementation`의 `SKILL.md`가 pin의 업스트림 원문과 바이트 단위로 같습니다(`cmp <(git -C <upstream> show c742dd6:pstack/skills/<이름>/SKILL.md) skills/<이름>/SKILL.md`). `feature.md`는 업스트림과 12행 하나만 다르고, 그 차이는 H1 계약에 등록한 standing-by 응답 적응 문장입니다. |
+| 9 | `github` 스택 공급자(T15)가 저장소 전체 PR을 대상으로 함 | `7d3d6e9` | 업스트림 #1043이 `scripts/orch/`를 지웠고 T15와 T16 패스도 빠졌습니다(`tools/convert.py:320-322`). `ls skills/poteto-mode/scripts`에 `orch/`가 없습니다. |
+| 10 | 고정 시점이 v0.15.5로 업스트림보다 79커밋 뒤처짐 | `7d3d6e9`, `6194aec` | `check_pins.py` 출력과 `.build-provenance.txt`의 `source_commit`이 `c742dd6...`으로 같습니다. 앵커 감사는 147/147, 0 dead입니다(`.build-provenance.txt:31`). 스킬은 47개에서 58개로 늘었습니다. |
+
+### 미해결 항목
+
+| 원 감사 항목 | 현재 근거 | 백로그 |
+|---|---|---|
+| `deslop`, `control-ui`, `control-cli`가 패키지 밖 스킬을 가리킴 | `7d3d6e9`가 "설치된 경우" 조건을 붙였습니다(`skills/poteto-mode/SKILL.md:29`, `:31`). `skills/poteto-mode/playbooks/multi-phase-plan.md:59`의 `/deslop` 줄에는 조건이 없고, 같은 파일의 다른 줄에도 `deslop` 조건 문구가 없습니다. | B15 |
+| 업스트림 의미 변경을 파일별로 남기는 등록부가 없음 | `tools/forks.json`이 없습니다. 의미 변경 결정은 이 문서 5장의 서술뿐입니다. | B13 |
+| 세션 시작 라우팅 훅이 없음 | `hermes-plugin/`에는 위임 공급자만 등록하는 `pstack-delegation` 하나뿐입니다(`hermes-plugin/pstack-delegation/__init__.py:104-105`). | B14 |
+
+### 포크가 고칠 수 없는 Hermes 한계
+
+Hermes v0.23.0에는 작업별 읽기 전용이 없고, cron 틱은 언제나 새 실행입니다. 둘 다
+Hermes 본체 동작이라 위 표에 넣지 않았습니다. H1 계약
+(`skills/poteto-mode/references/hermes-delegation.md:57-86`)이 두 한계에 맞춘 절차를
+정합니다.
+
+### 현재 head에서 다시 본 보안 사실
+
+- 워크플로에 `pull_request_target`이 없습니다(`grep -rn pull_request_target .github`, 0건).
+- 서드파티 액션은 `astral-sh/setup-uv`와 `oven-sh/setup-bun` 두 종류이고, 모두 커밋 SHA로
+  고정했습니다.
+- 워크플로와 복합 액션의 `run:` 블록 25개에 `${{ }}` 직접 삽입이 없습니다(YAML을 읽어
+  `run:` 값을 검사).
+- CI 재현성 검사는 매 실행에서 pin으로 패키지를 다시 빌드해 커밋된 트리와 비교합니다
+  (`.github/workflows/ci.yml:112-121`).
+
+원 감사의 나머지 보안 검토(변환기 전체 판독, 재빌드 해시 대조, 액션 SHA와 공식 태그 대조)는
+현재 head에서 다시 하지 않았습니다.
+
+## 2. 원 감사 기록 (`e6beab0` 기준)
+
+이 장은 원래 포트를 처음 감사했을 때의 판정과 표입니다. 각 항목의 현재 상태는 1장에
+있습니다.
+
+### 보안상 그대로 써도 되지만 기능은 고쳐야 쓸 수 있었다
 
 악성 코드, 비밀값 유출 경로, 프롬프트 주입, 숨은 유니코드는 발견되지 않았습니다.
 배포본(`dist`)은 고정된 업스트림 원본을 변환기로 다시 빌드한 결과와 바이트 단위로
@@ -49,29 +112,29 @@
 | 남는 참조 | `deslop`, `control-ui`, `control-cli`가 각각 5개 파일에서 참조되지만 배포본에 없음 | 해당 단계는 실행할 수 없음 |
 | 업스트림과의 차이 | 고정 시점은 v0.15.5, 현재 업스트림은 v0.15.36(커밋 79개 차이). 신규 스킬 12개가 없음 | 최신 개선 사항이 빠짐 |
 
-## 2.1 `pstack-claude` 등과 비교한 보완점
+## 3. `pstack-claude` 등과 비교한 보완점
 
 | 보완점 | pstack-claude | 포트 원본 | 이 포크 |
 |---|---|---|---|
-| 역할별로 실제 다른 모델로 라우팅 | `Agent` 도구의 `model`과 effort별 agent | 무시됨 | **완료**: `pstack-delegation` 백엔드 |
-| 역할별 reasoning effort | `opus @xhigh` | 없음 | **완료**: `<model>@<effort>`, 객체 경로 |
-| 모델 시트 검증기 | `check-sheet.sh` | 없음 | **완료**: `routing.py --check` |
-| 런타임별 도구 대응표 | `references/*-tools.md` | 본문을 그 자리에서 치환 | **완료**: `poteto-mode/references/hermes-delegation.md` |
-| 버려진 에이전트를 멈춘 뒤 교체 | poteto-mode 규칙 | 없음 | **완료**: 계약 문서의 `stop`/`steer` |
-| 업스트림 추적 | 최신 `c742dd6`에 동기화 | `c47b128` | **완료**: `c742dd6`(v0.15.36)로 재고정, 앵커 147/147, 신규 스킬 11개 적응 |
-| 포크 정책 변경의 파일별 기록 | `tools/forks.json`(why/since/upstream) | 변환 단계 설명뿐 | 권장: T8, G1 등 의미 변경을 등록부로 분리 |
-| cursor-team-kit 포함 | deslop, fix-ci, fix-merge-conflicts 등 | 참조만 남음 | **완료(조건부)**: `deslop`·`control-*` 참조를 "설치된 경우"로 변경, 외부 코드는 들여오지 않음 |
-| 세션 시작 라우팅 훅 | SessionStart hook | 없음 | 권장: Hermes 플러그인 hook으로 poteto-mode 안내 주입 |
-| 네이티브 에이전트 등록(poteto-agent) | `.claude/agents` | 없음 | 부분 완료: `profile:<name>` 경로로 페르소나 프로필 지정 가능 |
+| 역할별로 실제 다른 모델로 라우팅 | `Agent` 도구의 `model`과 effort별 agent | 무시됨 | 완료. `pstack-delegation` 백엔드 |
+| 역할별 reasoning effort | `opus @xhigh` | 없음 | 완료. `<model>@<effort>`, 객체 경로 |
+| 모델 시트 검증기 | `check-sheet.sh` | 없음 | 완료. `routing.py --check` |
+| 런타임별 도구 대응표 | `references/*-tools.md` | 본문을 그 자리에서 치환 | 완료. `poteto-mode/references/hermes-delegation.md` |
+| 버려진 에이전트를 멈춘 뒤 교체 | poteto-mode 규칙 | 없음 | 완료. 계약 문서의 `stop`/`steer` |
+| 업스트림 추적 | 최신 `c742dd6`에 동기화 | `c47b128` | 완료. `c742dd6`(v0.15.36)로 재고정, 앵커 147/147, 신규 스킬 11개 적응 |
+| 포크 정책 변경의 파일별 기록 | `tools/forks.json`(why/since/upstream) | 변환 단계 설명뿐 | 없음. 백로그 B13 |
+| cursor-team-kit 포함 | deslop, fix-ci, fix-merge-conflicts 등 | 참조만 남음 | 조건부 완료. 참조에 "설치된 경우"를 붙였고 외부 코드는 들여오지 않음. 조건 없는 줄은 백로그 B15 |
+| 세션 시작 라우팅 훅 | SessionStart hook | 없음 | 없음. 백로그 B14 |
+| 네이티브 에이전트 등록(poteto-agent) | `.claude/agents` | 없음 | 부분 완료. `profile:<name>` 경로로 페르소나 프로필 지정 가능 |
 
-## 2.2 고급 위임 시스템 설계
+## 4. 고급 위임 시스템 설계
 
 Hermes의 `delegation.backend` 공급자 플러그인 경계를 사용합니다. core의 수명주기
 (격리, 깊이, 동시 실행, 백그라운드 완료, `stop`/`steer`, `output_schema`)는 그대로
 두고, 공급자는 "이 작업을 어떤 경로로 보낼지"만 결정합니다.
 
 - 작업별 인자로 `pstack_role`(18개 역할 열거), `seat`(패널 순번), `access`를 선언합니다.
-- 경로 결정 순서는 `pstack-models.json` → `aliases` → 업스트림 기본값입니다. 별칭이 없는
+- 경로 결정 순서는 `pstack-models.json`, `aliases`, 업스트림 기본값입니다. 별칭이 없는
   기본값은 부모 모델로 보내고, 그 사실을 라벨에 표시합니다.
 - 경로 결과는 model, provider, reasoning_effort, service_tier, 그리고 profile 실행 중 하나입니다.
   결과의 `route.label`이 실제 실행 모델의 기록이 됩니다.
@@ -79,29 +142,34 @@ Hermes의 `delegation.backend` 공급자 플러그인 경계를 사용합니다.
   JSON은 그 작업만 거부하고, 고칠 방법을 메시지로 안내합니다.
 - 읽기 전용은 Hermes가 강제할 수 없으므로 "권고 지시 + 부모의 `git status` 사후
   검증"이라는 계약으로 명시합니다.
-- 스킬 쪽은 변환 단계 `H1`이 맡습니다. `H1_MAP`의 앵커 21개를 감사하고, 금지 문자열
-  5개가 다시 생기면 빌드를 실패시킵니다.
+- 스킬 쪽은 변환 단계 `H1`이 맡습니다. `H1_MAP`의 앵커를 감사하고, 금지 문자열
+  5개(`H1_FORBIDDEN`)가 다시 생기면 빌드를 실패시킵니다. 앵커는 `8458f13`에서 21개였고
+  현재는 23개입니다(`tools/convert.py:1066`).
+
+`uv run --frozen python -c "import sys; sys.path.insert(0, 'tools'); import convert; print(len(convert.H1_MAP), len(convert.H1_FORBIDDEN))"`는
+`23 5`를 출력합니다.
 
 ### 검증
 
 | 범위 | 결과 |
 |---|---|
 | 순수 라우팅 단위 테스트(저장소 venv) | 14개 통과 |
-| 실제 Hermes v0.23.0 로더 통합 테스트 | 3개 통과: 스키마 인자와 바이트 안정성, 좌석 3개가 모델 3개로 빌드됨, 4번째 좌석만 거부, `readonly` 거부 |
-| 저장소 전체 pytest, ruff, check_docs, validate.py(static·gold manifest·gold load) | 모두 통과 |
+| 실제 Hermes v0.23.0 로더 통합 테스트 | 3개 통과. 스키마 인자와 바이트 안정성, 좌석 3개가 모델 3개로 빌드됨, 4번째 좌석만 거부, `readonly` 거부 |
+| 저장소 전체 pytest, ruff, check_docs, validate.py(static·gold manifest·gold load) | 모두 통과. `dcdcf21`의 `uv run --frozen pytest -q`는 193개 통과 |
 | `hermes plugins doctor`(패키지, 플러그인) | OK |
-| 실제 모델 호출(검증 전용 프로필 `pstacklab`) | **통과**: 1회 호출의 seat 0/1/2가 `claude-opus-5-5`, `gpt-6-astra-900k`(`profile:reviewer`), `claude-sonnet-5-5[1m]`(부모)로 실행됨. 1회성 실행은 `delegation.oneshot_max_children`(기본 2)을 올려야 3석이 실행됨 |
+| 실제 모델 호출(검증 전용 프로필 `pstacklab`, `3cf3d43`) | 통과. 1회 호출의 seat 0/1/2가 `claude-opus-5-5`, `gpt-6-astra-900k`(`profile:reviewer`), `claude-sonnet-5-5[1m]`(부모)로 실행됨. 1회성 실행은 자식 총량 한도 `delegation.oneshot_max_children`(기본 2)를 패널 좌석 수 이상으로 올려야 3석이 실행됨. 이 한도가 동시 실행 수가 아니라 실행 전체의 총량이라는 정정은 `0cecf88` |
 
-## 원칙 변경(T8·G1) 결정: 업스트림 원문 복원
+## 5. 원칙 변경(T8·G1) 결정과 업스트림 원문 복원
 
-- **경위**: T8 원칙 완화 4건은 iap PR #70에서 리뷰 봇 `macroscopeapp[bot]`의 Medium 지적 3건을 그대로
-  반영한 것으로, 업스트림 이력에 없는 문구다. G1은 최초 커밋부터 있었고 사유 문서가 없다.
-- **독립 판단**: Claude Agent SDK로 `claude-fable-5-1`에게 근거만 주고 판단을 맡겼다(실행 모델 검증, 비용 $0.45).
-  - T8-a·d: 기술적으로는 타당하지만, 업스트림 c742dd6(#633)이 같은 결론을 더 정확한 문구로 담고 있다.
-  - T8-b·c: 원 의도를 훼손한다. 남겨 둔 `toBeDefined`와도 모순된다.
-  - G1: "예외 없음" 문장 바로 뒤에 예외를 붙인 자기모순이고, 작성자가 예외 여부를 스스로 판정하는 구조다.
+- **경위.** T8 원칙 완화 4건은 원래 포트의 PR #70에서 리뷰 봇 `macroscopeapp[bot]`의
+  Medium 지적 3건을 그대로 반영한 것으로, 업스트림 이력에 없는 문구다. G1은 최초
+  커밋부터 있었고 사유 문서가 없다.
+- **독립 판단.** Claude Agent SDK로 `claude-fable-5-1`에게 근거만 주고 판단을 맡겼다(실행 모델 검증, 비용 $0.45).
+  - T8-a·d는 기술적으로는 타당하지만, 업스트림 c742dd6(#633)이 같은 결론을 더 정확한 문구로 담고 있다.
+  - T8-b·c는 원 의도를 훼손한다. 남겨 둔 `toBeDefined`와도 모순된다.
+  - G1은 "예외 없음" 문장 바로 뒤에 예외를 붙인 자기모순이고, 작성자가 예외 여부를 스스로 판정하는 구조다.
     Hermes 고유의 사정도 아니다.
-- **결정(사용자 승인)**: 6건을 모두 제거하고 업스트림 원문을 따른다. 재고정 후에는 최신 문구를 따른다.
+- **결정(사용자 승인).** 6건을 모두 제거하고 업스트림 원문을 따른다. 재고정 후에는 최신 문구를 따른다.
   진짜 플랫폼 차이인 "standing by 응답 금지"만 H1 계약에 Hermes 적응으로 등록했다.
-- **운영 원칙**: 플랫폼 적응(도구·경로·메커니즘)만 허용하고, 원저자 원칙의 의미 변경은 하지 않는다.
+- **운영 원칙.** 플랫폼 적응(도구·경로·메커니즘)만 허용하고, 원저자 원칙의 의미 변경은 하지 않는다.
   의미 변경이 필요하면 이 문서에 사유·대안·승인을 기록한 뒤에만 도입한다.
