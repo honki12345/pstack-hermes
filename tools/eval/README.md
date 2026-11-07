@@ -43,9 +43,17 @@ hermes profile delete pstacklane-demo
   profile path only, and ignores everything else.
 - `--prompt p4-followup` runs p1 and then the follow-up as two turns of one session in one
   process, because the gate keeps its turn state in memory.
-- `--runner auto` (default) tries `hermes -z` and watches the gate log for `turn_armed`. If it
-  does not appear within `--arm-timeout` seconds, the run is repeated in-process. Use
-  `--without-gate` for a profile whose gate is off, so the harness does not wait for it.
+- `--runner inproc` (default) runs the prompt in a process of its own (`hermes_side.py`, in
+  Hermes' interpreter). Stopping it stops the model calls, and it reads the plugin code as it is
+  on disk.
+- `--runner cli` runs `hermes -z`, which always hands the session to the shared gateway. Stopping
+  the client does not stop the gateway: its run continues to the end, and the cost keeps coming.
+  The gateway also keeps the plugin code it loaded until it restarts, so an edited gate is not
+  the gate that runs. Pick it only to measure the path a person's `hermes -z` takes. A stopped
+  `cli` run (Ctrl-C, SIGTERM or `--timeout`) says so in one stderr line. It cannot
+  continue a session, so `p4-followup` needs `inproc`.
+- Ctrl-C and SIGTERM kill the child and its processes and delete the sandbox. SIGKILL cannot
+  be handled.
 - `--timeout` bounds one run (default 900 s). `--cleanup` removes the `shop-api` checkout.
 
 Output in `--out`: `run.json`, `verdict.json` (an array, one verdict per graded turn), the
@@ -55,10 +63,9 @@ run never reads the usage files of an earlier one.
 
 `run.json` records the profile, runner, elapsed seconds, per-turn usage, the sandbox's `git
 rev-parse HEAD` and `git status --porcelain --untracked-files=all` before and after the run
-(`sandbox_state`), and the cost. If `hermes -z` was killed and the run repeated in-process,
-`attempts` lists both, and `cost_usd` adds them. A turn whose usage file is missing is unknown,
-not free: `cost_usd` is `null` when no cost is known, and `cost_complete` is `false` whenever any
-part is missing. A run that fails (`run_eval: ...`, exit 2) deletes its sandbox; a finished run
+(`sandbox_state`), and the cost. A turn whose usage file is missing is unknown, not free:
+`cost_usd` is `null` when no cost is known, and `cost_complete` is `false` whenever any part is
+missing. A run that fails (`run_eval: ...`, exit 2) deletes its sandbox; a finished run
 keeps it for inspection unless `--cleanup` is given.
 
 Grade an existing run again, or any session, without a model call:
@@ -159,6 +166,6 @@ writing `run.json`, so the run can be graded again with `judge.py --run-dir`.
 
 Model output varies run to run. Judge a change on the pass rate over several runs of the same
 prompt, before and after, not on one verdict. `run.json` carries `elapsed_seconds` and
-`cost_usd` (the parent sessions' estimate, killed attempts included; `evidence.child_cost_usd` adds
-delegated sessions), and `usage-*.json` the raw token counts. One pass over all four prompts is budgeted at 20
+`cost_usd` (the parent sessions' estimate; `evidence.child_cost_usd` adds delegated sessions),
+and `usage-*.json` the raw token counts. One pass over all four prompts is budgeted at 20
 minutes and 3 USD.

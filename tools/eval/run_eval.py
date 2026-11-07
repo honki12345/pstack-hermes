@@ -2,9 +2,10 @@
 """Run one fixed poteto-mode prompt against a Hermes profile, then grade it with judge.py.
 
 Everything the agent sees is an ordinary user request in a throwaway shop-api checkout. The run
-goes through `hermes -z` first and confirms the gate saw it (`turn_armed` in the profile's gate
-log). If the gate never arms, the one-shot is repeated in-process through `hermes_side.py`,
-which skips the resident gateway that can hide freshly installed plugins.
+goes through `hermes_side.py` in a process of its own by default (`--runner inproc`), so stopping
+it stops the model calls and it reads the plugin code as it is on disk. `--runner cli` uses
+`hermes -z` instead, which hands the session to the shared gateway: killing the client does not
+stop the gateway's run, and the gateway keeps the plugin code it loaded until it restarts.
 
   env -i HOME=$HOME PATH=$PATH HERMES_HOME=<profile> \\
       uv run --frozen tools/eval/run_eval.py --prompt p1-bugfix --out <dir>
@@ -35,7 +36,6 @@ FIXTURE = HERE / "fixtures" / "shop-api"
 PROMPT_IDS = ("p1-bugfix", "p2-why", "p3-oneline", "p4-followup")
 # The follow-up only means something after the first turn, in the same process and session.
 FOLLOW_UP = {"p4-followup": "p1-bugfix"}
-ARM_EVENTS = (b'"turn_armed"', b'"turn_continued"')
 CHILD_ENV_KEYS = ("HOME", "PATH", "LANG", "TMPDIR")
 # The sandbox commit must not depend on the user's git setup: signing, hooks or identity can make
 # it fail or sign with a personal key.
@@ -127,21 +127,6 @@ def build_marker(home: Path, prompt_id: str, out: Path) -> Path:
     return marked
 
 
-def gate_log_size(home: Path) -> int:
-    log = home / judge.GATE_LOG
-    return log.stat().st_size if log.is_file() else 0
-
-
-def gate_armed_since(home: Path, offset: int) -> bool:
-    log = home / judge.GATE_LOG
-    if not log.is_file():
-        return False
-    with log.open("rb") as fh:
-        fh.seek(offset)
-        added = fh.read()
-    return any(mark in added for mark in ARM_EVENTS)
-
-
 def _kill(proc: subprocess.Popen) -> None:
     try:
         os.killpg(proc.pid, signal.SIGKILL)
@@ -155,39 +140,35 @@ def _terminate(signum: int, frame: object) -> None:
     raise SystemExit(128 + signum)
 
 
-def run_cli(home: Path, message: Path, repo: Path, out: Path, *, expect_gate: bool,
-            timeout: float, arm_timeout: float) -> dict:
-    """`hermes -z` with a watch on the gate log; reports why it gave up, if it did."""
-    # Not the in-process rerun's file: a killed attempt's cost must survive a fallback.
-    usage = out / "usage-cli-1.json"
-    offset = gate_log_size(home)
-    started = time.monotonic()
-    with (out / "stdout-1.txt").open("w", encoding="utf-8") as so, \
-            (out / "stderr-1.txt").open("w", encoding="utf-8") as se:
-        proc = subprocess.Popen(
-            ["hermes", "-z", message.read_text(encoding="utf-8"), "--usage-file", str(usage)],
-            cwd=repo, env=child_env(home), stdout=so, stderr=se, start_new_session=True,
-        )
-        armed = not expect_gate
+def _supervise(command: list[str], repo: Path, home: Path, out: Path, stem: str,
+               usages: list[Path], timeout: float, *, gateway: bool) -> dict:
+    """Run the child in a session of its own and kill that whole group on timeout or any unwind.
+
+    With `gateway`, the child only relays the session to the shared gateway, which carries on
+    after the kill.
+    """
+    with (out / f"stdout{stem}.txt").open("w", encoding="utf-8") as so, \
+            (out / f"stderr{stem}.txt").open("w", encoding="utf-8") as se:
+        proc = subprocess.Popen(command, cwd=repo, env=child_env(home), stdout=so, stderr=se,
+                                start_new_session=True)
         try:
-            while proc.poll() is None:
-                elapsed = time.monotonic() - started
-                armed = armed or gate_armed_since(home, offset)
-                if not armed and elapsed > arm_timeout:
-                    _kill(proc)
-                    return {"ok": False, "usage": [usage],
-                            "reason": f"no turn_armed within {arm_timeout:.0f}s"}
-                if elapsed > timeout:
-                    _kill(proc)
-                    return {"ok": True, "timed_out": True, "usage": [usage], "exit": None}
-                time.sleep(1)
-        except BaseException:
+            proc.wait(timeout=timeout)
+        except BaseException as exc:
             # The child has its own session, so a Ctrl-C aimed at us never reaches it.
             _kill(proc)
+            if gateway:
+                print("run_eval: stopped hermes -z, but the gateway keeps running that session "
+                      "and its model calls are still billed", file=sys.stderr)
+            if isinstance(exc, subprocess.TimeoutExpired):
+                return {"timed_out": True, "usage": usages, "exit": None}
             raise
-    if not armed and not gate_armed_since(home, offset):
-        return {"ok": False, "usage": [usage], "reason": "process ended without turn_armed"}
-    return {"ok": True, "timed_out": False, "usage": [usage], "exit": proc.returncode}
+    return {"timed_out": False, "usage": usages, "exit": proc.returncode}
+
+
+def run_cli(home: Path, message: Path, repo: Path, out: Path, *, timeout: float) -> dict:
+    usage = out / "usage-cli-1.json"
+    command = ["hermes", "-z", message.read_text(encoding="utf-8"), "--usage-file", str(usage)]
+    return _supervise(command, repo, home, out, "-1", [usage], timeout, gateway=True)
 
 
 def run_inproc(home: Path, messages: list[Path], repo: Path, out: Path, *, timeout: float) -> dict:
@@ -196,19 +177,7 @@ def run_inproc(home: Path, messages: list[Path], repo: Path, out: Path, *, timeo
     command = [str(python), str(HERE / "hermes_side.py"), "run", "--hermes-home", str(home)]
     for message, usage in zip(messages, usages, strict=True):
         command += ["--prompt-file", str(message), "--usage-file", str(usage)]
-    with (out / "stdout.txt").open("w", encoding="utf-8") as so, \
-            (out / "stderr.txt").open("w", encoding="utf-8") as se:
-        proc = subprocess.Popen(command, cwd=repo, env=child_env(home), stdout=so, stderr=se,
-                                start_new_session=True)
-        try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            _kill(proc)
-            return {"ok": True, "timed_out": True, "usage": usages, "exit": None}
-        except BaseException:
-            _kill(proc)
-            raise
-    return {"ok": True, "timed_out": False, "usage": usages, "exit": proc.returncode}
+    return _supervise(command, repo, home, out, "", usages, timeout, gateway=False)
 
 
 def read_usage(path: Path) -> dict:
@@ -245,7 +214,7 @@ def run(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
     chain = [FOLLOW_UP[args.prompt], args.prompt] if args.prompt in FOLLOW_UP else [args.prompt]
     if len(chain) > 1 and args.runner == "cli":
-        raise RunError(f"{args.prompt} continues a session; use --runner auto or inproc")
+        raise RunError(f"{args.prompt} continues a session; use --runner inproc")
 
     messages = [build_marker(home, chain[0], out)]
     for follow in chain[1:]:
@@ -253,31 +222,15 @@ def run(args: argparse.Namespace) -> int:
         plain.write_text(prompt_text(follow) + "\n", encoding="utf-8")
         messages.append(plain)
 
-    attempts: list[dict] = []
     repo = make_sandbox()
     try:
         attempt_start = time.time()
         started = time.monotonic()
         before = git_state(repo)
-        runner, fallback = "inproc", None
-        result: dict = {}
-        if args.runner in {"auto", "cli"} and len(chain) == 1:
-            result = run_cli(home, messages[0], repo, out, expect_gate=not args.without_gate,
-                             timeout=args.timeout, arm_timeout=args.arm_timeout)
-            runner = "cli"
-            if not result["ok"]:
-                if args.runner == "cli":
-                    raise RunError(f"hermes -z run unusable: {result['reason']}")
-                fallback = result["reason"]
-                attempts.append({"runner": "cli", "killed": fallback, "usage": result["usage"]})
-                shutil.rmtree(repo.parent, ignore_errors=True)
-                repo = make_sandbox()
-                attempt_start = time.time()
-                before = git_state(repo)
-        if runner != "cli" or fallback:
-            runner = "inproc"
+        if args.runner == "cli":
+            result = run_cli(home, messages[0], repo, out, timeout=args.timeout)
+        else:
             result = run_inproc(home, messages, repo, out, timeout=args.timeout)
-        attempts.append({"runner": runner, "killed": None, "usage": result["usage"]})
         after = git_state(repo)
     except BaseException:
         shutil.rmtree(repo.parent, ignore_errors=True)
@@ -293,23 +246,15 @@ def run(args: argparse.Namespace) -> int:
         for number, (prompt_id, usage) in enumerate(zip(chain, usages or [{}] * len(chain),
                                                         strict=False), start=1)
     ]
-    # Every attempt's turns count, so a killed first attempt is part of the bill. A turn whose
-    # usage file is missing is unknown, not free.
-    per_attempt = [[usage_cost(read_usage(path)) for path in a["usage"]] for a in attempts]
-    costs = [c for group in per_attempt for c in group]
+    # A turn whose usage file is missing is unknown, not free.
+    costs = [usage_cost(usage) for usage in usages]
     known = [c for c in costs if c is not None]
     record = {
-        "hermes_home": str(home), "prompt": args.prompt, "runner": runner,
-        "fallback_reason": fallback, "sandbox": str(repo), "timed_out": result["timed_out"],
+        "hermes_home": str(home), "prompt": args.prompt, "runner": args.runner,
+        "sandbox": str(repo), "timed_out": result["timed_out"],
         "exit_code": result["exit"], "elapsed_seconds": round(elapsed, 1),
         "cost_usd": round(sum(known), 4) if known else None,
         "cost_complete": len(known) == len(costs),
-        "attempts": [
-            {"runner": a["runner"], "killed": a["killed"],
-             "cost_usd": round(sum(c for c in group if c is not None), 4)
-             if any(c is not None for c in group) else None}
-            for a, group in zip(attempts, per_attempt, strict=True)
-        ],
         "sandbox_state": {"before": before, "after": after},
         "turns": turns,
     }
@@ -341,17 +286,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prompt", required=True, choices=PROMPT_IDS)
     parser.add_argument("--out", required=True, help="directory for run.json and transcripts")
     parser.add_argument("--hermes-home", help="profile to run in (default: $HERMES_HOME)")
-    parser.add_argument("--runner", choices=("auto", "cli", "inproc"), default="auto")
+    parser.add_argument("--runner", choices=("inproc", "cli"), default="inproc",
+                        help="inproc: own process, stoppable; cli: hermes -z via the shared "
+                             "gateway, which keeps running and billing after a stop")
     parser.add_argument("--timeout", type=float, default=900, help="seconds per run")
-    parser.add_argument("--arm-timeout", type=float, default=120,
-                        help="seconds to wait for turn_armed before falling back")
-    parser.add_argument("--without-gate", action="store_true",
-                        help="the profile has the gate off: skip the turn_armed check")
     parser.add_argument("--allow-default-profile", action="store_true")
     parser.add_argument("--cleanup", action="store_true", help="delete the shop-api checkout after")
+    args = parser.parse_args(argv)
     previous = signal.signal(signal.SIGTERM, _terminate)
     try:
-        return run(parser.parse_args(argv))
+        return run(args)
     except RunError as exc:
         print(f"run_eval: {exc}", file=sys.stderr)
         return 2

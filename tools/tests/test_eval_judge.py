@@ -747,17 +747,6 @@ def test_run_eval_child_env_is_rebuilt_from_scratch(monkeypatch, tmp_path):
     assert "OPENAI_API_KEY" not in env
 
 
-def test_gate_arming_is_read_only_from_new_log_bytes(tmp_path):
-    log = tmp_path / judge.GATE_LOG
-    log.parent.mkdir()
-    log.write_text('{"event": "turn_armed", "session_id": "old"}\n', encoding="utf-8")
-    offset = run_eval.gate_log_size(tmp_path)
-    assert run_eval.gate_armed_since(tmp_path, offset) is False
-    with log.open("a", encoding="utf-8") as fh:
-        fh.write('{"event": "turn_armed", "session_id": "new"}\n')
-    assert run_eval.gate_armed_since(tmp_path, offset) is True
-
-
 # --- run_eval: sandbox, sessions, cost -------------------------------------------------------
 
 
@@ -825,27 +814,28 @@ def fake_profile(tmp_path, *, sessions=(), messages=(), events=()):
     return home
 
 
-def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, runner="auto",
-                 during_inproc=None, usage_session=None):
-    """An arm-timeout fallback: `hermes -z` killed, then the in-process rerun."""
+def stub_run(tmp_path, monkeypatch, sandboxes, *, cost=0.1, runner=None, during_run=None,
+             usage_session=None):
+    """One run with both runners faked: they write a usage file and leave a session to grade."""
     now = time.time()
     todo = [{"id": "c1", "function": {"name": "todo_list", "arguments": json.dumps(
         {"todos": [{"id": "1", "content": DECIDED, "status": "pending"}]})}}]
     work = [{"id": "c2", "function": {"name": "terminal", "arguments": "{}"}}]
     home = fake_profile(
         tmp_path,
-        sessions=[("killed-attempt", now + 5), ("fallback-session", now + 30)],
-        messages=[("fallback-session", "user", None, now + 31),
-                  ("fallback-session", "assistant", todo, now + 32),
-                  ("fallback-session", "assistant", work, now + 33)],
-        events=[{"ts": now + 31.5, "event": "turn_armed", "session_id": "fallback-session"},
-                {"ts": now + 32.5, "event": "allow", "session_id": "fallback-session",
+        sessions=[("earlier-session", now + 5), ("run-session", now + 30)],
+        messages=[("run-session", "user", None, now + 31),
+                  ("run-session", "assistant", todo, now + 32),
+                  ("run-session", "assistant", work, now + 33)],
+        events=[{"ts": now + 31.5, "event": "turn_armed", "session_id": "run-session"},
+                {"ts": now + 32.5, "event": "allow", "session_id": "run-session",
                  "tool_name": "todo_list", "reason": "todo_written_now"},
-                {"ts": now + 33.5, "event": "allow", "session_id": "fallback-session",
+                {"ts": now + 33.5, "event": "allow", "session_id": "run-session",
                  "tool_name": "terminal", "reason": "todo_written"}],
     )
+    started: list[str] = []
 
-    def usage_file(out, name, cost):
+    def usage_file(out, name):
         path = out / name
         if cost is not None:
             path.write_text(json.dumps({"estimated_cost_usd": cost, "api_calls": 3,
@@ -858,66 +848,92 @@ def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, run
         return path
 
     def fake_cli(home, message, repo, out, **kwargs):
-        return {"ok": False, "reason": "no turn_armed within 1s",
-                "usage": [usage_file(out, "usage-cli-1.json", cli_cost)]}
+        started.append("cli")
+        if during_run:
+            during_run(home)
+        return {"timed_out": False, "exit": 0,
+                "usage": [usage_file(out, "usage-cli-1.json")]}
 
     def fake_inproc(home, messages, repo, out, *, timeout):
-        if during_inproc:
-            during_inproc(home)
-        return {"ok": True, "timed_out": False, "exit": 0,
-                "usage": [usage_file(out, "usage-1.json", inproc_cost)]}
+        started.append("inproc")
+        if during_run:
+            during_run(home)
+        return {"timed_out": False, "exit": 0,
+                "usage": [usage_file(out, "usage-1.json")]}
 
     monkeypatch.setattr(run_eval, "build_marker", fake_marker)
     monkeypatch.setattr(run_eval, "run_cli", fake_cli)
     monkeypatch.setattr(run_eval, "run_inproc", fake_inproc)
     out = tmp_path / "out"
+    options = ["--runner", runner] if runner else []
     code = run_eval.main(["--prompt", "p1-bugfix", "--out", str(out), "--hermes-home", str(home),
-                          "--runner", runner, "--cleanup"])
+                          "--cleanup", *options])
     record = json.loads((out / "run.json").read_text(encoding="utf-8")) \
         if (out / "run.json").exists() else None
-    return code, record, out
+    return code, record, out, started
 
 
-def test_a_fallback_run_grades_the_fallback_session_not_the_killed_attempt(
-        tmp_path, monkeypatch, sandboxes):
-    code, record, out = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.2,
-                                     inproc_cost=0.3)
+def test_the_default_runner_is_inproc(tmp_path, monkeypatch, sandboxes):
+    code, record, _, started = stub_run(tmp_path, monkeypatch, sandboxes)
     assert code == 0
+    assert started == ["inproc"]
     assert record["runner"] == "inproc"
-    assert record["fallback_reason"] == "no turn_armed within 1s"
+
+
+def test_the_cli_runner_is_still_selectable(tmp_path, monkeypatch, sandboxes):
+    _, record, _, started = stub_run(tmp_path, monkeypatch, sandboxes, runner="cli")
+    assert started == ["cli"]
+    assert record["runner"] == "cli"
+
+
+def test_there_is_no_auto_runner(tmp_path, monkeypatch, sandboxes, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        stub_run(tmp_path, monkeypatch, sandboxes, runner="auto")
+    assert stopped.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_a_follow_up_prompt_needs_the_inproc_runner(tmp_path, monkeypatch, sandboxes, capsys):
+    home = fake_profile(tmp_path)
+    code = run_eval.main(["--prompt", "p4-followup", "--runner", "cli", "--hermes-home",
+                          str(home), "--out", str(tmp_path / "out")])
+    err = capsys.readouterr().err.strip().splitlines()
+    assert code == 2
+    assert len(err) == 1 and "--runner inproc" in err[0]
+
+
+def test_a_run_grades_the_newest_session(tmp_path, monkeypatch, sandboxes):
+    code, _, out, _ = stub_run(tmp_path, monkeypatch, sandboxes)
+    assert code == 0
     verdicts = json.loads((out / "verdict.json").read_text(encoding="utf-8"))
-    assert [v["session_id"] for v in verdicts] == ["fallback-session"]
+    assert [v["session_id"] for v in verdicts] == ["run-session"]
     assert verdicts[0]["G1"] is True
 
 
-def test_cost_adds_the_killed_first_attempt_and_the_fallback(tmp_path, monkeypatch, sandboxes):
-    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.2, inproc_cost=0.3)
-    assert record["cost_usd"] == 0.5
+def test_cost_is_the_runs_usage(tmp_path, monkeypatch, sandboxes):
+    _, record, _, _ = stub_run(tmp_path, monkeypatch, sandboxes, cost=0.3)
+    assert record["cost_usd"] == 0.3
     assert record["cost_complete"] is True
 
 
-def test_cost_is_null_not_zero_when_usage_files_are_missing(tmp_path, monkeypatch, sandboxes):
-    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None, inproc_cost=None)
+def test_cost_is_null_not_zero_when_the_usage_file_is_missing(tmp_path, monkeypatch, sandboxes):
+    _, record, _, _ = stub_run(tmp_path, monkeypatch, sandboxes, cost=None)
     assert record["cost_usd"] is None
     assert record["cost_complete"] is False
 
 
-def test_cost_reports_the_known_part_and_flags_it_incomplete(tmp_path, monkeypatch, sandboxes):
-    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None, inproc_cost=0.3)
-    assert record["cost_usd"] == 0.3
-    assert record["cost_complete"] is False
-
-
 def test_a_failed_run_removes_its_sandbox(tmp_path, monkeypatch, sandboxes):
-    code, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None,
-                                   inproc_cost=None, runner="cli")
+    def refuse(home):
+        raise run_eval.RunError("hermes is not installed")
+
+    code, record, _, _ = stub_run(tmp_path, monkeypatch, sandboxes, during_run=refuse)
     assert code == 2
     assert record is None
     assert list(sandboxes.iterdir()) == []
 
 
 def test_run_json_records_the_sandbox_before_and_after(tmp_path, monkeypatch, sandboxes):
-    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1)
+    _, record, _, _ = stub_run(tmp_path, monkeypatch, sandboxes)
     state = record["sandbox_state"]
     assert re.fullmatch(r"[0-9a-f]{40}", state["before"]["head"])
     assert state["before"] == state["after"]
@@ -951,7 +967,20 @@ def wait_for(condition, seconds=5.0) -> bool:
 
 
 @pytest.fixture
-def stuck_hermes(monkeypatch, tmp_path):
+def contained_signals():
+    """A signal the test sends must not kill pytest if the harness fails to handle it."""
+
+    watched = (signal.SIGINT, signal.SIGTERM)
+    saved = {sig: signal.getsignal(sig) for sig in watched}
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    yield
+    for sig, handler in saved.items():
+        signal.signal(sig, handler)
+
+
+@pytest.fixture
+def stuck_hermes(monkeypatch, tmp_path, contained_signals):
     """A `hermes` that never finishes and leaves a child behind, for both runners."""
     fake = tmp_path / "fake"
     for script in (fake / "bin" / "hermes", fake / "agent" / "venv" / "bin" / "python"):
@@ -967,13 +996,7 @@ def stuck_hermes(monkeypatch, tmp_path):
         return path
 
     monkeypatch.setattr(run_eval, "build_marker", marker)
-    # A signal the test sends must not kill pytest if the harness fails to handle it.
-    saved = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     yield fake
-    for sig, handler in saved.items():
-        signal.signal(sig, handler)
     for name in ("parent.pid", "child.pid"):
         path = fake / name
         if path.exists() and path.read_text().strip():
@@ -1008,13 +1031,34 @@ def test_an_interrupted_run_leaves_no_child_process_and_no_sandbox(
     assert list(sandboxes.iterdir()) == []
 
 
+@pytest.mark.parametrize(("runner", "told"), [("cli", 1), ("inproc", 0)])
+def test_only_an_interrupted_cli_run_says_the_gateway_keeps_going(
+        tmp_path, stuck_hermes, sandboxes, capsys, runner, told):
+    home = fake_profile(tmp_path)
+    signal_when_started(stuck_hermes, signal.SIGINT)
+    with pytest.raises(KeyboardInterrupt):
+        run_eval.main(["--prompt", "p2-why", "--runner", runner, "--hermes-home", str(home),
+                       "--out", str(tmp_path / "out2"), "--timeout", "30"])
+    notes = [line for line in capsys.readouterr().err.splitlines() if "gateway" in line]
+    assert len(notes) == told
+    assert all(line.startswith("run_eval:") for line in notes)
+
+
+def test_a_timed_out_cli_run_says_the_gateway_keeps_going(
+        tmp_path, stuck_hermes, sandboxes, capsys):
+    home = fake_profile(tmp_path)
+    run_eval.main(["--prompt", "p2-why", "--runner", "cli", "--hermes-home", str(home),
+                   "--out", str(tmp_path / "out2"), "--timeout", "0.5"])
+    notes = [line for line in capsys.readouterr().err.splitlines() if "gateway" in line]
+    assert len(notes) == 1
+
+
 # --- run_eval: --out reuse and grading failures ---------------------------------------------
 
 
 def test_a_second_run_into_the_same_out_is_refused_and_keeps_the_first(
         tmp_path, monkeypatch, sandboxes, capsys):
-    code, record, out = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1,
-                                     inproc_cost=0.1)
+    code, record, out, _ = stub_run(tmp_path, monkeypatch, sandboxes)
     assert code == 0
     first = (out / "run.json").read_bytes()
     capsys.readouterr()
@@ -1029,8 +1073,7 @@ def test_a_second_run_into_the_same_out_is_refused_and_keeps_the_first(
 
 def test_an_existing_empty_out_directory_is_accepted(tmp_path, monkeypatch, sandboxes):
     (tmp_path / "out").mkdir()
-    code, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1,
-                                   inproc_cost=0.1)
+    code, record, _, _ = stub_run(tmp_path, monkeypatch, sandboxes)
     assert code == 0
     assert record is not None
 
@@ -1038,7 +1081,7 @@ def test_an_existing_empty_out_directory_is_accepted(tmp_path, monkeypatch, sand
 def test_an_out_that_is_a_file_is_refused(tmp_path, monkeypatch, sandboxes, capsys):
     target = tmp_path / "out"
     target.write_text("x", encoding="utf-8")
-    code, _, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1)
+    code, _, _, _ = stub_run(tmp_path, monkeypatch, sandboxes)
     assert code == 2
     assert "run_eval:" in capsys.readouterr().err
     assert list(sandboxes.iterdir()) == []
@@ -1046,10 +1089,9 @@ def test_an_out_that_is_a_file_is_refused(tmp_path, monkeypatch, sandboxes, caps
 
 def test_a_grading_failure_ends_with_one_line_and_keeps_run_json(
         tmp_path, monkeypatch, sandboxes, capsys):
-    code, record, out = fallback_run(
-        tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1,
-        usage_session="fallback-session",
-        during_inproc=lambda home: (home / judge.STATE_DB).unlink())
+    code, record, out, _ = stub_run(
+        tmp_path, monkeypatch, sandboxes, usage_session="run-session",
+        during_run=lambda home: (home / judge.STATE_DB).unlink())
     err = capsys.readouterr().err.strip().splitlines()
     assert code == 2
     assert [line for line in err if "cannot grade" in line] != []
