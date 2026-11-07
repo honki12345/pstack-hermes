@@ -21,7 +21,7 @@ Entries below this section are history inherited from the original port.
   the next working call is blocked with `todo_without_decision`. After two such blocks in a turn
   the gate releases with `decision_missing_released` so an agent that cannot write the item is not
   stalled. `tools/eval/judge.py` treats `todo_pending_decision` as a step toward the todolist when
-  it grades recovery (G2). The gate has 78 cases now.
+  it grades recovery (G2). The gate has 80 cases now.
 - **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
   skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,
   `poteto-help` adapted to Hermes through the new audited `HELP_MAP` (P1).

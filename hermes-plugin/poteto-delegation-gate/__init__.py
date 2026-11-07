@@ -146,15 +146,20 @@ def _bridged_names(args: object) -> list[str]:
 
 
 def _item_texts(args: dict) -> list[str]:
-    todos = args.get("todos")
+    todos = _todos(args)
     if not isinstance(todos, list):
         return []
     return [i["content"] for i in todos if isinstance(i, dict) and isinstance(i.get("content"), str)]
 
 
+def _todos(args: dict) -> object:
+    # 모델이 배열을 JSON 문자열로 넘기는 경우가 있고 Hermes 는 이를 받아 준다.
+    return _json_value(args.get("todos"))
+
+
 def _writes_todos(args: dict) -> bool:
     """인자 없는 todo_list 는 목록을 읽을 뿐이다."""
-    return isinstance(args.get("todos"), list)
+    return isinstance(_todos(args), list)
 
 
 def _has_decision(args: dict) -> bool:

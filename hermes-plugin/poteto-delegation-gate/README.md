@@ -47,7 +47,7 @@ write that replaces the list is not checked either.
 Hermes unwraps a `tool_call` bridge that holds one local tool before it calls the hook, so the
 hook usually sees `tool_name` `todo_list` with the unwrapped arguments. When Hermes cannot unwrap
 the bridge, the hook sees the bridge arguments instead. The gate reads both forms, including the
-older single `name` and `arguments` shape and JSON strings for `calls` or `arguments`. A bridge
+older single `name` and `arguments` shape and JSON strings for `calls`, `arguments` or `todos`. A bridge
 that holds an undecided todolist next to a working tool is blocked as a whole.
 
 ## Release after repeated blocks
@@ -145,7 +145,7 @@ uv run --frozen pytest -q hermes-plugin/poteto-delegation-gate/tests
 
 The cases live in `tests/test_gate.py` and run without Hermes. CI scans only `tools/tests/`, so
 the wrapper `tools/tests/test_poteto_delegation_gate.py` loads that file and collects the same
-cases. Both commands run all 78.
+cases. Both commands run all 80.
 
 ## Measure its effect
 
