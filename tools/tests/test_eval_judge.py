@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -591,3 +593,165 @@ def test_gate_arming_is_read_only_from_new_log_bytes(tmp_path):
     with log.open("a", encoding="utf-8") as fh:
         fh.write('{"event": "turn_armed", "session_id": "new"}\n')
     assert run_eval.gate_armed_since(tmp_path, offset) is True
+
+
+# --- run_eval: sandbox, sessions, cost -------------------------------------------------------
+
+
+@pytest.fixture
+def sandboxes(monkeypatch, tmp_path):
+    """Point the sandbox temp dir at tmp_path so leftovers are visible."""
+    root = tmp_path / "sandboxes"
+    root.mkdir()
+    monkeypatch.setattr("tempfile.tempdir", str(root))
+    return root
+
+
+def test_make_sandbox_commits_under_a_signing_global_config(monkeypatch, tmp_path, sandboxes):
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".gitconfig").write_text(
+        "[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /usr/bin/false\n", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)
+    repo = run_eval.make_sandbox()
+    commit = subprocess.run(["git", "cat-file", "-p", "HEAD"], cwd=repo, capture_output=True,
+                            text=True, check=True).stdout
+    assert "gpgsig" not in commit
+    assert "author shop <shop@example.com>" in commit
+
+
+def test_make_sandbox_leaves_nothing_behind_when_the_commit_fails(monkeypatch, tmp_path, sandboxes):
+    empty = tmp_path / "empty-fixture"
+    empty.mkdir()
+    monkeypatch.setattr(run_eval, "FIXTURE", empty)
+    with pytest.raises(run_eval.RunError):
+        run_eval.make_sandbox()
+    assert list(sandboxes.iterdir()) == []
+
+
+def test_sandbox_state_changes_with_a_new_file_but_not_with_python_caches(sandboxes):
+    repo = run_eval.make_sandbox()
+    before = run_eval.git_state(repo)
+    assert before is not None and before["status"] == ""
+    subprocess.run([sys.executable, "-B", "-c", "pass"], cwd=repo, check=True)
+    (repo / "shop" / "__pycache__").mkdir()
+    (repo / "shop" / "__pycache__" / "api.cpython-311.pyc").write_bytes(b"x")
+    assert run_eval.git_state(repo) == before
+    (repo / "notes.md").write_text("x", encoding="utf-8")
+    after = run_eval.git_state(repo)
+    assert after["head"] == before["head"]
+    assert "?? notes.md" in after["status"]
+
+
+def fake_profile(tmp_path, *, sessions=(), messages=(), events=()):
+    home = tmp_path / "profile"
+    (home / "logs").mkdir(parents=True)
+    (home / "config.yaml").write_text("{}", encoding="utf-8")
+    db = sqlite3.connect(home / "state.db")
+    db.executescript(SCHEMA)
+    for sid, started in sessions:
+        db.execute("INSERT INTO sessions (id, started_at) VALUES (?, ?)", (sid, started))
+    for sid, role, tool_calls, ts in messages:
+        db.execute("INSERT INTO messages (session_id, role, tool_calls, timestamp) "
+                   "VALUES (?, ?, ?, ?)", (sid, role, json.dumps(tool_calls) if tool_calls else None, ts))
+    db.commit()
+    db.close()
+    (home / judge.GATE_LOG).write_text(
+        "".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+    return home
+
+
+def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, runner="auto"):
+    """An arm-timeout fallback: `hermes -z` killed, then the in-process rerun."""
+    now = time.time()
+    todo = [{"id": "c1", "function": {"name": "todo_list", "arguments": json.dumps(
+        {"todos": [{"id": "1", "content": DECIDED, "status": "pending"}]})}}]
+    work = [{"id": "c2", "function": {"name": "terminal", "arguments": "{}"}}]
+    home = fake_profile(
+        tmp_path,
+        sessions=[("killed-attempt", now + 5), ("fallback-session", now + 30)],
+        messages=[("fallback-session", "user", None, now + 31),
+                  ("fallback-session", "assistant", todo, now + 32),
+                  ("fallback-session", "assistant", work, now + 33)],
+        events=[{"ts": now + 31.5, "event": "turn_armed", "session_id": "fallback-session"},
+                {"ts": now + 32.5, "event": "allow", "session_id": "fallback-session",
+                 "tool_name": "todo_list", "reason": "todo_written_now"},
+                {"ts": now + 33.5, "event": "allow", "session_id": "fallback-session",
+                 "tool_name": "terminal", "reason": "todo_written"}],
+    )
+
+    def usage_file(out, name, cost):
+        path = out / name
+        if cost is not None:
+            path.write_text(json.dumps({"estimated_cost_usd": cost, "api_calls": 3}),
+                            encoding="utf-8")
+        return path
+
+    def fake_marker(home, prompt_id, out):
+        path = out / f"{prompt_id}.message.txt"
+        path.write_text("go\n", encoding="utf-8")
+        return path
+
+    def fake_cli(home, message, repo, out, **kwargs):
+        return {"ok": False, "reason": "no turn_armed within 1s",
+                "usage": [usage_file(out, "usage-cli-1.json", cli_cost)]}
+
+    def fake_inproc(home, messages, repo, out, *, timeout):
+        return {"ok": True, "timed_out": False, "exit": 0,
+                "usage": [usage_file(out, "usage-1.json", inproc_cost)]}
+
+    monkeypatch.setattr(run_eval, "build_marker", fake_marker)
+    monkeypatch.setattr(run_eval, "run_cli", fake_cli)
+    monkeypatch.setattr(run_eval, "run_inproc", fake_inproc)
+    out = tmp_path / "out"
+    code = run_eval.main(["--prompt", "p1-bugfix", "--out", str(out), "--hermes-home", str(home),
+                          "--runner", runner, "--cleanup"])
+    record = json.loads((out / "run.json").read_text(encoding="utf-8")) \
+        if (out / "run.json").exists() else None
+    return code, record, out
+
+
+def test_a_fallback_run_grades_the_fallback_session_not_the_killed_attempt(
+        tmp_path, monkeypatch, sandboxes):
+    code, record, out = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.2,
+                                     inproc_cost=0.3)
+    assert code == 0
+    assert record["runner"] == "inproc"
+    assert record["fallback_reason"] == "no turn_armed within 1s"
+    verdicts = json.loads((out / "verdict.json").read_text(encoding="utf-8"))
+    assert [v["session_id"] for v in verdicts] == ["fallback-session"]
+    assert verdicts[0]["G1"] is True
+
+
+def test_cost_adds_the_killed_first_attempt_and_the_fallback(tmp_path, monkeypatch, sandboxes):
+    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.2, inproc_cost=0.3)
+    assert record["cost_usd"] == 0.5
+    assert record["cost_complete"] is True
+
+
+def test_cost_is_null_not_zero_when_usage_files_are_missing(tmp_path, monkeypatch, sandboxes):
+    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None, inproc_cost=None)
+    assert record["cost_usd"] is None
+    assert record["cost_complete"] is False
+
+
+def test_cost_reports_the_known_part_and_flags_it_incomplete(tmp_path, monkeypatch, sandboxes):
+    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None, inproc_cost=0.3)
+    assert record["cost_usd"] == 0.3
+    assert record["cost_complete"] is False
+
+
+def test_a_failed_run_removes_its_sandbox(tmp_path, monkeypatch, sandboxes):
+    code, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=None,
+                                   inproc_cost=None, runner="cli")
+    assert code == 2
+    assert record is None
+    assert list(sandboxes.iterdir()) == []
+
+
+def test_run_json_records_the_sandbox_before_and_after(tmp_path, monkeypatch, sandboxes):
+    _, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1)
+    state = record["sandbox_state"]
+    assert re.fullmatch(r"[0-9a-f]{40}", state["before"]["head"])
+    assert state["before"] == state["after"]

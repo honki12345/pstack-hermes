@@ -37,6 +37,14 @@ PROMPT_IDS = ("p1-bugfix", "p2-why", "p3-oneline", "p4-followup")
 FOLLOW_UP = {"p4-followup": "p1-bugfix"}
 ARM_EVENTS = (b'"turn_armed"', b'"turn_continued"')
 CHILD_ENV_KEYS = ("HOME", "PATH", "LANG", "TMPDIR")
+# The sandbox commit must not depend on the user's git setup: signing, hooks or identity can make
+# it fail or sign with a personal key.
+GIT = [
+    "git", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false",
+    "-c", "core.hooksPath=/dev/null", "-c", "user.name=shop", "-c", "user.email=shop@example.com",
+]
+# Interpreter caches are not something the agent changed on purpose.
+SANDBOX_EXCLUDES = "__pycache__/\n*.pyc\n"
 
 
 class RunError(Exception):
@@ -64,15 +72,39 @@ def child_env(home: Path) -> dict[str, str]:
     return env
 
 
+def _git(repo: Path, *command: str) -> str:
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    done = subprocess.run([*GIT, *command], cwd=repo, env=env, capture_output=True, text=True,
+                          check=True)
+    return done.stdout
+
+
 def make_sandbox() -> Path:
     """A project-shaped checkout: a path and a repo that read like real work."""
     root = Path(tempfile.mkdtemp(prefix="shop-"))
     repo = root / "shop-api"
-    shutil.copytree(FIXTURE, repo)
-    git = ["git", "-c", "user.name=shop", "-c", "user.email=shop@example.com"]
-    for command in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "initial import"]):
-        subprocess.run([*git, *command], cwd=repo, check=True, capture_output=True)
+    try:
+        shutil.copytree(FIXTURE, repo)
+        _git(repo, "init", "-q")
+        (repo / ".git" / "info" / "exclude").write_text(SANDBOX_EXCLUDES, encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "initial import")
+    except (OSError, subprocess.CalledProcessError) as exc:
+        shutil.rmtree(root, ignore_errors=True)
+        detail = (getattr(exc, "stderr", "") or str(exc)).strip()[-300:]
+        raise RunError(f"could not build the sandbox checkout: {detail}") from exc
     return repo
+
+
+def git_state(repo: Path) -> dict | None:
+    """What a run can change in the sandbox: the commit and every modified or new file."""
+    try:
+        return {
+            "head": _git(repo, "rev-parse", "HEAD").strip(),
+            "status": _git(repo, "status", "--porcelain", "--untracked-files=all"),
+        }
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 def prompt_text(prompt_id: str) -> str:
@@ -121,7 +153,8 @@ def _kill(proc: subprocess.Popen) -> None:
 def run_cli(home: Path, message: Path, repo: Path, out: Path, *, expect_gate: bool,
             timeout: float, arm_timeout: float) -> dict:
     """`hermes -z` with a watch on the gate log; reports why it gave up, if it did."""
-    usage = out / "usage-1.json"
+    # Not the in-process rerun's file: a killed attempt's cost must survive a fallback.
+    usage = out / "usage-cli-1.json"
     offset = gate_log_size(home)
     started = time.monotonic()
     with (out / "stdout-1.txt").open("w", encoding="utf-8") as so, \
@@ -136,13 +169,14 @@ def run_cli(home: Path, message: Path, repo: Path, out: Path, *, expect_gate: bo
             armed = armed or gate_armed_since(home, offset)
             if not armed and elapsed > arm_timeout:
                 _kill(proc)
-                return {"ok": False, "reason": f"no turn_armed within {arm_timeout:.0f}s"}
+                return {"ok": False, "usage": [usage],
+                        "reason": f"no turn_armed within {arm_timeout:.0f}s"}
             if elapsed > timeout:
                 _kill(proc)
                 return {"ok": True, "timed_out": True, "usage": [usage], "exit": None}
             time.sleep(1)
     if not armed and not gate_armed_since(home, offset):
-        return {"ok": False, "reason": "process ended without turn_armed"}
+        return {"ok": False, "usage": [usage], "reason": "process ended without turn_armed"}
     return {"ok": True, "timed_out": False, "usage": [usage], "exit": proc.returncode}
 
 
@@ -171,13 +205,18 @@ def read_usage(path: Path) -> dict:
         return {}
 
 
+def usage_cost(usage: dict) -> float | None:
+    cost = usage.get("estimated_cost_usd")
+    return float(cost) if isinstance(cost, (int, float)) else None
+
+
 def newest_session(home: Path, since: float) -> str | None:
-    """Last resort when a timed-out run left no usage file: the root session it started."""
+    """Last resort when a timed-out run left no usage file: the latest root session since then."""
     try:
         with sqlite3.connect(f"file:{home / judge.STATE_DB}?mode=ro", uri=True) as conn:
             row = conn.execute(
                 "SELECT id FROM sessions WHERE parent_session_id IS NULL AND started_at >= ? "
-                "ORDER BY started_at LIMIT 1", (since,),
+                "ORDER BY started_at DESC LIMIT 1", (since,),
             ).fetchone()
     except sqlite3.Error:
         return None
@@ -198,41 +237,65 @@ def run(args: argparse.Namespace) -> int:
         plain.write_text(prompt_text(follow) + "\n", encoding="utf-8")
         messages.append(plain)
 
-    started_wall = time.time()
-    started = time.monotonic()
+    attempts: list[dict] = []
     repo = make_sandbox()
-    runner, fallback = "inproc", None
-    result: dict = {}
-    if args.runner in {"auto", "cli"} and len(chain) == 1:
-        result = run_cli(home, messages[0], repo, out, expect_gate=not args.without_gate,
-                         timeout=args.timeout, arm_timeout=args.arm_timeout)
-        runner = "cli"
-        if not result["ok"]:
-            if args.runner == "cli":
-                raise RunError(f"hermes -z run unusable: {result['reason']}")
-            fallback = result["reason"]
-            shutil.rmtree(repo.parent, ignore_errors=True)
-            repo = make_sandbox()
-    if runner != "cli" or fallback:
-        runner = "inproc"
-        result = run_inproc(home, messages, repo, out, timeout=args.timeout)
+    try:
+        attempt_start = time.time()
+        started = time.monotonic()
+        before = git_state(repo)
+        runner, fallback = "inproc", None
+        result: dict = {}
+        if args.runner in {"auto", "cli"} and len(chain) == 1:
+            result = run_cli(home, messages[0], repo, out, expect_gate=not args.without_gate,
+                             timeout=args.timeout, arm_timeout=args.arm_timeout)
+            runner = "cli"
+            if not result["ok"]:
+                if args.runner == "cli":
+                    raise RunError(f"hermes -z run unusable: {result['reason']}")
+                fallback = result["reason"]
+                attempts.append({"runner": "cli", "killed": fallback, "usage": result["usage"]})
+                shutil.rmtree(repo.parent, ignore_errors=True)
+                repo = make_sandbox()
+                attempt_start = time.time()
+                before = git_state(repo)
+        if runner != "cli" or fallback:
+            runner = "inproc"
+            result = run_inproc(home, messages, repo, out, timeout=args.timeout)
+        attempts.append({"runner": runner, "killed": None, "usage": result["usage"]})
+        after = git_state(repo)
+    except BaseException:
+        shutil.rmtree(repo.parent, ignore_errors=True)
+        raise
 
     elapsed = time.monotonic() - started
     usages = [read_usage(p) for p in result["usage"]]
     session_id = (usages[0].get("session_id") if usages else None) or newest_session(
-        home, started_wall - 1)
+        home, attempt_start - 1)
     turns = [
         {"prompt": prompt_id, "turn": number, "session_id": session_id,
-         "cost_usd": usage.get("estimated_cost_usd"), "api_calls": usage.get("api_calls"),
-         "usage": usage}
+         "cost_usd": usage_cost(usage), "api_calls": usage.get("api_calls"), "usage": usage}
         for number, (prompt_id, usage) in enumerate(zip(chain, usages or [{}] * len(chain),
                                                         strict=False), start=1)
     ]
+    # Every attempt's turns count, so a killed first attempt is part of the bill. A turn whose
+    # usage file is missing is unknown, not free.
+    per_attempt = [[usage_cost(read_usage(path)) for path in a["usage"]] for a in attempts]
+    costs = [c for group in per_attempt for c in group]
+    known = [c for c in costs if c is not None]
     record = {
         "hermes_home": str(home), "prompt": args.prompt, "runner": runner,
         "fallback_reason": fallback, "sandbox": str(repo), "timed_out": result["timed_out"],
         "exit_code": result["exit"], "elapsed_seconds": round(elapsed, 1),
-        "cost_usd": round(sum(t["cost_usd"] or 0 for t in turns), 4), "turns": turns,
+        "cost_usd": round(sum(known), 4) if known else None,
+        "cost_complete": len(known) == len(costs),
+        "attempts": [
+            {"runner": a["runner"], "killed": a["killed"],
+             "cost_usd": round(sum(c for c in group if c is not None), 4)
+             if any(c is not None for c in group) else None}
+            for a, group in zip(attempts, per_attempt, strict=True)
+        ],
+        "sandbox_state": {"before": before, "after": after},
+        "turns": turns,
     }
     (out / "run.json").write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n",
                                   encoding="utf-8")
