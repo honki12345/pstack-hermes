@@ -403,3 +403,16 @@ def test_undecided_block_keeps_the_call_id_and_delegated_count(tmp_path):
     record = last_decision(tmp_path)
     assert (record["tool_call_id"], record["tool_name"], record["bridged"]) == ("call-9", "terminal", [])
     assert record["delegated"] == 0
+
+
+def test_todos_passed_as_a_json_string_are_read():
+    turn()
+    items = DECIDED["todos"]
+    assert tool("todo_list", args={"todos": json.dumps(items)}) is None
+    assert tool("terminal") is None
+
+
+def test_undecided_todos_passed_as_a_json_string_stay_blocked():
+    turn()
+    tool("todo_list", args={"todos": json.dumps(UNDECIDED["todos"])})
+    assert is_blocked(tool("terminal"))
