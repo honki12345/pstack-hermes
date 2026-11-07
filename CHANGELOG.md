@@ -53,6 +53,9 @@ Entries below this section are history inherited from the original port.
   is the repository root, pinned with `--ref <sha>`.
 
 ### Added
+- `tools/eval/`: harness that runs four fixed poteto-mode prompts in a throwaway
+  Hermes profile and grades the delegation behaviour (G1-G6) from the gate log
+  and `state.db`; only the judge's unit tests run in CI.
 - `hermes-plugin/pstack-delegation`: role-routed `delegate_task` backend that
   maps pstack roles to real models and reasoning effort.
 - H1 converter pass: Hermes delegation and wake contract written into the
