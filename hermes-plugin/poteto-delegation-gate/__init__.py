@@ -76,8 +76,15 @@ MAX_SESSIONS = 256
 READ_ONLY_TOOLS = frozenset({"search_files", "session_search"})
 _READ_ONLY_COMMANDS = frozenset({
     "ls", "cat", "head", "tail", "wc", "pwd", "grep", "rg", "stat", "file", "which", "du", "find",
-    "echo", "jq",
+    "echo", "jq", "cut",
 })
+# `date` 는 `-s`, `--set`, 맨 시각 인자(BSD `date 0612120026`)로 시계를 바꾼다. 그래서 형식(`+...`),
+# `-u`, 출력 형식 플래그(`-I`, `-R`, `--iso-8601`, `--rfc-*`)만 받는다. 명령 앞 환경 변수는 실행 내용을
+# 바꿀 수 있어(`GIT_EXTERNAL_DIFF=...`) `date` 앞 `TZ=` 만 받는다.
+_DATE_FLAGS = frozenset({"-u", "--utc", "--universal", "-R", "--rfc-email", "--rfc-2822"})
+# 출력 형식만 고르는 플래그. 값이 붙는 꼴(`-Iseconds`, `--rfc-3339=ns`)까지 받는다.
+_DATE_FORMAT_RE = re.compile(r"-I[a-z]*\Z|--iso-8601(=[a-z]+)?\Z|--rfc-3339=[a-z]+\Z")
+_TZ_ASSIGN_RE = re.compile(r"TZ=[A-Za-z0-9_+\-/:.]*\Z")
 _READ_ONLY_GIT = frozenset({
     "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
 })
@@ -128,6 +135,8 @@ _HARMLESS_REDIRECT_RE = re.compile(r"(?:&>|[12]?>)[ \t]*/dev/null(?=$|[\s;&|])|[
 #   1. 머리글. tools/process_registry_notifications.py(프로세스 완료, 감시 일치, 감시 해제와 넘침,
 #      heartbeat, 비동기 위임), gateway/run_notifications.py(묶음 완료 두 종류),
 #      gateway/session_automation.py(바쁜 동안 모인 결과)가 만든다. 앞 공백은 허용한다.
+#      hermes_cli/goals.py 의 목표 계속 프롬프트도 여기에 둔다. 사용자가 새로 시킨 일이 아니라 같은
+#      목표의 다음 턴이라서, 목표를 세운 턴의 결정이 그대로 적용된다.
 #   2. 끝의 게이트웨이 푸터. gateway/run_notifications.py 의 INTERNAL_NOTIFICATION_FOOTER 를
 #      게이트웨이 경로의 모든 알림 끝에 붙인다. 머리글 목록에 없는 새 알림도 잡지만 CLI 경로의
 #      알림에는 붙지 않는다. 그래서 머리글도 함께 본다.
@@ -135,6 +144,7 @@ _NOTICE_HEAD_RE = re.compile(
     r"\s*\[(?:"
     r"ASYNC (?:DELEGATION |(?:BATCH )?COMPLETE\b)"
     r"|Background process \S+ heartbeat #"
+    r"|Continuing toward your standing goal\]"
     r"|IMPORTANT: (?:"
     r"Background process "
     r"|\d+ background (?:processes |process results |subagent delegations )"
@@ -300,6 +310,10 @@ def _git_is_read_only(args: list[str]) -> bool:
     return bool(args) and args[0] in _READ_ONLY_GIT
 
 
+def _date_args_are_read_only(args: list[str]) -> bool:
+    return all(a.startswith("+") or a in _DATE_FLAGS or _DATE_FORMAT_RE.match(a) for a in args)
+
+
 def _shell_segment_is_read_only(segment: str) -> bool:
     try:
         words = shlex.split(segment)
@@ -307,7 +321,11 @@ def _shell_segment_is_read_only(segment: str) -> bool:
         return False
     if not words:
         return False
+    if _TZ_ASSIGN_RE.match(words[0]):
+        return len(words) > 1 and words[1] == "date" and _date_args_are_read_only(words[2:])
     head, rest = words[0], words[1:]
+    if head == "date":
+        return _date_args_are_read_only(rest)
     if any(w in _UNSAFE_ARGS or w.startswith(_UNSAFE_PREFIXES.get(head, ())) for w in words):
         return False
     if head == "file":
