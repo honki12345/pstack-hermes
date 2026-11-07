@@ -889,3 +889,27 @@ def test_heartbeat_after_a_decided_turn_does_not_ask_for_a_new_decision():
     tool("todo_list", args=DECIDED)
     turn(message=_BG_HEARTBEAT, turn_id="t2")
     assert tool("process_manage") is None
+
+
+# Flags that write a file or run another program. Checked against the man pages of each allowed
+# command (file, ripgrep, git, find). A command with one of them is never read-only.
+@pytest.mark.parametrize("command", [
+    "file -C", "file --compile", "file -C -m /tmp/magic", "file --comp x", "file -bC x",
+    "file -f list.txt", "file --files-from list.txt",
+    "rg --hostname-bin=/tmp/x foo", "rg --hostname-bin /tmp/x foo",
+    "rg --pre=cmd foo", "rg --pre cmd foo", "rg --pre-glob '*.pdf' foo",
+    "git diff --ext-di", "git diff --ext-diff", "git log -p --ext", "git show --textconv HEAD",
+    "git diff -O/tmp/orderfile", "git diff --out=x.patch", "git log --output=x",
+    "find . -fprint /tmp/x", "find . -fls /tmp/x", "find . -fprintf /tmp/x %p",
+])
+def test_flags_that_write_or_execute_are_not_read_only(command):
+    assert gate._is_read_only_shell(command) is False
+
+
+@pytest.mark.parametrize("command", [
+    "file x", "file -b x", "file -bi x", "file -L --mime-type a b", "file --brief --mime-encoding x",
+    "rg -z foo f", "rg --files", "rg --debug foo", "rg -n --glob '*.py' foo",
+    "git log --pretty=format:%h", "git log --prefix", "git diff --no-ext-diff",
+])
+def test_the_same_commands_without_those_flags_stay_read_only(command):
+    assert gate._is_read_only_shell(command) is True
