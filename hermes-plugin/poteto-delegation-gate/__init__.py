@@ -365,13 +365,28 @@ def _is_read_only_shell(command: object) -> bool:
     return bool(segments) and all(_shell_segment_is_read_only(seg) for seg in segments)
 
 
-def _read_cost(entries: list[tuple[str, dict]]) -> int | None:
+def _is_skill_path(path: object) -> bool:
+    """스킬·playbook 파일 경로. 경로 마디 중 `skills` 디렉터리가 있으면 참이다."""
+    return isinstance(path, str) and "/skills/" in "/" + path.replace("\\", "/")
+
+
+def _is_preparatory(state: _TurnState, name: str, args: dict) -> bool:
+    """결정 없이 통과하는 준비 도구. 후속 턴의 read_file 은 스킬·playbook 파일일 때만 준비 도구다.
+    그 밖의 파일 읽기는 조사의 시작일 수 있어서 읽기 허용에 센다. 마커 턴은 모든 read_file 이 준비다."""
+    if name not in ALLOWED_BEFORE_TODO:
+        return False
+    return not (state.followup and name == "read_file") or _is_skill_path(args.get("path"))
+
+
+def _read_cost(state: _TurnState, entries: list[tuple[str, dict]]) -> int | None:
     """준비 도구를 뺀 나머지가 모두 읽기 전용이면 그 호출 수, 하나라도 아니면 None."""
     cost = 0
     for name, args in entries:
-        if name in ALLOWED_BEFORE_TODO:
+        if _is_preparatory(state, name, args):
             continue
-        if name in READ_ONLY_TOOLS or (name == "terminal" and _is_read_only_shell(args.get("command"))):
+        if name in READ_ONLY_TOOLS or name == "read_file" or (
+            name == "terminal" and _is_read_only_shell(args.get("command"))
+        ):
             cost += 1
         else:
             return None
@@ -501,15 +516,15 @@ def _decide(state: _TurnState, tool_name: str, args: object) -> tuple[str, str]:
     if state.released:
         return "allow", "released"
     undecided_write = any(_writes_todos(a) for a in todo_args)
-    if names and all(n in ALLOWED_BEFORE_TODO for n in names):
+    if names and all(_is_preparatory(state, n, a) for n, a in entries):
         # 결정 없는 todolist 쓰기는 통과시킨다. 에이전트가 `merge: true` 로 결정 항목만 더할 수 있어야
         # 한다. 풀어 주지는 않는다.
         if undecided_write:
             state.todo_pending = True
             return "allow", "todo_pending_decision"
         return "allow", "preparatory_tool"
-    reads = _read_cost(entries)
-    if (state.followup and reads is not None and not state.blocked and not state.todo_pending
+    reads = _read_cost(state, entries)
+    if (state.followup and entries and reads is not None and not state.blocked and not state.todo_pending
             and not undecided_write and state.free_reads + reads <= FOLLOWUP_FREE_READS):
         state.free_reads += reads
         return "allow", "followup_read"

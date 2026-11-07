@@ -1079,3 +1079,10 @@ def test_read_file_after_the_decision_is_free_in_a_followup():
     tool("todo_list", args=DECIDED)
     for i in range(10):
         assert read_file(f"src/f{i}.py") is None
+
+
+def test_followup_bridge_the_gate_cannot_read_is_blocked_like_on_a_marker_turn():
+    turn()
+    followup(message=QUESTION)
+    assert is_blocked(tool("tool_call", args={}))
+    assert is_blocked(tool("tool_call", args={"calls": "not json"}))
