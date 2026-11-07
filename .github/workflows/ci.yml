@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  UPSTREAM_PIN: c47b12849e43f18d5c374c7069c744cc55b0ea00
+  UPSTREAM_PIN: c742dd61706fbacc1b95f1a20b7b988cf096ce6c
 
 jobs:
   build:
@@ -258,7 +258,7 @@ jobs:
 
       - name: Unit tests (poteto-mode scripts)
         working-directory: skills/poteto-mode/scripts
-        run: bun test orch watch-pr
+        run: bun test watch-pr check-plan.test.ts
 
       - name: Typecheck (poteto-mode scripts)
         working-directory: skills/poteto-mode/scripts

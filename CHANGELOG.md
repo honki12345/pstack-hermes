@@ -8,6 +8,17 @@ Independent fork maintained by honki12345 as `honki12345/pstack-hermes`.
 Entries below this section are history inherited from the original port.
 
 ### Changed
+- **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
+  skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,
+  `poteto-help` adapted to Hermes through the new audited `HELP_MAP` (P1).
+  Upstream #1043 deleted `skills/poteto-mode/scripts/orch/`, so the T15/T16
+  stack-provider passes, `tools/templates/local_frontier*.ts`, the orch test
+  patches, `T14_MAP`, and the `Stack provider` policy row are removed. R1
+  (principles index regeneration) and F10/F12 (GNU/BSD stat/date) retired
+  because upstream now ships both; validate keeps the consistency checks.
+  `check-plan.mjs` accepts the `hermes cron` tick marker or upstream's
+  `/loop 1h`. The `pstack-delegation` backend's upstream defaults follow the
+  new pin (Opus xhigh + Grok; Sol dropped). Anchor audit 147/147, 0 dead.
 - Independent fork: repository identity, install/issue URLs, and the product
   policy now point at `honki12345/pstack-hermes`. Default branch `develop`,
   flow `feature → develop → main`, releases are this fork's own `v*` tags.

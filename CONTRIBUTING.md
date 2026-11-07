@@ -41,7 +41,7 @@ The poteto-mode checker scripts additionally need
 
 ```sh
 cd skills/poteto-mode/scripts
-bun run test                              # deps + `bun test orch watch-pr`
+bun run test                              # deps + `bun test watch-pr check-plan.test.ts`
 bun run typecheck                         # deps + tsc --noEmit --strict
 ```
 

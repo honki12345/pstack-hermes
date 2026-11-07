@@ -87,7 +87,7 @@ Poteto-mode checkers (CI runs these):
 
 ```sh
 cd skills/poteto-mode/scripts
-bun run test        # deps + bun test orch watch-pr
+bun run test        # deps + bun test watch-pr check-plan.test.ts
 bun run typecheck   # deps + tsc --noEmit --strict
 ```
 
@@ -95,7 +95,6 @@ bun run typecheck   # deps + tsc --noEmit --strict
 
 | Area | Decision |
 |---|---|
-| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
 | Package identity | Plugin name `pstack`; repository `honki12345/pstack-hermes`, installed from the repo root (pin with `--ref <sha>`); upstream version follows the pin (`plugin.json`); update mechanics live in the package README |
 | Upstream | Lauren Tan's pstack in `cursor/plugins`, tracked through `tools/convert.py` at `UPSTREAM_PIN`; `iap/pstack-hermes` is attribution only ([NOTICE.md](NOTICE.md)) |
 | Releases | Our own `v*` tags on `main`, recorded in `CHANGELOG.md`; never move an existing tag |

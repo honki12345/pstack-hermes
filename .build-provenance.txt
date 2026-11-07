@@ -1,42 +1,37 @@
 package: pstack (hermes agent-plugins-v1, Phase-0 conversion)
 source: (local clone; public origin in source_url)
 source_url: https://github.com/cursor/plugins.git
-source_commit: c47b12849e43f18d5c374c7069c744cc55b0ea00
-converted_at: 2026-11-07T03:50:39Z
-converter: convert.py (sha256[:16]=16c4a7c3420a0611)
+source_commit: c742dd61706fbacc1b95f1a20b7b988cf096ce6c
+converted_at: 2026-11-07T04:18:33Z
+converter: convert.py (sha256[:16]=b6cbbe1a51e600a5)
 schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
 fixes:
   - F-publish: skills/make-bot-ui excluded (Tailscale privilege-escalation scan; F33; upstream flattened the grokbot container)
   - F-publish: make-bot-ui slot filled by hermes-native skills/hermesbot (tools/assets/hermesbot/SKILL.md; hermes gateway webhook/peer/send stack)
-  - skills/poteto-mode/SKILL.md: frontmatter name 'Poteto Mode' -> 'poteto-mode'
-  - script package metadata renamed for hermes, test/typecheck scripts bootstrap deps, git-fixture signing disabled, and Graphite fixture tests given explicit Bun timeouts
-  - T15: orch frontier stack provider abstraction added (auto/graphite/github, gitlab reserved)
-  - T16: local (git-native) stack provider added (auto/graphite/github/gitlab/local)
-  - T16: localFrontier order/exclusion regression test emitted
-  - R1: poteto-mode principles index regenerated from 23 leaves (single source of truth; hand-maintained wording replaced)
+  - script package metadata renamed for hermes; test/typecheck scripts bootstrap deps
   - F16b: check-plan.mjs lane regex rejects whitespace-only slugs (review finding)
-  - F10-F12: worktree-audit.sh portable via stat_mtime/date_epoch helpers (GNU + BSD/macOS); awk no longer truncates space-paths
+  - F11: worktree-audit.sh awk no longer truncates worktree paths with spaces (F10/F12 GNU/BSD stat+date retired: upstream #805 ships the fix)
   - F-publish: 3 localhost endpoint literals neutralized in feature-map example docs (install-scanner network findings)
-  - T8: factual fixes from the hermes deep review applied to 12 skill file(s) + the source-playbook adaptation note (readonly-MCP rationale, swarm Cursor params, tool-name mappings, model-panel path, principle cross-link)
-  - Phase-2A: delegation translation applied across 17 skill files (subagent_type/Task/AskQuestion/run_in_background/cloud -> delegate_task + clarify + background execution)
+  - T8: factual fixes from the hermes deep review applied to 11 skill file(s) + the source-playbook adaptation note (readonly-MCP rationale, swarm Cursor params, tool-name mappings, model-panel path, principle cross-link)
+  - Phase-2A: delegation translation applied across 18 skill files (subagent_type/Task/AskQuestion/run_in_background/cloud -> delegate_task + clarify + background execution)
   - issue #107: replaced inline-shell-triggering `!` with 'non-null assertions' in 1 TS pattern file(s)
   - Stage-D: config/models.json shipped with the model panel (18 roles)
   - T9/T10: hermes-native discovery/config fixes applied across 11 skill file pass(es) (setup-pstack models.json, why/reflect/recall session_search)
-  - T11: hardcoded-path fixes applied to 16 skill file(s) (.cursor rules/projects/skills paths, agent-transcripts recipes, /tmp scratch dirs, malformed-link checks, worktree-cleanup macOS note)
-  - T12: Cursor built-in wake/goal rewording applied across 9 skill file(s) + 1 checker file(s) (terminal /loop -> gateway cron wake; armed /goal -> goal.md in the agent store; check-plan marker aligned)
-  - T13: residual Cursor-vendor coupling Phase-2 wrap-up applied across 9 skill file(s) (cursor-team-kit plugin references, cloud-agent fleet, Graphite `gt` rewording)
-  - T14: stacker-role / topology rewording (option b, issue #33) applied across 1 skill file(s) (stacker clone, one-stacker serialization, retarget)
-  - H1: Hermes delegation contract applied across 14 skill file(s) + skills/poteto-mode/references/hermes-delegation.md (route by pstack_role via the pstack delegation backend; model is dropped and readonly refused by core; read-only advisory + verified; cron ticks are fresh runs)
+  - T11: hardcoded-path fixes applied to 17 skill file(s) (.cursor rules/projects/skills paths, agent-transcripts recipes, /tmp scratch dirs, malformed-link checks, worktree-cleanup macOS note)
+  - T12: Cursor built-in wake/goal rewording applied across 8 skill file(s) + 1 checker file(s) (terminal /loop -> gateway cron wake; armed /goal -> goal.md in the agent store; check-plan marker aligned)
+  - T13: residual Cursor-vendor coupling Phase-2 wrap-up applied across 6 skill file(s) (cursor-team-kit plugin references, cloud-agent fleet, Graphite `gt` rewording)
+  - P1: poteto-help Cursor-only mechanisms re-pointed at Hermes across 3 file(s) (install, Custom Modes, setup-pstack panel, cross-harness note, /loop, hermesbot row)
+  - H1: Hermes delegation contract applied across 12 skill file(s) + skills/poteto-mode/references/hermes-delegation.md (route by pstack_role via the pstack delegation backend; model is dropped and readonly refused by core; read-only advisory + verified; cron ticks are fresh runs)
   - Phase-2A: Comment Sicko persona copied into no-comments references for hermes prompt inlining
   - F-publish: automations/benny excluded (scanner persistence verdict) and skills/make-bot-ui excluded (scanner privilege verdict; F33)
   - assets/: 1 file(s) copied verbatim (referenced by the manifest)
   - plugin.json: injected exact agent-plugins-v1 $schema at ROOT (9 whitelisted fields; displayName/category/tags/agents/skills omitted)
-  - text normalization: UTF-8 without BOM, LF line endings (files normalized: 125, BOM stripped: 0, CRLF fixed: 0)
-  - repo-root layout: rewrote stale pstack/skills path(s) in 3 file(s)
-  - anchor audit: 148/148 transform anchors applied (0 dead; the converter fails loudly on upstream drift)
+  - text normalization: UTF-8 without BOM, LF line endings (files normalized: 537, BOM stripped: 0, CRLF fixed: 0)
+  - repo-root layout: rewrote stale pstack/skills path(s) in 101 file(s)
+  - anchor audit: 147/147 transform anchors applied (0 dead; the converter fails loudly on upstream drift)
 counts:
-  skills_loaded: 47 (24 workflow/mode + 23 principle)
-  skill_md_on_disk: 47 (skills/ only; automations/benny + make-bot-ui excluded for the install scanner)
+  skills_loaded: 58 (34 workflow/mode + 24 principle)
+  skill_md_on_disk: 58 (skills/ only; automations/benny + make-bot-ui excluded for the install scanner)
   agents_files: 0
 notes:
   - agents/ and .cursor-plugin/ are not emitted (Hermes-native package; no Cursor dual-load)

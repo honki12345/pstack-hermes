@@ -3,7 +3,7 @@
 *The pstack agent method — go fast by going deep first — packaged for the
 Hermes Agent portable plugin path. Unofficial port of
 <https://github.com/cursor/plugins/tree/main/pstack> (MIT, © Lauren Tan);
-package keeps the upstream identity pstack v0.15.5.*
+package keeps the upstream identity pstack v0.15.36.*
 
 Independently maintained by honki12345 at
 <https://github.com/honki12345/pstack-hermes>. The converter and tooling
@@ -91,8 +91,8 @@ a hermes defect that reproduces with the plugin disabled →
 
 ## What hermes loads
 
-- **47 skills** (24 workflow/mode +
-  23 `principle-*`), single-level `skills/<dir>/SKILL.md`,
+- **58 skills** (34 workflow/mode +
+  24 `principle-*`), single-level `skills/<dir>/SKILL.md`,
   discovered via the root `plugin.json` (agent-plugins-v1 manifest,
   9 whitelisted fields).
 - `skills/hermesbot/` — hermes-native control-surface skill on the gateway
@@ -111,18 +111,17 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | Pass | What changed |
 |---|---|
 | manifest | root `plugin.json` injected: exact agent-plugins-v1 `$schema`, 9-field whitelist |
-| frontmatter | `poteto-mode` name fixed to kebab-case (loader requirement) |
-| R1 | poteto-mode principles index regenerated from the 23 leaves |
-| F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex |
-| F10–F12 | `worktree-audit.sh` portable (GNU/BSD), space-safe |
+| R1 | retired at c742dd6: upstream curates the principles index; the build only checks every entry resolves to a shipped leaf |
+| F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex (F16b still rejects a whitespace-only slug) |
+| F11 | `worktree-audit.sh` reads worktree paths with spaces whole (F10/F12 GNU/BSD fixes retired: upstream ships them) |
 | F-publish | `benny` + `make-bot-ui` excluded (scanner verdicts); `hermesbot` fills the slot; 3 localhost literals neutralized |
 | T8/T9/T10 | `setup-pstack` writes the model panel beside hermes' `config.yaml` (outside the package, so updates do not discard it); discovery via `session_search`; hermes tool names |
 | Phase-2A | delegation vocabulary → `delegate_task` / `clarify` package-wide |
-| T11 | hardcoded Cursor paths → hermes equivalents |
-| T12 | `/loop` → `hermes cron` wake; `/goal` → `goal.md` in the agent store |
-| T13 | residual vendor coupling reworded (`cursor-team-kit`, cloud fleet, `gt`) |
-| T14 | stacker-role / topology re-pointed |
-| T15 | `orch frontier set` provider selection: `auto` / `graphite` / `github` |
+| T11 | hardcoded Cursor paths → hermes equivalents; upstream guide links → upstream URLs |
+| T12 | `/loop` → `hermes cron` wake (each tick a fresh run); check-plan accepts either marker |
+| T13 | residual vendor coupling reworded (`cursor-team-kit` skills named as optional, cloud agents → local delegates) |
+| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, panel file, `hermesbot` row |
+| H1 | spawns route by `pstack_role` / `seat` / `access` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the
@@ -133,13 +132,12 @@ fork-level audit lives in the repository at `docs/fork/AUDIT-ko.md`.
 - `deslop`, `control-ui`, `control-cli` are named by playbooks but ship
   outside this package; a verdict without its demanded live lane is
   incomplete, not clean. (`no-comments`, `unslop`, `technical-writing` ship.)
-- `orch frontier set` providers: `auto` (Graphite first, then GitHub-native
-  PR base/head topology), `graphite`, `github`. GitLab reserved, not
-  implemented.
-- Stack topology needs Graphite (`gt`): restacks, stack surgery, and the
-  stack-aware merge queue have no hermes equivalent. GitHub-native stacked
-  PRs (`gh stack`) cover some stack operations; ordinary base changes go
-  through the forge and need no stacker.
+- `statechart` installs TLC and Java with `mise` on its first run (network;
+  the TLC jar is checksum-pinned), and its renderer guide installs the npm
+  package `pele` outside the repo. Both happen only when the skill runs.
+- `poteto-help` links upstream's `docs/guide/` pages, which this package does
+  not ship; `/visualize` (named by `ketchup`) is a harness feature, not a
+  pstack skill.
 - No `mcp.json` shipped: research skills use whichever MCP servers the
   session configures; unreachable sources are recorded as null findings,
   never invented.

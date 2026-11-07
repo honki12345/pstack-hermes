@@ -9,8 +9,8 @@
 
 ## What you installed
 
-A **method package**: 47 instructions-for-the-agent skills (24 workflow/mode +
-23 `principle-*`) plus the converter/validator tooling that keeps them faithful
+A **method package**: 58 instructions-for-the-agent skills (34 workflow/mode +
+24 `principle-*`) plus the converter/validator tooling that keeps them faithful
 to upstream. It is not a service, a daemon, or an autopilot — it changes how
 the agent works on a task you give it.
 
@@ -47,18 +47,17 @@ convenience route when you want `/poteto-mode` style commands.
 3. **Give it a real task** and load `poteto-mode`. It classifies the work and
    routes to the right playbook; you do not pick the playbook yourself.
 
-## Stack forge (Graphite / GitHub)
+## PR forge (GitHub / Origin)
 
-When playbooks talk about stacks and frontiers:
+When playbooks open, verify, or land PRs:
 
-- **Default:** Graphite (`gt`) when installed and working.
-- **Fallback:** GitHub (`gh`) PR base/head topology when Graphite is absent or
-  when the provider is set to `github` / auto-fallback.
+- **Default:** GitHub CLI (`gh`).
+- **Origin:** when `command -v origin` succeeds and Origin can resolve the
+  repository, the playbooks use `origin pr` for every PR operation instead.
+- **Graphite (`gt`):** never required. Upstream dropped it from Orchestrate,
+  and the `orch` frontier scripts are gone (upstream v0.15.36); the Orchestrate
+  playbook now runs on `delegate_task` workers and the forge CLI directly.
 - **GitLab (`glab`):** not supported in this port (future / halted).
-
-Missing Graphite is not a hard failure if GitHub can complete the task. Some
-operations (e.g. certain restacks) still need Graphite; treat those verdicts as
-incomplete when `gt` is unavailable rather than inventing a substitute.
 
 ## What to expect
 

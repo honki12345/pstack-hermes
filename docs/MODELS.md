@@ -7,7 +7,8 @@ pstack picks a model per role. Three layers, highest precedence first:
 2. **The shipped panel** — `config/models.json` inside the package. What a role
    uses until you configure it.
 3. **The method text** — skills name Cursor-family defaults
-   (`grok-4.7-xhigh-fast`, `claude-opus-5-5-max`, `gpt-5.6-sol-max`); this port
+   (`grok-4.7-xhigh-fast`, `claude-opus-5-5-xhigh`; upstream v0.15.36 dropped
+   `gpt-5.6-sol-max`); this port
    substitutes its own hermes-side defaults for those names, as mapped below.
 
 ## Upstream name → hermes-side default
@@ -16,9 +17,9 @@ pstack picks a model per role. Three layers, highest precedence first:
 |---|---|---|
 | `grok-4.7-xhigh-fast` | `feature, refactoring`, `bug-fix`, `perf-issue`, `hillclimb` | `z-ai/glm-5.2` |
 | `grok-4.7-xhigh-fast` | `swarm workers`, `how explorer` | `meituan/longcat-2.0` |
-| `claude-opus-5-5-max` | `judgment and prose`, `how explainer` | `meituan/longcat-2.0` |
-| `claude-opus-5-5-max` | `why synthesizer`, `reflect judgment, divergent, synthesizer` | `z-ai/glm-5.2` |
-| `gpt-5.6-sol-max` | `interrogate` reviewer slots | the `interrogate reviewers` list below |
+| `claude-opus-5-5-xhigh` | `judgment and prose`, `how explainer` | `meituan/longcat-2.0` |
+| `claude-opus-5-5-xhigh` | `why synthesizer`, `reflect judgment, divergent, synthesizer` | `z-ai/glm-5.2` |
+| `claude-opus-5-5-xhigh`, `grok-4.7-xhigh-fast` | `interrogate` reviewer slots | the `interrogate reviewers` list below |
 | `inherit-parent` | any role set to it | unchanged — the role runs on the parent chat model |
 
 The `vendor/model` values are ids from the provider catalog the tooling checks

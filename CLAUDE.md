@@ -62,7 +62,6 @@ Everything below follows from that rule.
 
 | Area | Decision |
 |---|---|
-| Stack provider | Graphite (`gt`) default when available; GitHub (`gh`) fallback; `local` (git-native) explicit only; GitLab (`glab`) halted |
 | Package identity | Plugin name `pstack`; repository `honki12345/pstack-hermes`, installed from the repo root (pin with `--ref <sha>`); upstream version follows the pin (`plugin.json`) |
 | Upstream | Lauren Tan's pstack in `cursor/plugins` via `tools/convert.py`; `iap/pstack-hermes` is attribution only ([NOTICE.md](NOTICE.md)) |
 | Releases | Our own `v*` tags on `main`, recorded in `CHANGELOG.md`; never move an existing tag |
@@ -100,7 +99,7 @@ mappings are enforced by the converter and validation gates:
 
 ## Skill discovery and loading
 
-- **47 skills** (24 workflow/mode + 23 `principle-*`), single-level
+- **58 skills** (34 workflow/mode + 24 `principle-*`), single-level
   `skills/<dir>/SKILL.md`, discovered via the root `plugin.json`
   (agent-plugins-v1 manifest, 9 whitelisted fields).
 - Skills are opt-in on the portable path: load one with
@@ -167,12 +166,9 @@ hermes plugins install honki12345/pstack-hermes --enable
 - `deslop`, `control-ui`, `control-cli` are named by playbooks but ship
   outside this package; a verdict without its demanded live lane is
   incomplete, not clean. (`no-comments`, `unslop`, `technical-writing` ship.)
-- `orch frontier set` providers: `auto` (Graphite first, then GitHub-native
-  PR base/head topology), `graphite`, `github`. GitLab reserved, not implemented.
-- Stack topology needs Graphite (`gt`): restacks, stack surgery, and the
-  stack-aware merge queue have no hermes equivalent. GitHub-native stacked
-  PRs (`gh stack`) cover some stack operations; ordinary base changes go
-  through the forge and need no stacker.
+- `statechart` installs TLC and Java with `mise` on its first run (network;
+  the TLC jar is checksum-pinned); its renderer guide installs npm `pele`
+  outside the repo.
 - No `mcp.json` shipped: research skills use whichever MCP servers the
   session configures; unreachable sources are recorded as null findings,
   never invented.
