@@ -58,9 +58,9 @@
 | 모델 시트 검증기 | `check-sheet.sh` | 없음 | **완료**: `routing.py --check` |
 | 런타임별 도구 대응표 | `references/*-tools.md` | 본문을 그 자리에서 치환 | **완료**: `poteto-mode/references/hermes-delegation.md` |
 | 버려진 에이전트를 멈춘 뒤 교체 | poteto-mode 규칙 | 없음 | **완료**: 계약 문서의 `stop`/`steer` |
-| 업스트림 추적 | 최신 `c742dd6`에 동기화 | `c47b128` | 권장: 고정 시점 갱신. 앵커 감사에서 남는 표현 정리 필요 |
+| 업스트림 추적 | 최신 `c742dd6`에 동기화 | `c47b128` | **완료**: `c742dd6`(v0.15.36)로 재고정, 앵커 147/147, 신규 스킬 11개 적응 |
 | 포크 정책 변경의 파일별 기록 | `tools/forks.json`(why/since/upstream) | 변환 단계 설명뿐 | 권장: T8, G1 등 의미 변경을 등록부로 분리 |
-| cursor-team-kit 포함 | deslop, fix-ci, fix-merge-conflicts 등 | 참조만 남음 | 권장: deslop 포함, 또는 참조를 조건부로 처리 |
+| cursor-team-kit 포함 | deslop, fix-ci, fix-merge-conflicts 등 | 참조만 남음 | **완료(조건부)**: `deslop`·`control-*` 참조를 "설치된 경우"로 변경, 외부 코드는 들여오지 않음 |
 | 세션 시작 라우팅 훅 | SessionStart hook | 없음 | 권장: Hermes 플러그인 hook으로 poteto-mode 안내 주입 |
 | 네이티브 에이전트 등록(poteto-agent) | `.claude/agents` | 없음 | 부분 완료: `profile:<name>` 경로로 페르소나 프로필 지정 가능 |
 
@@ -90,7 +90,7 @@ Hermes의 `delegation.backend` 공급자 플러그인 경계를 사용합니다.
 | 실제 Hermes v0.23.0 로더 통합 테스트 | 3개 통과: 스키마 인자와 바이트 안정성, 좌석 3개가 모델 3개로 빌드됨, 4번째 좌석만 거부, `readonly` 거부 |
 | 저장소 전체 pytest, ruff, check_docs, validate.py(static·gold manifest·gold load) | 모두 통과 |
 | `hermes plugins doctor`(패키지, 플러그인) | OK |
-| 실제 프로필에 설치해 실제 모델 호출 | **미실행**. 사용자 프로필 설정 변경이 필요해 승인 대상 |
+| 실제 모델 호출(검증 전용 프로필 `pstacklab`) | **통과**: 1회 호출의 seat 0/1/2가 `claude-opus-5-5`, `gpt-6-astra-900k`(`profile:reviewer`), `claude-sonnet-5-5[1m]`(부모)로 실행됨. 1회성 실행은 `delegation.oneshot_max_children`(기본 2)을 올려야 3석이 실행됨 |
 
 ## 원칙 변경(T8·G1) 결정: 업스트림 원문 복원
 

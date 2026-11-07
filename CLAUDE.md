@@ -95,7 +95,7 @@ mappings are enforced by the converter and validation gates:
 | `/loop` | `hermes cron` wake |
 | `/goal` | write `goal.md` in the agent store |
 | `poteto-agent` | Do not override — respect what the skill prescribes |
-| `readonly` (Ask mode) | `readonly: false` (agent mode). Investigators still shouldn't write anything. Readonly on hermes restricts file writes only; MCP access is unaffected. |
+| `readonly` (Ask mode) | No per-task `readonly` on Hermes (core refuses the key). `access: read-only` via the pstack delegation backend, a READ-ONLY `context` line, and a parent `git status` check; children keep MCP. See `skills/poteto-mode/references/hermes-delegation.md`. |
 
 ## Skill discovery and loading
 

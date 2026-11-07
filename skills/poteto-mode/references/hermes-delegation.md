@@ -24,6 +24,9 @@ A legacy `role` (`leaf`) is accepted and ignored: depth decides capability.
   standing-by reply. Do not idle or poll; the results wake you.
 - Children inherit the parent's toolsets. Nothing narrows a child's tools per
   task.
+- A one-shot run (`hermes -z`) and a cron tick cap children at
+  `delegation.oneshot_max_children` (default 2). A three-seat panel needs it
+  raised in that profile, or the whole call is refused before any child starts.
 
 ## Route by role, not by slug
 
