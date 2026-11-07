@@ -15,32 +15,36 @@
 
 ## 1. 원 감사 항목의 현재 상태
 
-원 감사의 지적과 권장 17건 중 14건이 해소됐습니다. 아래 해소 표는 같은 커밋으로 고친
-항목을 한 행으로 묶어 10행입니다. 미해결은 3건이고, 모두 백로그 항목이 담당을 정합니다.
-명령은 저장소 루트에서 실행합니다. `<upstream>`은 `cursor/plugins` 클론 경로입니다.
+원 감사의 지적과 권장은 17건입니다. 2장 보안 표에서 등급이 중간이나 낮음인 4행, 2장 기능 표
+11행, 그리고 원 감사 때 비교 표(지금의 3장)에 "권장"으로 남긴 2행을 더한 수입니다
+(`git show dcdcf21:docs/fork/AUDIT-ko.md`의 30-33행, 40-50행, 62행, 64행). 이 중 14건이
+해소됐고 3건이 남았습니다. 해소 표는 같은 커밋으로 고친 항목을 한 행으로 묶어 10행입니다.
+"원 감사 행" 열은 각 행이 묶은 원 감사 표의 행 수이고, 이 열을 더하면 보안 표 4행과 기능 표
+10행으로 14입니다. 미해결 표 3행은 기능 표 1행과 비교 표 2행이고, 모두 백로그 항목이 담당을
+정합니다. 명령은 저장소 루트에서 실행합니다. `<upstream>`은 `cursor/plugins` 클론 경로입니다.
 
 ### 해소된 항목
 
-| # | 원 감사 항목 | 해소 커밋 | 다시 확인하는 방법과 결과 |
-|---|---|---|---|
-| 1 | 보안 표의 `publish-dist.yml` 자동 push, 스캐너 우회 패치, 출처를 검증할 수 없는 서명 키, `model-drift-watch.yml` 주간 이슈 | `9521d12` | `ls .github/workflows`는 `ci.yml`과 `validate-gold.yml`만 보여 줍니다. `patches/`와 `keys/`는 없습니다. |
-| 2 | `delegate_task`에 넘긴 `model`이 오류 없이 무시되어 다중 모델 패널이 한 모델로 줄어듦 | `a703a0d`, `8458f13` | 스킬은 `pstack_role`로 경로를 고릅니다(`skills/poteto-mode/references/hermes-delegation.md:32-55`). `grep -rnE 'delegate_task\([^)]*model' skills`는 0건입니다. `uv run --frozen pytest -q tools/tests/test_pstack_delegation_routing.py`는 14개 통과입니다. |
-| 3 | `readonly: true`를 넘기면 작업이 거부됨 | `8458f13` | `grep -rn 'readonly: true' skills`는 0건입니다. 변환기의 `H1_FORBIDDEN`(`tools/convert.py:1162-1168`)은 그 지시가 다시 생기면 빌드를 실패시킵니다. |
-| 4 | "readonly는 파일 쓰기만 막고 MCP는 유지"라는 사실과 다른 서술 | `8458f13` | 계약 문서의 읽기 전용 절이 권고 지시와 `git status` 사후 검증으로 바뀌었습니다(`hermes-delegation.md:57-69`). `H1_FORBIDDEN`이 `MCP access is unaffected`를 금지합니다. |
-| 5 | `/loop`를 cron으로 바꾸면서 "이 세션을 다시 깨운다"고 서술 | `8458f13` | `grep -rn 're-wakes this session' skills`는 0건이고 `H1_FORBIDDEN`이 이 문구를 금지합니다. 계약 문서는 cron 틱을 새 실행으로 다룹니다(`hermes-delegation.md:71-86`). 스킬 문서에서 `/loop`는 `skills/poteto-help/SKILL.md:109`의 설명 한 곳뿐입니다(`grep -rn '/loop' skills --include=*.md`). |
-| 6 | orchestrate의 "Always local execution ..."와 autopilot의 "A local root ..." 자기모순 | `8458f13` | `git grep -l 'A local root' e6beab0 -- skills`는 2개 파일을, `Always local execution`은 1개 파일을 찾습니다. 현재 `skills/`에서는 둘 다 0건입니다. |
-| 7 | 아무 스킬도 읽지 않는 `config/models.json`에 이질적인 slug가 있음 | `63b83c1` | 모든 역할이 `inherit-parent`인 템플릿입니다. `grep -c -e qwen -e muse-spark config/models.json`은 0입니다. `docs/MODELS.md:43-46`이 템플릿이라고 밝힙니다. |
-| 8 | 원칙 문구 완화(T8)와 feature 플레이북의 직접 구현 예외(G1) | `63b83c1` | `principle-fix-root-causes`와 `principle-test-behavior-not-implementation`의 `SKILL.md`가 pin의 업스트림 원문과 바이트 단위로 같습니다(`cmp <(git -C <upstream> show c742dd6:pstack/skills/<이름>/SKILL.md) skills/<이름>/SKILL.md`). `feature.md`는 업스트림과 12행 하나만 다르고, 그 차이는 H1 계약에 등록한 standing-by 응답 적응 문장입니다. |
-| 9 | `github` 스택 공급자(T15)가 저장소 전체 PR을 대상으로 함 | `7d3d6e9` | 업스트림 #1043이 `scripts/orch/`를 지웠고 T15와 T16 패스도 빠졌습니다(`tools/convert.py:320-322`). `ls skills/poteto-mode/scripts`에 `orch/`가 없습니다. |
-| 10 | 고정 시점이 v0.15.5로 업스트림보다 79커밋 뒤처짐 | `7d3d6e9`, `6194aec` | `check_pins.py` 출력과 `.build-provenance.txt`의 `source_commit`이 `c742dd6...`으로 같습니다. 앵커 감사는 147/147, 0 dead입니다(`.build-provenance.txt:31`). 스킬은 47개에서 58개로 늘었습니다. |
+| # | 원 감사 항목 | 원 감사 행 | 해소 커밋 | 다시 확인하는 방법과 결과 |
+|---|---|---|---|---|
+| 1 | 보안 표의 `publish-dist.yml` 자동 push, 스캐너 우회 패치, 출처를 검증할 수 없는 서명 키, `model-drift-watch.yml` 주간 이슈 | 보안 4 | `9521d12` | `ls .github/workflows`는 `ci.yml`과 `validate-gold.yml`만 보여 줍니다. `patches/`와 `keys/`는 없습니다. |
+| 2 | `delegate_task`에 넘긴 `model`이 오류 없이 무시되어 다중 모델 패널이 한 모델로 줄어듦 | 기능 1 | `a703a0d`, `8458f13` | 스킬은 `pstack_role`로 경로를 고릅니다(`skills/poteto-mode/references/hermes-delegation.md:32-55`). `` grep -rnE -e '^- `model`:' -e 'Set `model` to' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 9건입니다. `uv run --frozen pytest -q tools/tests/test_pstack_delegation_routing.py`는 14개 통과입니다. |
+| 3 | `readonly: true`를 넘기면 작업이 거부됨 | 기능 1 | `8458f13` | `` grep -rnF '`readonly`: `true`' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 4건입니다. 변환기의 `H1_FORBIDDEN`(`tools/convert.py:1162-1168`)은 이 문자열이 다시 생기면 빌드를 실패시킵니다. |
+| 4 | "readonly는 파일 쓰기만 막고 MCP는 유지"라는 사실과 다른 서술 | 기능 1 | `8458f13` | 계약 문서의 읽기 전용 절이 권고 지시와 `git status` 사후 검증으로 바뀌었습니다(`hermes-delegation.md:57-69`). `H1_FORBIDDEN`이 `MCP access is unaffected`를 금지합니다. |
+| 5 | `/loop`를 cron으로 바꾸면서 "이 세션을 다시 깨운다"고 서술 | 기능 1 | `8458f13` | `grep -rn 're-wakes this session' skills`는 0건이고 `H1_FORBIDDEN`이 이 문구를 금지합니다. 계약 문서는 cron 틱을 새 실행으로 다룹니다(`hermes-delegation.md:71-86`). 스킬 문서에서 `/loop`는 `skills/poteto-help/SKILL.md:109`의 설명 한 곳뿐입니다(`grep -rn '/loop' skills --include=*.md`). |
+| 6 | orchestrate의 "Always local execution ..."와 autopilot의 "A local root ..." 자기모순 | 기능 2 | `8458f13` | `git grep -l 'A local root' e6beab0 -- skills`는 2개 파일을, `Always local execution`은 1개 파일을 찾습니다. 현재 `skills/`에서는 둘 다 0건입니다. |
+| 7 | 아무 스킬도 읽지 않는 `config/models.json`에 이질적인 slug가 있음 | 기능 1 | `63b83c1` | 모든 역할이 `inherit-parent`인 템플릿입니다. `grep -c -e qwen -e muse-spark config/models.json`은 0입니다. `docs/MODELS.md:43-46`이 템플릿이라고 밝힙니다. |
+| 8 | 원칙 문구 완화(T8)와 feature 플레이북의 직접 구현 예외(G1) | 기능 1 | `63b83c1` | `principle-fix-root-causes`와 `principle-test-behavior-not-implementation`의 `SKILL.md`가 pin의 업스트림 원문과 바이트 단위로 같습니다(`cmp <(git -C <upstream> show c742dd6:pstack/skills/<이름>/SKILL.md) skills/<이름>/SKILL.md`). `feature.md`는 업스트림과 12행 하나만 다르고, 그 차이는 H1 계약에 등록한 standing-by 응답 적응 문장입니다. |
+| 9 | `github` 스택 공급자(T15)가 저장소 전체 PR을 대상으로 함 | 기능 1 | `7d3d6e9`, `6194aec` | 업스트림 #1043이 `scripts/orch/`를 지웠고, `7d3d6e9`가 T15와 T16 패스를 뺐습니다(`tools/convert.py:320-322`). 재빌드 커밋 `6194aec`가 생성본의 `orch/`를 지웠습니다(`git log --diff-filter=D --oneline -- skills/poteto-mode/scripts/orch`). `ls skills/poteto-mode/scripts`에 `orch/`가 없습니다. |
+| 10 | 고정 시점이 v0.15.5로 업스트림보다 79커밋 뒤처짐 | 기능 1 | `7d3d6e9`, `6194aec` | `check_pins.py` 출력과 `.build-provenance.txt`의 `source_commit`이 `c742dd6...`으로 같습니다. 앵커 감사는 147/147, 0 dead입니다(`.build-provenance.txt:31`). 스킬은 47개에서 58개로 늘었습니다. |
 
 ### 미해결 항목
 
-| 원 감사 항목 | 현재 근거 | 백로그 |
-|---|---|---|
-| `deslop`, `control-ui`, `control-cli`가 패키지 밖 스킬을 가리킴 | `7d3d6e9`가 "설치된 경우" 조건을 붙였습니다(`skills/poteto-mode/SKILL.md:29`, `:31`). `skills/poteto-mode/playbooks/multi-phase-plan.md:59`의 `/deslop` 줄에는 조건이 없고, 같은 파일의 다른 줄에도 `deslop` 조건 문구가 없습니다. | B15 |
-| 업스트림 의미 변경을 파일별로 남기는 등록부가 없음 | `tools/forks.json`이 없습니다. 의미 변경 결정은 이 문서 5장의 서술뿐입니다. | B13 |
-| 세션 시작 라우팅 훅이 없음 | `hermes-plugin/`에는 위임 공급자만 등록하는 `pstack-delegation` 하나뿐입니다(`hermes-plugin/pstack-delegation/__init__.py:104-105`). | B14 |
+| 원 감사 항목 | 원 감사 행 | 현재 근거 | 백로그 |
+|---|---|---|---|
+| `deslop`, `control-ui`, `control-cli`가 패키지 밖 스킬을 가리킴 | 기능 1 | `7d3d6e9`가 "설치된 경우" 조건을 붙였습니다(`skills/poteto-mode/SKILL.md:29`, `:31`). 조건이 없는 `/deslop` 줄이 두 개 남았습니다. `skills/poteto-mode/playbooks/multi-phase-plan.md:59`와 `skills/poteto-mode/playbooks/opening-a-pr.md:34`입니다. `opening-a-pr.md`는 9행에만 조건이 있습니다. | B15 |
+| 업스트림 의미 변경을 파일별로 남기는 등록부가 없음 | 비교 1 | `tools/forks.json`이 없습니다. 의미 변경 결정은 이 문서 5장의 서술뿐입니다. | B13 |
+| 세션 시작 라우팅 훅이 없음 | 비교 1 | `hermes-plugin/`에는 위임 공급자만 등록하는 `pstack-delegation` 하나뿐입니다(`hermes-plugin/pstack-delegation/__init__.py:104-105`). | B14 |
 
 ### 포크가 고칠 수 없는 Hermes 한계
 

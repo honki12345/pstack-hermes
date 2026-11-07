@@ -33,19 +33,21 @@ PR-1과 PR-6은 서로 독립이라 먼저 함께 시작합니다. PR-1이 병�
 
 ## 효과를 재는 지표
 
-PR-1이 추가할 평가 하네스는 poteto-mode 마커를 붙인 프롬프트를 격리 프로필에서 실행하고,
-관문 로그와 세션 DB(`state.db`의 `messages.tool_calls`, 자식 `sessions`)만 읽어 아래 지표를
-JSON으로 냅니다. 모델 판정은 쓰지 않습니다. 하네스는 아직 `develop`에 없으므로 정의는
-PR-1에서 확정됩니다.
+PR-1이 추가할 평가 하네스는 poteto-mode 마커를 붙인 프롬프트를 격리 프로필에서 실행합니다.
+판정기는 관문 로그, `state.db`의 `messages`와 `sessions` 표, 실행 기록 `run.json`에 남은
+샌드박스 전후 상태를 읽어 아래 지표를 JSON으로 냅니다. 모델 판정은 쓰지 않습니다. 아래 표는
+PR #4 head `ad78fece`의 정의를 요약한 것입니다. 상세 판정 기준의 정본은 PR-1이 추가하는
+`tools/eval/README.md`입니다. PR-1은 아직 `develop`에 병합되지 않았으므로 기준은 PR-1에서
+확정됩니다.
 
 | 지표 | 통과 조건 |
 |---|---|
-| G1 선결정 | 첫 작업 도구 호출 전에 `todo_list`가 있고, 항목에 `delegate_task` 또는 `skip:` 결정이 있다 |
-| G2 차단 후 복구 | 차단이 났다면 다음 시도에서 todolist를 쓴다 |
-| G3 위임 실행 | 버그 수정 프롬프트에서 `delegate_task`가 1회 이상 나온다 |
-| G4 과잉 위임 방지 | 한 줄 수정 프롬프트에서 `delegate_task`가 0회이고 `skip:` 사유가 있다 |
-| G5 조사 재라우팅 | 설명 요청 프롬프트에서 파일이나 저장소를 바꾸는 도구 호출이 0회다 |
-| G6 후속 턴 | 마커 없는 후속 턴에도 관문이 적용된다 |
+| G1 선결정 | 관문이 켜졌고, 첫 작업 도구 호출 전에 `delegate_task` 또는 `skip:` 결정이 든 `todo_list`가 있다. 관문이 막은 작업 호출도 첫 작업 호출로 센다 |
+| G2 차단 후 복구 | 관문 차단 뒤 두 번째 차단 없이 todolist를 쓴다. 한 assistant 메시지에서 난 차단은 한 시도로 묶고, 그 뒤 메시지에서 다시 차단되면 실패다 |
+| G3 위임 실행 | 버그 수정 프롬프트에서 `delegate_task`가 1회 이상 실행된다. 거부된 호출은 자식 세션이 있을 때만 센다 |
+| G4 과잉 위임 방지 | 한 줄 수정 프롬프트에서 `delegate_task`와 자식 세션이 0이고, todolist의 `skip:`에 사유가 있다 |
+| G5 조사 재라우팅 | 설명 요청 프롬프트의 샌드박스가 실행 전후로 같은 `HEAD`와 같은 porcelain 상태(새 파일 포함)이고, 파일 쓰기 도구(`write_file`, `patch`, `skill_manage`) 호출이 0회다 |
+| G6 후속 턴 | 마커 없는 후속 턴에도 관문 이벤트가 있고 `turn_disarmed`가 없다 |
 
 모델 출력이 비결정적이므로 각 지표는 여러 번 실행한 통과 비율로 판정합니다.
 
@@ -128,7 +130,7 @@ Hermes v0.23.0은 `todo_list`를 기본 지연 도구로 둡니다. 에이전트
 todolist를 건너뛰게 만드는지는 추정입니다.
 
 - 대상. 사용자 로컬. 기본값 자체를 바꾸는 일은 Hermes 본체 대상입니다.
-- 근거. Hermes 소스 `hermes_cli/config_defaults.py:2001-2003`의 `tools.tool_search.defer` 기본 목록에 `todo_list`가 있습니다. `tools/tool_search.py:53`은 명시한 `defer` 목록이 기본 목록을 통째로 대신한다고 적습니다. 로컬 관찰. 기본 프로필 관문 로그의 두 poteto-mode 턴과 검증 프로필 관문 로그의 한 턴 모두 `todo_list` 허용 앞에 `tool_describe` 허용이 찍혀 있습니다.
+- 근거. Hermes 소스 `hermes_cli/config_defaults.py:2001-2003`의 `tools.tool_search.defer` 기본 목록에 `todo_list`가 있습니다. Hermes 소스 `tools/tool_search.py:53`은 명시한 `defer` 목록이 기본 목록을 통째로 대신한다고 적습니다. 로컬 관찰. 기본 프로필 관문 로그의 두 poteto-mode 턴과 검증 프로필 관문 로그의 한 턴 모두 `todo_list` 허용 앞에 `tool_describe` 허용이 찍혀 있습니다.
 - 검사. `defer`에서 `todo_list`를 뺀 프로필과 기본 프로필로 평가 하네스를 돌려, 첫 `todo_list`까지의 도구 호출 수와 G1을 비교합니다.
 - 담당. 운영자 항목.
 
@@ -159,20 +161,20 @@ poteto-mode는 위임을 기본으로 하므로 두 지시가 부딪힙니다.
 
 - 대상. Hermes 본체.
 - 근거. 로컬 관찰(2026-11-08). CLI 출력과 `sqlite3 -readonly state.db "select source, count(*) from sessions group by source;"`의 `subagent|65`를 비교했습니다. Hermes 소스 `hermes_state_sessions.py:1303-1310`의 `list_sessions_rich`는 `include_children`과 `include_subagents`의 기본값이 `False`이고, `hermes sessions list --help`에는 이 값을 켜는 옵션이 없습니다. 이 기본값이 원인이라는 것은 추정입니다.
-- 검사. Hermes 새 버전에서 같은 명령이 서브에이전트 세션을 보여 주는지 확인합니다. 그 전까지 평가 하네스는 CLI 대신 `sqlite3 -readonly`로 DB를 읽습니다.
+- 검사. Hermes 새 버전에서 같은 명령이 서브에이전트 세션을 보여 주는지 확인합니다. 그 전까지 평가 하네스의 판정기는 CLI 대신 `state.db`를 읽기 전용으로 직접 엽니다.
 - 담당. 운영자 항목.
 
-### B10. 서브에이전트가 export한 `HERMES_HOME`이 부모 셸에 남는다
+### B10. 서브에이전트가 export한 `HERMES_HOME`이 부모 셸에 남는다고 추정한다
 
-서브에이전트가 export한 `HERMES_HOME`이 부모 터미널 셸에 남아, 뒤이은 명령이 다른 프로필을
-가리킬 수 있습니다. 재현하지 않았으므로 추정입니다.
+관문 운영 메모에는 서브에이전트가 export한 `HERMES_HOME`이 부모 터미널 셸에 남아 뒤이은
+명령이 다른 프로필을 가리킬 수 있다고 적혀 있습니다. 재현하지 않았으므로 추정입니다.
 
 - 대상. Hermes 본체. 사용자 셸 위생 문제이기도 합니다.
 - 근거. 로컬 관찰. 관문 운영 메모의 함정 항목에 적혀 있지만 재현 절차와 기록은 없습니다.
 - 검사. 부모 셸에 `HERMES_HOME`을 둔 채 평가 하네스를 `env -i`로 실행하고, 기본 프로필의 관문 로그와 세션 DB 행 수가 실행 전후로 같은지 봅니다(PR-1의 환경 격리 lane).
 - 담당. 운영자 항목.
 
-### B11. `hermes -z`가 막 켠 플러그인을 읽지 않는다
+### B11. `hermes -z` 실행에서 막 설치한 관문이 로드되지 않은 것을 관찰했다
 
 `hermes -p <profile> -z`로 실행했을 때 그 프로필에 막 설치한 관문이 로드되지 않았습니다.
 관문 검증은 `hermes_cli.oneshot.run_oneshot`을 프로세스 안에서 직접 불러 했습니다.
@@ -216,12 +218,12 @@ poteto-mode는 위임을 기본으로 하므로 두 지시가 부딪힙니다.
 ### B15. 패키지 밖 스킬 참조에 조건이 빠진 줄이 있다
 
 `deslop`, `control-ui`, `control-cli`는 Cursor의 `cursor-team-kit`에 있고 이 패키지에는
-없습니다. 변환은 이 참조에 "설치된 경우" 조건을 붙였지만 한 줄이 빠졌습니다. 설치하지 않은
+없습니다. 변환은 이 참조에 "설치된 경우" 조건을 붙였지만 두 줄이 빠졌습니다. 설치하지 않은
 사용자에게는 그 단계를 실행할 방법이 없습니다.
 
 - 대상. 변환 적응. 업스트림이 `cursor-team-kit`을 전제하는 설계라 업스트림 보고 대상은 아닙니다.
-- 근거. `skills/poteto-mode/SKILL.md:29`, `:31`, `skills/poteto-mode/playbooks/multi-phase-plan.md:15`, `:71`, `skills/poteto-help/SKILL.md:108`에 조건이 있습니다. `skills/poteto-mode/playbooks/multi-phase-plan.md:59`의 `/deslop` 줄에는 조건이 없고, 같은 파일의 다른 줄에도 `deslop` 조건 문구가 없습니다.
-- 검사. `grep -rn 'deslop\|control-ui\|control-cli' skills`로 찾은 파일마다 "when installed" 조건이 있는지 확인합니다. 조건 없는 줄을 변환 규칙으로 고칠지 먼저 정합니다.
+- 근거. `skills/poteto-mode/SKILL.md:29`, `:31`, `skills/poteto-mode/playbooks/multi-phase-plan.md:15`, `:71`, `skills/poteto-mode/playbooks/opening-a-pr.md:9`, `skills/poteto-help/SKILL.md:108`에 조건이 있습니다. 조건이 없는 줄은 `skills/poteto-mode/playbooks/multi-phase-plan.md:59`와 `skills/poteto-mode/playbooks/opening-a-pr.md:34`이고, 둘 다 `/deslop`을 실행하라고 합니다. `multi-phase-plan.md`의 다른 줄에는 `deslop` 조건 문구가 없고, `opening-a-pr.md`는 9행에만 조건이 있습니다.
+- 검사. `grep -rnE 'deslop|control-ui|control-cli' skills | grep -vi installed`는 같은 줄에 "installed"가 없는 참조를 출력합니다. 지금은 위 두 줄이 나오고, 고친 뒤에는 0줄입니다. 조건 없는 줄을 변환 규칙으로 고칠지 먼저 정합니다.
 - 담당. 운영자 항목.
 
 ## 운영자 항목과 업스트림 보고 모음
