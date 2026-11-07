@@ -607,7 +607,7 @@ def test_followup_read_batch_within_budget_counts_each_call(tmp_path):
     followup()
     calls = [{"name": "session_search", "arguments": {}}, {"name": "read_file", "arguments": {}}]
     assert tool("tool_call", args={"calls": calls}) is None
-    assert gate._STATES["s1"].free_reads == 1
+    assert gate._STATES["s1"].free_reads == 2
 
 
 def test_followup_write_tools_are_blocked_without_a_todolist(tmp_path):
@@ -976,3 +976,106 @@ def test_common_question_turn_commands_are_read_only(command):
 ])
 def test_commands_that_could_write_or_run_something_stay_refused(command):
     assert gate._is_read_only_shell(command) is False
+
+
+def read_file(path="src/app.py", **extra):
+    return tool("read_file", args={"path": path}, **extra)
+
+
+def test_followup_read_file_counts_against_the_read_allowance(tmp_path):
+    turn()
+    followup(message=QUESTION)
+    assert read_file("a.py") is None
+    assert last_decision(tmp_path)["reason"] == "followup_read"
+    assert read_file("b.py") is None
+    assert read_file("c.py") is None
+    assert gate._STATES["s1"].free_reads == 3
+    assert is_blocked(read_file("d.py"))
+    assert last_decision(tmp_path)["reason"] == "work_before_todo"
+
+
+def test_twenty_followup_read_files_do_not_all_pass(tmp_path):
+    turn()
+    followup(message=QUESTION)
+    results = [read_file(f"f{i}.py") for i in range(20)]
+    assert sum(r is None for r in results) == 3
+    assert all(is_blocked(r) for r in results[3:])
+
+
+def test_followup_read_file_shares_the_allowance_with_other_reads():
+    turn()
+    followup(message=QUESTION)
+    assert shell("git status") is None
+    assert shell("git diff") is None
+    assert read_file("a.py") is None
+    assert is_blocked(read_file("b.py"))
+
+
+def test_followup_read_file_with_no_path_counts_too():
+    turn()
+    followup(message=QUESTION)
+    assert tool("read_file") is None
+    assert gate._STATES["s1"].free_reads == 1
+
+
+def test_followup_bridged_read_files_count_each():
+    turn()
+    followup(message=QUESTION)
+    three = [{"name": "read_file", "arguments": {"path": f"f{i}.py"}} for i in range(3)]
+    assert tool("tool_call", args={"calls": three}) is None
+    assert gate._STATES["s1"].free_reads == 3
+
+
+def test_followup_four_bridged_read_files_are_blocked_as_a_whole():
+    turn()
+    followup(message=QUESTION)
+    four = [{"name": "read_file", "arguments": {"path": f"f{i}.py"}} for i in range(4)]
+    assert is_blocked(tool("tool_call", args={"calls": four}))
+    assert gate._STATES["s1"].free_reads == 0
+
+
+@pytest.mark.parametrize("path", [
+    "/home/u/.hermes/skills/pstack/poteto-mode/SKILL.md",
+    "~/.hermes/plugins/pstack/skills/poteto-mode/playbooks/orchestrate.md",
+    "/repo/skills/poteto-mode/SKILL.md",
+    "skills/poteto-mode/SKILL.md",
+])
+def test_followup_skill_and_playbook_reads_are_preparatory(path, tmp_path):
+    turn()
+    followup(message=QUESTION)
+    for _ in range(5):
+        assert read_file(path) is None
+    assert last_decision(tmp_path)["reason"] == "preparatory_tool"
+    assert gate._STATES["s1"].free_reads == 0
+
+
+def test_followup_skill_reads_still_pass_after_the_first_block():
+    turn()
+    followup(message=QUESTION)
+    assert is_blocked(tool("patch", args={"path": "x"}))
+    assert read_file("/home/u/.hermes/skills/x/SKILL.md") is None
+    assert is_blocked(read_file("src/app.py"))
+
+
+@pytest.mark.parametrize("path", ["myskills/x.py", "/repo/skills.py", "/repo/src/skillset/a.py", "", None])
+def test_followup_reads_outside_a_skills_directory_are_not_preparatory(path):
+    turn()
+    followup(message=QUESTION)
+    assert tool("read_file", args={"path": path}) is None
+    assert gate._STATES["s1"].free_reads == 1
+
+
+def test_marker_turn_read_file_is_still_preparatory_for_any_path():
+    turn()
+    for i in range(10):
+        assert read_file(f"src/f{i}.py") is None
+    assert gate._STATES["s1"].free_reads == 0
+    assert is_blocked(shell("git diff"))
+
+
+def test_read_file_after_the_decision_is_free_in_a_followup():
+    turn()
+    followup(message=QUESTION)
+    tool("todo_list", args=DECIDED)
+    for i in range(10):
+        assert read_file(f"src/f{i}.py") is None
