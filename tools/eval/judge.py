@@ -57,8 +57,11 @@ class Call:
     args: list[dict]
     message: int = 0
     result: str | None = None
-    blocked: bool = False
     ts: float = 0.0
+    refused: list[bool] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.refused = [False] * len(self.names)
 
     @property
     def preparatory(self) -> bool:
@@ -225,16 +228,18 @@ def pair_gate_events(calls: list[Call], events: list[dict]) -> list[int]:
     for call in calls:
         messages.setdefault(call.message, []).append(call)
     for message, group in messages.items():
-        window = free[: len(group)]
+        # Hermes unwraps a `tool_call` bridge before the hook, so the gate logs each inner name.
+        units = [(call, i, name) for call in group for i, name in enumerate(call.names)]
+        window = free[: len(units)]
         used: list[int] = []
-        for call in group:
+        for call, index, name in units:
             hit = next((i for i in window
-                        if i not in used and tool_events[i]["tool_name"] == call.tool), None)
+                        if i not in used and tool_events[i]["tool_name"] == name), None)
             if hit is None:
                 continue
             used.append(hit)
             owner[hit] = message
-            call.blocked = tool_events[hit]["event"] == "block"
+            call.refused[index] = tool_events[hit]["event"] == "block"
         if used:
             # Whatever precedes a matched event belongs to calls this turn never recorded.
             free = [i for i in free if i > max(used)]
@@ -318,8 +323,9 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     children = load_children(db_path, session_id, current.start, current.end)
     executed = [
         (c, i, n, a)
-        for c in current.calls if not c.blocked
+        for c in current.calls
         for i, (n, a) in enumerate(zip(c.names, c.args, strict=True))
+        if not c.refused[i]
     ]
     delegates = [(c, i, a) for c, i, n, a in executed if n == DELEGATE_TOOL]
     # A rejected delegation counts only when a child session proves it started anyway.

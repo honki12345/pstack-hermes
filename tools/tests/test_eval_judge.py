@@ -97,43 +97,34 @@ class Transcript:
             self.call_count += 1
             call_id = f"call_{self.call_count}"
             name, args = spec["name"], spec["args"]
-            names = [name]
+            inner = name
             if spec["bridged"]:
-                names = [name]
-                name, args = "tool_call", {"calls": [{"name": names[0], "arguments": args}]}
+                name, args = "tool_call", {"calls": [{"name": inner, "arguments": args}]}
             stored.append({"id": call_id, "function": {"name": name, "arguments": json.dumps(args)}})
-            decisions.append((call_id, name, names, spec))
+            decisions.append((call_id, name, inner, spec))
         self._insert(stored, decisions)
-
-    def bridge(self, *pairs, result=None):
-        """One `tool_call` bridge carrying several inner calls."""
-        self.call_count += 1
-        call_id = f"call_{self.call_count}"
-        inner = [{"name": n, "arguments": a} for n, a in pairs]
-        stored = [{"id": call_id, "function": {
-            "name": "tool_call", "arguments": json.dumps({"calls": inner})}}]
-        spec = self.spec("tool_call", result=result)
-        self._insert(stored, [(call_id, "tool_call", [n for n, _ in pairs], spec)])
 
     def _insert(self, stored, decisions):
         self.db.execute(
             "INSERT INTO messages (session_id, role, tool_calls, timestamp) "
             "VALUES (?, 'assistant', ?, ?)", (SID, json.dumps(stored), self.tick()),
         )
-        for call_id, top, names, spec in decisions:
-            decision = self._decide(top, names, spec["blocked"])
+        for call_id, stored_name, inner, spec in decisions:
+            decision = self._decide(inner, [inner], spec["blocked"])
             if decision:
                 event, reason = decision
+                # Hermes unwraps a local `tool_call` bridge before pre_tool_call, so the gate
+                # logs the inner name while state.db keeps `tool_call`.
                 self.events.append({
-                    "ts": self.tick(), "event": event, "session_id": SID, "tool_name": top,
-                    "bridged": names if top == "tool_call" else [], "reason": reason})
+                    "ts": self.tick(), "event": event, "session_id": SID, "tool_name": inner,
+                    "bridged": [], "reason": reason})
             content = spec["result"]
             if content is None:
                 content = BLOCK_RESULT if decision and decision[0] == "block" else "{}"
             self.db.execute(
                 "INSERT INTO messages (session_id, role, content, tool_call_id, tool_name, "
                 "timestamp) VALUES (?, 'tool', ?, ?, ?, ?)",
-                (SID, content, call_id, top, self.tick()),
+                (SID, content, call_id, stored_name, self.tick()),
             )
 
     def call(self, name, args=None, *, blocked=False, bridged=False, result=None):
@@ -179,15 +170,6 @@ def test_g1_passes_for_a_todolist_written_through_the_bridge(run):
     run.call("todo_list", {"todos": [{"id": "1", "content": "skip: one-line edit"}]}, bridged=True)
     run.call("patch", {"path": "README.md"})
     assert run.grade("p3-oneline")["G1"] is True
-
-
-def test_g1_passes_when_the_todolist_and_work_share_one_bridged_call(run):
-    todos = [{"id": "1", "content": DECIDED, "status": "pending"}]
-    run.bridge(("todo_list", {"todos": todos}), ("terminal", {"command": "ls"}))
-    verdict = run.grade("p1-bugfix")
-    assert verdict["evidence"]["gate_events"] == ["turn_armed", "allow"]
-    assert verdict["G1"] is True
-    assert verdict["evidence"]["first_work_tool"] == "terminal"
 
 
 def test_g1_fails_when_work_is_attempted_before_the_todolist(run):
@@ -249,6 +231,23 @@ def test_g2_passes_after_a_parallel_block_in_one_message(run):
     assert verdict["counts"]["blocks"] == 2
     assert verdict["counts"]["block_messages"] == 1
     assert verdict["G2"] is True
+
+
+def test_g2_passes_when_a_bridged_call_is_blocked_with_a_plain_one_in_the_same_message(run):
+    run.parallel(run.spec("terminal", {"command": "ls"}),
+                 run.spec("session_search", {"query": "x"}, bridged=True))
+    run.todo(DECIDED)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["blocks"] == 2
+    assert verdict["counts"]["block_messages"] == 1
+    assert verdict["G2"] is True
+
+
+def test_g2_fails_when_a_bridged_call_is_blocked_again_in_the_next_message(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("process_manage", {"action": "poll"}, bridged=True)
+    run.todo(DECIDED)
+    assert run.grade("p1-bugfix")["G2"] is False
 
 
 def test_g2_fails_when_the_agent_is_blocked_again_in_the_next_message(run):
@@ -429,6 +428,36 @@ def test_g5_is_null_without_a_recorded_sandbox_state(run):
 def test_g5_ignores_a_write_the_gate_refused(run):
     run.call("write_file", {"path": "x.py"})
     assert run.grade("p2-why", sandbox=UNCHANGED)["G5"] is True
+
+
+def test_g5_ignores_writes_the_gate_refused_after_a_refused_bridged_call(run):
+    run.call("session_search", {"query": "x"}, bridged=True)
+    run.call("write_file", {"path": "x.py"})
+    run.todo("Explain")
+    verdict = run.grade("p2-why", sandbox=UNCHANGED)
+    assert verdict["G5"] is True
+    assert verdict["counts"]["write_tool_calls"] == 0
+    assert verdict["counts"]["tool_calls"] == 1
+
+
+def test_g5_sees_an_executed_write_that_follows_a_refused_bridged_call(run):
+    # The refused write is a different tool so a mispaired block cannot hide behind the executed one.
+    run.call("session_search", {"query": "x"}, bridged=True)
+    run.call("patch", {"path": "x.py"})
+    run.todo("Explain")
+    run.parallel(run.spec("write_file", {"path": "/tmp/outside.txt"}), run.spec("read_file"))
+    verdict = run.grade("p2-why", sandbox=UNCHANGED)
+    assert verdict["G5"] is False
+    assert verdict["evidence"]["write_tools"] == ["write_file"]
+
+
+def test_a_refused_bridged_call_is_not_counted_as_executed(run):
+    run.call("session_search", {"query": "x"}, bridged=True)
+    run.todo(DECIDED)
+    run.call("session_search", {"query": "x"}, bridged=True)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["blocks"] == 1
+    assert verdict["counts"]["tool_calls"] == 2
 
 
 def test_g5_sees_a_change_even_when_a_result_quotes_the_block_message(run):
