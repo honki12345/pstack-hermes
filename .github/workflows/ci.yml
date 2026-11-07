@@ -236,7 +236,7 @@ jobs:
         run: uv run --frozen python tools/check_action_inputs.py
 
       - name: Lint (ruff)
-        run: uv run --frozen ruff check tools
+        run: uv run --frozen ruff check tools hermes-plugin
 
       - name: Unit tests (pytest)
         run: uv run --frozen pytest -q

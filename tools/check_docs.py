@@ -176,7 +176,7 @@ def _gitattributes_generated(root: Path) -> set[str]:
         line = line.split("#", 1)[0].strip()
         if not line or "linguist-generated=true" not in line:
             continue
-        path = line.split()[0]
+        path = line.split()[0].lstrip("/")  # "/x" anchors x at the repo root; same path for the layout check
         markers.add(path[:-2] if path.endswith("/**") else path)
     return markers
 

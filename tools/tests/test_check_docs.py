@@ -491,3 +491,9 @@ def test_readme_must_name_fork_install_command(tmp_path):
     assert any("missing install command" in item for item in problems)
     _write(tmp_path / "README.md", "hermes plugins install honki12345/pstack-hermes --enable\n")
     assert check_docs.check_repo_identity(tmp_path) == []
+
+
+def test_root_anchored_gitattributes_marker_matches_the_root_path(tmp_path):
+    (tmp_path / ".gitattributes").write_text("/plugin.yaml linguist-generated=true\nskills/** linguist-generated=true\n",
+                                            encoding="utf-8")
+    assert check_docs._gitattributes_generated(tmp_path) == {"plugin.yaml", "skills/"}
