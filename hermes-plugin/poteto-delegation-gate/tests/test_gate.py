@@ -884,6 +884,22 @@ def test_text_that_only_resembles_a_header_is_a_followup(message, tmp_path):
     assert events(tmp_path, "turn_continued")[0]["kind"] == "followup"
 
 
+# hermes_cli/goals.py (CONTINUATION_PROMPT_TEMPLATE). The goal loop sends it between turns of the
+# same standing goal, so the decision of the turn that set the goal still applies.
+_GOAL_CONTINUE = (
+    "[Continuing toward your standing goal]\nGoal: fix the pricing bug\n\n"
+    "Continue working toward this goal. Take the next concrete step."
+)
+
+
+def test_a_goal_continuation_keeps_the_decision_of_the_goal_turn(tmp_path):
+    turn()
+    tool("todo_list", args=DECIDED)
+    turn(message=_GOAL_CONTINUE, turn_id="t2")
+    assert tool("terminal") is None
+    assert events(tmp_path, "turn_continued")[0]["kind"] == "notice"
+
+
 def test_heartbeat_after_a_decided_turn_does_not_ask_for_a_new_decision():
     turn()
     tool("todo_list", args=DECIDED)
@@ -938,6 +954,11 @@ def test_the_same_commands_without_those_flags_stay_read_only(command):
     "sed -n '/foo/,/bar/p' f", "sed -n '3,+2p' f", "cat f | sed -n '2,3p'", "sed -n -E '/a|b/p' f",
     # jq only reads.
     "jq . f.json", "jq -r '.a[] | .b' f.json", "jq '.a // \"x\"' f.json", "cat f.json | jq '.x'",
+    # cut only prints fields.
+    "cut -d, -f1 f.csv", "cut -c1-5 f", "git log --format=%an | cut -d' ' -f1",
+    # date only prints the time when it gets a format or -u.
+    "date", "date +%F", "date -u", "date '+%Y-%m-%d %H:%M:%S %Z'", "date -u +%FT%TZ",
+    "TZ=Asia/Seoul date", "TZ=UTC date '+%F %T'",
 ])
 def test_common_question_turn_commands_are_read_only(command):
     assert gate._is_read_only_shell(command) is True
@@ -973,6 +994,11 @@ def test_common_question_turn_commands_are_read_only(command):
     # sqlite3 has dot commands that run shells and write files.
     "sqlite3 db 'select 1'", "sqlite3 -readonly db 'select 1'", "sqlite3 db .shell",
     "sqlite3 -readonly db '.system id'", "sqlite3 db '.output x'",
+    # date sets the clock with -s or a bare time operand (BSD and GNU).
+    "date -s 12:00", "date --set=12:00", "date --set 12:00", "date 0612120026", "date -f dates.txt",
+    "date -u 0612120026",
+    # Only TZ in front of date. Other assignments can change what a command runs.
+    "TZ=UTC ls", "FOO=1 date", "GIT_EXTERNAL_DIFF=/tmp/x git diff", "TZ=UTC", "TZ=UTC date -s 1",
 ])
 def test_commands_that_could_write_or_run_something_stay_refused(command):
     assert gate._is_read_only_shell(command) is False
