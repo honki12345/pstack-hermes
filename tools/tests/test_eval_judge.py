@@ -706,7 +706,8 @@ def fake_profile(tmp_path, *, sessions=(), messages=(), events=()):
     return home
 
 
-def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, runner="auto"):
+def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, runner="auto",
+                 during_inproc=None, usage_session=None):
     """An arm-timeout fallback: `hermes -z` killed, then the in-process rerun."""
     now = time.time()
     todo = [{"id": "c1", "function": {"name": "todo_list", "arguments": json.dumps(
@@ -728,8 +729,8 @@ def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, run
     def usage_file(out, name, cost):
         path = out / name
         if cost is not None:
-            path.write_text(json.dumps({"estimated_cost_usd": cost, "api_calls": 3}),
-                            encoding="utf-8")
+            path.write_text(json.dumps({"estimated_cost_usd": cost, "api_calls": 3,
+                                        "session_id": usage_session}), encoding="utf-8")
         return path
 
     def fake_marker(home, prompt_id, out):
@@ -742,6 +743,8 @@ def fallback_run(tmp_path, monkeypatch, sandboxes, *, cli_cost, inproc_cost, run
                 "usage": [usage_file(out, "usage-cli-1.json", cli_cost)]}
 
     def fake_inproc(home, messages, repo, out, *, timeout):
+        if during_inproc:
+            during_inproc(home)
         return {"ok": True, "timed_out": False, "exit": 0,
                 "usage": [usage_file(out, "usage-1.json", inproc_cost)]}
 
@@ -884,3 +887,40 @@ def test_an_interrupted_run_leaves_no_child_process_and_no_sandbox(
     child = int((stuck_hermes / "child.pid").read_text())
     assert wait_for(lambda: not pid_alive(parent) and not pid_alive(child))
     assert list(sandboxes.iterdir()) == []
+
+
+# --- run_eval: --out reuse and grading failures ---------------------------------------------
+
+
+def test_a_second_run_into_the_same_out_is_refused_and_keeps_the_first(
+        tmp_path, monkeypatch, sandboxes, capsys):
+    code, record, out = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1,
+                                     inproc_cost=0.1)
+    assert code == 0
+    first = (out / "run.json").read_bytes()
+    capsys.readouterr()
+    again = run_eval.main(["--prompt", "p1-bugfix", "--out", str(out),
+                           "--hermes-home", str(tmp_path / "profile"), "--timeout", "1"])
+    err = capsys.readouterr().err
+    assert again == 2
+    assert len(err.strip().splitlines()) == 1
+    assert "not an empty directory" in err
+    assert (out / "run.json").read_bytes() == first
+
+
+def test_an_existing_empty_out_directory_is_accepted(tmp_path, monkeypatch, sandboxes):
+    (tmp_path / "out").mkdir()
+    code, record, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1,
+                                   inproc_cost=0.1)
+    assert code == 0
+    assert record is not None
+
+
+def test_an_out_that_is_a_file_is_refused(tmp_path, monkeypatch, sandboxes, capsys):
+    target = tmp_path / "out"
+    target.write_text("x", encoding="utf-8")
+    code, _, _ = fallback_run(tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1)
+    assert code == 2
+    assert "run_eval:" in capsys.readouterr().err
+    assert list(sandboxes.iterdir()) == []
+

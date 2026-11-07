@@ -32,7 +32,7 @@ refuses the default profile.
 ```sh
 hermes profile create pstacklane-demo --clone-from <profile> --no-alias
 env -i HOME=$HOME PATH=$PATH HERMES_HOME=$HOME/.hermes/profiles/pstacklane-demo \
-  uv run --frozen tools/eval/run_eval.py --prompt p1-bugfix --out /tmp/lane/p1
+  uv run --frozen tools/eval/run_eval.py --prompt p1-bugfix --out /tmp/lane/p1-$(date +%H%M%S)
 hermes profile delete pstacklane-demo
 ```
 
@@ -49,7 +49,9 @@ hermes profile delete pstacklane-demo
 - `--timeout` bounds one run (default 900 s). `--cleanup` removes the `shop-api` checkout.
 
 Output in `--out`: `run.json`, `verdict.json` (an array, one verdict per graded turn), the
-marked messages, stdout/stderr of the run, and one verdict per line on stdout.
+marked messages, stdout/stderr of the run, and one verdict per line on stdout. Use a new path
+for every run: a non-empty `--out` ends with one `run_eval: ...` line and exit code 2, so a
+run never reads the usage files of an earlier one.
 
 `run.json` records the profile, runner, elapsed seconds, per-turn usage, the sandbox's `git
 rev-parse HEAD` and `git status --porcelain --untracked-files=all` before and after the run
@@ -62,7 +64,7 @@ keeps it for inspection unless `--cleanup` is given.
 Grade an existing run again, or any session, without a model call:
 
 ```sh
-uv run --frozen tools/eval/judge.py --run-dir /tmp/lane/p1
+uv run --frozen tools/eval/judge.py --run-dir /tmp/lane/p1-<time>
 uv run --frozen tools/eval/judge.py --hermes-home <profile> --session-id <id> --prompt p1-bugfix --pretty
 ```
 

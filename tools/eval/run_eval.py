@@ -239,6 +239,9 @@ def newest_session(home: Path, since: float) -> str | None:
 def run(args: argparse.Namespace) -> int:
     home = resolve_home(args.hermes_home, args.allow_default_profile)
     out = Path(args.out).resolve()
+    # Leftover usage files would be read as this run's cost and session.
+    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+        raise RunError(f"--out {out} is not an empty directory; use a new path for each run")
     out.mkdir(parents=True, exist_ok=True)
     chain = [FOLLOW_UP[args.prompt], args.prompt] if args.prompt in FOLLOW_UP else [args.prompt]
     if len(chain) > 1 and args.runner == "cli":
