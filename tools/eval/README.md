@@ -133,7 +133,8 @@ code strings: whatever a command did to the sandbox, including from a delegated 
 shows up in the porcelain status.
 
 A bad path or a profile without a `state.db` ends `judge.py` with one `judge: cannot grade: ...`
-line and exit code 2.
+line and exit code 2. `run_eval.py` does the same when grading its own run fails, after
+writing `run.json`, so the run can be graded again with `judge.py --run-dir`.
 
 ## Reading results
 

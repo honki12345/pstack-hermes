@@ -42,6 +42,9 @@ PREPARATORY_TOOLS = frozenset({
 # Hermes' file-writing tools. Shell and code tools are judged by their effect on the sandbox.
 FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 
+# What a bad path, a missing state.db or a malformed run.json raise while grading.
+GRADE_ERRORS = (OSError, ValueError, KeyError, TypeError, sqlite3.Error)
+
 DECISION_RE = re.compile(r"delegate_task|skip\s*:", re.IGNORECASE)
 # Same line only: a reason on the next line would be the next todo item's text.
 SKIP_RE = re.compile(r"skip[ \t]*:[ \t]*([^\n]*)", re.IGNORECASE)
@@ -424,7 +427,7 @@ def main(argv: list[str] | None = None) -> int:
             )]
         else:
             parser.error("give --run-dir, or --hermes-home with --session-id and --prompt")
-    except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as exc:
+    except GRADE_ERRORS as exc:
         print(f"judge: cannot grade: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
     for verdict in verdicts:

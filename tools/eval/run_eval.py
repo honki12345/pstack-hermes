@@ -317,11 +317,17 @@ def run(args: argparse.Namespace) -> int:
                                   encoding="utf-8")
     code = 0
     if session_id:
-        verdicts = judge.judge_run(record)
-        (out / "verdict.json").write_text(json.dumps(verdicts, indent=2, ensure_ascii=False)
-                                          + "\n", encoding="utf-8")
-        for verdict in verdicts:
-            print(json.dumps(verdict, ensure_ascii=False))
+        try:
+            verdicts = judge.judge_run(record)
+        except judge.GRADE_ERRORS as exc:
+            # The paid run is on disk in run.json; grading can be redone with judge.py.
+            print(f"run_eval: cannot grade: {type(exc).__name__}: {exc}", file=sys.stderr)
+            code = 2
+        else:
+            (out / "verdict.json").write_text(
+                json.dumps(verdicts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            for verdict in verdicts:
+                print(json.dumps(verdict, ensure_ascii=False))
     else:
         print("no session was recorded; nothing to grade", file=sys.stderr)
         code = 1

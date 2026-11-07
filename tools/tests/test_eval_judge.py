@@ -924,3 +924,16 @@ def test_an_out_that_is_a_file_is_refused(tmp_path, monkeypatch, sandboxes, caps
     assert "run_eval:" in capsys.readouterr().err
     assert list(sandboxes.iterdir()) == []
 
+
+def test_a_grading_failure_ends_with_one_line_and_keeps_run_json(
+        tmp_path, monkeypatch, sandboxes, capsys):
+    code, record, out = fallback_run(
+        tmp_path, monkeypatch, sandboxes, cli_cost=0.1, inproc_cost=0.1,
+        usage_session="fallback-session",
+        during_inproc=lambda home: (home / judge.STATE_DB).unlink())
+    err = capsys.readouterr().err.strip().splitlines()
+    assert code == 2
+    assert [line for line in err if "cannot grade" in line] != []
+    assert not any("Traceback" in line for line in err)
+    assert record["turns"]
+    assert not (out / "verdict.json").exists()
