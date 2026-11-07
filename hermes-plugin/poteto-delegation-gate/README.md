@@ -2,8 +2,8 @@
 
 A Hermes plugin that makes an agent in `/pstack:poteto-mode` write its todolist, including the
 delegation decision, before it starts working. It blocks working tools until that todolist exists
-and holds a decision item. It never forces delegation. A todolist item that says `skip: <reason>`
-satisfies it.
+and holds a decision item. It never forces delegation. A todolist item that mentions delegation and
+says `skip: <reason>` satisfies it.
 
 ## Why it exists
 
@@ -18,20 +18,32 @@ still reaches for a working tool such as `terminal` first, and the gate blocks t
 | `pre_llm_call` | Arms the gate for the session when the user message opens with the skill invocation header that names `poteto-mode`. A later turn without that header disarms it. A subagent turn (one with a parent session) is never armed. Returns nothing, so it injects no context. |
 | `pre_tool_call` | While the gate is armed and no decision has been written, blocks every tool except the preparatory ones below. Writing a todolist that holds a decision item through `todo_list`, directly or inside a `tool_call` bridge, unlocks everything for the rest of the turn. |
 
-Tools allowed before the todolist exists are `read_file`, `skill_view`, `skills_list`,
+Tools allowed before a decision is written are `read_file`, `skill_view`, `skills_list`,
 `tool_search`, `tool_describe`, `todo_list`, `delegate_task`, `clarify`, `memory` and the three
 `hindsight_*` tools. A `tool_call` bridge is allowed only when every tool inside it is on that list.
 
-A blocked call returns the block message and the agent retries after writing the todolist. Any
+A blocked call returns the block message and the agent retries after writing the decision. Any
 exception inside a hook allows the call, so a gate failure never stops a session.
 
 ## What counts as a decision
 
-The gate reads the `content` of the items in the `todos` argument of `todo_list`. An item is a
-decision when it names `delegate_task`, or holds `skip:` followed by a reason on the same line.
-Case does not matter. A bare `skip:` with no reason is not a decision, because it only has the
-form of one. The check is a pattern, not a judgment, so it cannot tell a good reason from a weak
-one.
+The gate reads the `content` of the items in the `todos` argument of `todo_list`. One item is a
+decision when it names `delegate_task`, or when it mentions delegation (the text `deleg`, as in
+`delegation` or `delegate`) and also holds `skip:` followed by a reason on the same line. Case does
+not matter. The recommended item is `Delegation decision: delegate_task <the steps>` or
+`Delegation decision: skip: <reason>`, and both block messages show that form.
+
+These are not decisions, so they do not unlock work.
+
+- A bare `skip:` with no reason, or with the reason on the next line. It only has the form of one.
+- A `skip: <reason>` that never mentions delegation, such as `Step 3: open PR. skip: no PR
+  requested`. The poteto-mode skill asks for `skip: <reason>` on any playbook step the agent does
+  not do, so a skipped step must not read as a delegation decision.
+
+The check is a pattern, not a judgment. It cannot tell a good reason from a weak one. It also
+cannot tell a verbatim playbook step that mentions `delegate_task` from a decision about it, so
+copying the `multi-phase-plan`, `orchestrate` or `opening-a-pr` step that names `delegate_task`
+unlocks work. The tests pin that case.
 
 | Call | Result |
 |---|---|
@@ -42,7 +54,8 @@ one.
 
 The last row is why a partial update such as `merge: true` with one changed item does not get
 blocked again once the decision was written. The turn remembers that it saw a decision, so a later
-write that replaces the list is not checked either.
+write that replaces the list is not checked either. A turn released after repeated blocks is
+unlocked the same way but is logged as `released`, not as a written decision.
 
 Hermes unwraps a `tool_call` bridge that holds one local tool before it calls the hook, so the
 hook usually sees `tool_name` `todo_list` with the unwrapped arguments. When Hermes cannot unwrap
@@ -53,12 +66,14 @@ that holds an undecided todolist next to a working tool is blocked as a whole.
 ## Release after repeated blocks
 
 If the agent keeps hitting `todo_without_decision`, the gate lets the third working call through
-and logs it as `decision_missing_released`. The turn then stays unlocked. This exists because a
-gate that blocks without end can stall a session when the agent cannot write the item, for example
-when `todo_list` fails or the item format never matches. Two blocks give the agent two messages
-that say exactly what to write, and with the first `work_before_todo` block that is at most three
-blocks per turn. Blocks with reason `work_before_todo` are not counted, because writing any
-todolist ends them, so they cannot loop.
+and logs it as `decision_missing_released`. The turn then stays unlocked, and its later calls are
+logged as `released`. This exists because a gate that blocks without end can stall a session when
+the agent cannot write the item, for example when `todo_list` fails or the item format never
+matches. Two blocks give the agent two messages that say exactly what to write.
+
+Blocking before any todolist exists (`work_before_todo`) has no limit and is not counted. Writing
+any todolist ends it, so it cannot loop on a session whose `todo_list` works. After a todolist
+without a decision the gate blocks at most twice per turn.
 
 A release means the turn ran without a recorded decision. It is the sign to read the transcript,
 and the judge in `tools/eval/` counts it as a failed recovery.
@@ -121,9 +136,10 @@ Every line also has `ts`, the Unix time in seconds.
 | `reason` | Meaning |
 |---|---|
 | `todo_written_now` | This call wrote a todolist with a decision item. |
-| `todo_written` | A decision was written earlier in the turn. |
+| `todo_written` | A decision was written earlier in the turn. Later calls of a released turn do not use it. |
 | `todo_pending_decision` | This call wrote a todolist with no decision item. Work stays blocked. |
-| `decision_missing_released` | The block limit was reached, so the turn was unlocked without a decision. |
+| `decision_missing_released` | The block limit was reached, so this call unlocked the turn without a decision. |
+| `released` | Every later call in a turn that was unlocked without a decision. A log reader can tell this turn from one that has `todo_written`. |
 | `preparatory_tool` | A preparatory tool, or a `todo_list` that only reads. |
 
 `reason` on `block` is `work_before_todo` when no todolist was written and `todo_without_decision`
@@ -145,7 +161,7 @@ uv run --frozen pytest -q hermes-plugin/poteto-delegation-gate/tests
 
 The cases live in `tests/test_gate.py` and run without Hermes. CI scans only `tools/tests/`, so
 the wrapper `tools/tests/test_poteto_delegation_gate.py` loads that file and collects the same
-cases. Both commands run all 80.
+cases. Both commands run all 91.
 
 ## Measure its effect
 

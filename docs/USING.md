@@ -108,7 +108,7 @@ useful fixes are welcome as PRs there.
 
 The repository also ships `poteto-delegation-gate`, a Hermes plugin that is not part of the
 package. On a `/poteto-mode` turn it blocks working tools until the agent has written a todolist
-that records its delegation decision. `skip: <reason>` counts as a decision, so the gate never
+that records its delegation decision. An item that mentions delegation and says `skip: <reason>` counts as a decision, so the gate never
 forces delegation. It is off until you link it into a profile and enable it. Install, disable and
 rollback steps, and the audit log format, are in
 [hermes-plugin/poteto-delegation-gate/README.md](../hermes-plugin/poteto-delegation-gate/README.md).

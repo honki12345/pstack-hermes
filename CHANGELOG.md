@@ -16,12 +16,13 @@ Entries below this section are history inherited from the original port.
 
 ### Changed
 - `poteto-delegation-gate` reads the todolist. Working tools stay blocked until a `todo_list` item
-  names `delegate_task` or holds `skip:` with a reason, instead of unlocking on any `todo_list`
-  call. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
+  names `delegate_task`, or mentions delegation and holds `skip:` with a same-line reason, instead
+  of unlocking on any `todo_list` call. A `skip:` on a playbook step does not count. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
   the next working call is blocked with `todo_without_decision`. After two such blocks in a turn
   the gate releases with `decision_missing_released` so an agent that cannot write the item is not
   stalled. `tools/eval/judge.py` treats `todo_pending_decision` as a step toward the todolist when
-  it grades recovery (G2). The gate has 80 cases now.
+  it grades recovery (G2). Calls after a release are logged as `released`, not `todo_written`.
+  The G1 and G4 checks use the same decision criterion as the gate. The gate has 91 cases now.
 - **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
   skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,
   `poteto-help` adapted to Hermes through the new audited `HELP_MAP` (P1).
