@@ -1198,3 +1198,62 @@ def test_the_session_table_stays_capped_when_the_current_session_is_new(clock, m
         clock[0] += 1
         turn(session=f"s{i}", turn_id=f"t{i}")
     assert sorted(gate._STATES) == ["s2", "s3"]
+
+
+def block_message(result):
+    assert is_blocked(result)
+    return result["message"]
+
+
+def test_followup_first_block_says_it_is_a_new_request_and_asks_for_the_playbook_again():
+    turn()
+    tool("todo_list", args=DECIDED)
+    followup()
+    message = block_message(tool("patch", args={"path": "x"}))
+    assert "new request" in message
+    assert "playbook" in message and "none fits" in message
+    assert "Delegation decision:" in message
+    assert "delegate_task" in message and "skip: <reason>" in message
+
+
+def test_followup_first_block_does_not_use_the_marker_turn_wording():
+    turn()
+    followup()
+    message = block_message(tool("patch", args={"path": "x"}))
+    assert "Copy the matched playbook" not in message
+    assert "numbered steps" not in message
+    assert "verbatim" not in message
+
+
+def test_followup_first_block_message_is_shorter_than_the_marker_turn_one():
+    turn()
+    marker_message = block_message(tool("terminal"))
+    followup()
+    assert len(block_message(tool("terminal"))) < len(marker_message)
+
+
+def test_marker_turn_first_block_keeps_the_playbook_copy_wording():
+    turn()
+    message = block_message(tool("terminal"))
+    assert "Copy the matched playbook's numbered steps verbatim" in message
+    assert "new request" not in message
+
+
+def test_followup_block_after_an_undecided_todolist_uses_the_decision_message():
+    turn()
+    followup()
+    tool("todo_list", args=UNDECIDED)
+    assert block_message(tool("patch", args={"path": "x"})) == gate.DECISION_MESSAGE
+
+
+def test_a_notice_inside_a_followup_keeps_the_followup_wording():
+    turn()
+    followup()
+    turn(message=NOTICE, turn_id="t3")
+    assert block_message(tool("patch", args={"path": "x"})) == gate.FOLLOWUP_BLOCK_MESSAGE
+
+
+def test_a_notice_inside_a_marker_turn_keeps_the_marker_wording():
+    turn()
+    turn(message=NOTICE, turn_id="t2")
+    assert block_message(tool("terminal")) == gate.BLOCK_MESSAGE
