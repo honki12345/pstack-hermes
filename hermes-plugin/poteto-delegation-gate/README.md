@@ -36,14 +36,17 @@ Install it per profile. The profile's `plugins` directory holds a symlink to thi
 ```sh
 PROFILE_HOME=~/.hermes/profiles/<name>
 ln -s "$PWD/hermes-plugin/poteto-delegation-gate" "$PROFILE_HOME/plugins/poteto-delegation-gate"
-hermes plugins doctor hermes-plugin/poteto-delegation-gate --ci
-hermes plugins enable poteto-delegation-gate
-hermes plugins list
+HERMES_HOME="$PROFILE_HOME" hermes plugins doctor hermes-plugin/poteto-delegation-gate --ci
+HERMES_HOME="$PROFILE_HOME" hermes plugins enable poteto-delegation-gate
+HERMES_HOME="$PROFILE_HOME" hermes plugins list
 ```
 
-Run these from the repository root. Doctor must report `0 tool(s), 2 hook(s)`. `hermes plugins
-list` must show the plugin as enabled. Sessions started after the change use the gate. A running
-gateway keeps the code it loaded until it restarts.
+Run these from the repository root. Every `hermes` command names the profile through
+`HERMES_HOME`; without it, `enable` and `list` act on whichever profile is active, and `enable`
+fails with "No plugin named" when that profile has no link. Doctor must report `0 tool(s), 2
+hook(s)`. `hermes plugins list` must show the plugin as enabled. Sessions started after the
+change use the gate. `enable` and `disable` also reload plugins in a running gateway and print
+so; hooks it already wired up for messaging platforms stay until the gateway restarts.
 
 If the profile already has a copy or a link at that path, move it out of the `plugins` directory
 before you run `ln`, and note where it pointed, because that is the way back. A second copy left
@@ -53,10 +56,10 @@ inside `plugins` carries the same plugin name and can conflict with the new link
 
 | Goal | Command |
 |---|---|
-| Stop gating, keep the install | `hermes plugins disable poteto-delegation-gate` |
-| Turn it back on | `hermes plugins enable poteto-delegation-gate` |
-| Remove it | `hermes plugins disable poteto-delegation-gate`, then delete the symlink with `rm "$PROFILE_HOME/plugins/poteto-delegation-gate"` |
-| Restore the previous install | Put back the directory or link you moved aside, then enable it |
+| Stop gating, keep the install | `HERMES_HOME="$PROFILE_HOME" hermes plugins disable poteto-delegation-gate` |
+| Turn it back on | `HERMES_HOME="$PROFILE_HOME" hermes plugins enable poteto-delegation-gate` |
+| Remove it | `HERMES_HOME="$PROFILE_HOME" hermes plugins disable poteto-delegation-gate`, then delete the symlink with `rm "$PROFILE_HOME/plugins/poteto-delegation-gate"` |
+| Restore the previous install | Put back the directory or link you moved aside, then run the enable command above |
 
 `rm` on the symlink removes only the link. Do not use `rm -r` on it.
 
