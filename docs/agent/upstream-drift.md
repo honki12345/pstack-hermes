@@ -28,6 +28,8 @@ Any of these means upstream moved past the pin (or the pin is inconsistent):
 > root-layout migration. Re-pin still depends on anchor audit + pin lock-step +
 > human/CI rebuild. Model slug drift is checked by hand with
 > `tools/slug_drift.py`.
+> The maintainer runs this procedure from a weekly Hermes cron job outside the
+> repository; its PRs use branches named `chore/repin-upstream-<sha8>`.
 
 ## Procedure
 

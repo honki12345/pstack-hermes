@@ -91,8 +91,8 @@ hermes config set delegation.backend pstack
 #           grok-4.7-xhigh-fast: {provider: xai, model: grok-4.7-fast, reasoning_effort: xhigh}
 ```
 
-The backend applies from the next session (`/new`), or immediately with
-`/delegation pstack --now`. To roll back, run
+The backend applies to sessions started after the change. Open a new session
+(`/new`) to use it. To roll back, run
 `hermes config set delegation.backend default` and
 `hermes plugins disable pstack-delegation`.
 
