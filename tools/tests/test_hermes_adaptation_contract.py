@@ -66,3 +66,29 @@ def test_model_panel_role_shapes_are_validated(tmp_path):
     joined = "\n".join(rep.failed)
     assert "reflect judgment, divergent, synthesizer" in joined
     assert "swarm workers" in joined
+
+
+UPSTREAM_PRINCIPLE_SHA256 = {
+    "principle-fix-root-causes": "8df3c8c3fe57eb0055a5c8efab8ab144557fdf301da70b1cdc77a3a3ef3f3052",
+    "principle-test-behavior-not-implementation": "f7223698623b6a26fea49c751e466b38e6691b1f32ce841d3983e7ffbe2b74a6",
+}
+DELEGATION_DECISION_SENTENCE = (
+    "Record every delegation instruction a playbook gives, preamble included, "
+    "as a todolist item: a `delegate_task` item, or `skip: <reason>` when you do not delegate."
+)
+
+
+def test_h1_contract_records_delegation_decisions_in_the_todolist():
+    asset = validate.REPO_ROOT / "tools" / "assets" / "hermes-delegation.md"
+    shipped = validate.REPO_ROOT / "skills" / "poteto-mode" / "references" / "hermes-delegation.md"
+
+    assert DELEGATION_DECISION_SENTENCE in asset.read_text(encoding="utf-8")
+    assert shipped.read_bytes() == asset.read_bytes()
+
+
+def test_rebuild_leaves_upstream_principle_files_byte_identical():
+    import hashlib
+
+    for name, digest in UPSTREAM_PRINCIPLE_SHA256.items():
+        path = validate.REPO_ROOT / "skills" / name / "SKILL.md"
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, name
