@@ -105,7 +105,7 @@ that turn is not forgotten.
 decision. A question such as "what did you just change?" usually ends after `git status` and
 `git diff`, and asking for a todolist first would block the user's turn for nothing. The calls that
 count as read-only are `search_files`, `session_search`, and a `terminal` command made of
-`ls`, `cat`, `head`, `tail`, `wc`, `pwd`, `grep`, `rg`, `stat`, `file`, `which`, `du`, `find`, or `git`
+`ls`, `cat`, `head`, `tail`, `wc`, `pwd`, `grep`, `rg`, `stat`, `file`, `which`, `du`, `find`, `cd` with one path, or `git`
 with `diff`, `log`, `status`, `show`, `blame`, `shortlog`, `rev-parse`, `ls-files` or `describe`.
 Pipes and `&&` are fine when every part is read-only. A redirection, a substitution, `;`, a lone
 `&`, a newline, `find -exec` or `-delete`, `git diff --output` and anything not on the list are not
@@ -222,7 +222,7 @@ uv run --frozen pytest -q hermes-plugin/poteto-delegation-gate/tests
 
 The cases live in `tests/test_gate.py` and run without Hermes. CI scans only `tools/tests/`, so
 the wrapper `tools/tests/test_poteto_delegation_gate.py` loads that file and collects the same
-cases. Both commands run all 152.
+cases. Both commands run all 158.
 
 ## Measure its effect
 

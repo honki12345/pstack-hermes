@@ -187,6 +187,9 @@ def _shell_segment_is_read_only(segment: str) -> bool:
     if any(w in _UNSAFE_ARGS or w.startswith(_UNSAFE_PREFIXES) for w in words):
         return False
     head, rest = words[0], words[1:]
+    if head == "cd":
+        # 에이전트는 `cd <저장소> && git diff` 형태로 조회한다. 경로 하나만 읽기 전용으로 본다.
+        return len(rest) == 1
     if head == "git":
         if rest[:1] == ["-C"] and len(rest) >= 3:
             rest = rest[2:]

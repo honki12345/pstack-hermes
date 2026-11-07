@@ -23,7 +23,7 @@ Entries below this section are history inherited from the original port.
   `[ASYNC DELEGATION BATCH COMPLETE` continues the previous turn's state. Another skill's header
   still turns the gate off, a new `poteto-mode` header re-arms it, and sessions without a
   `poteto-mode` turn are unaffected. Session state expires after 24 hours and is capped at 256
-  sessions. It is still lost when the process restarts. The gate has 152 cases now.
+  sessions. It is still lost when the process restarts. The gate has 158 cases now.
 - `poteto-delegation-gate` reads the todolist. Working tools stay blocked until a `todo_list` item
   names `delegate_task`, or mentions delegation and holds `skip:` with a same-line reason, instead
   of unlocking on any `todo_list` call. A `skip:` on a playbook step does not count. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
