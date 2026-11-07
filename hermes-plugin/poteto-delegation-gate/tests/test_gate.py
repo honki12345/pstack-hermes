@@ -613,7 +613,7 @@ def test_followup_read_batch_within_budget_counts_each_call(tmp_path):
 def test_followup_write_tools_are_blocked_without_a_todolist(tmp_path):
     turn()
     followup()
-    for name in ("write_file", "patch", "execute_code", "web_search", "skill_manage"):
+    for name in ("write_file", "patch", "execute_code", "web_search"):
         assert is_blocked(tool(name))
 
 
@@ -1086,3 +1086,41 @@ def test_followup_bridge_the_gate_cannot_read_is_blocked_like_on_a_marker_turn()
     followup(message=QUESTION)
     assert is_blocked(tool("tool_call", args={}))
     assert is_blocked(tool("tool_call", args={"calls": "not json"}))
+
+
+# Hermes' background skill and memory review runs a fork that shares the parent session id. Its
+# pre_tool_call kwargs carry nothing that tells it from the parent (agent/background_review.py,
+# build_cache_parity_fork), so the gate cannot sort its calls out. The fork only calls skill_view,
+# skill_manage, memory and a few reads, so the first three are preparatory like `memory`.
+REVIEW_FORK_TOOLS = ("skill_view", "skill_manage", "memory")
+
+
+@pytest.mark.parametrize("name", REVIEW_FORK_TOOLS)
+def test_review_fork_tools_pass_on_a_marker_turn(name, tmp_path):
+    turn()
+    assert tool(name) is None
+    assert last_decision(tmp_path)["reason"] == "preparatory_tool"
+
+
+@pytest.mark.parametrize("name", REVIEW_FORK_TOOLS)
+def test_review_fork_tools_pass_after_a_question_turn_with_no_tools(name, tmp_path):
+    turn()
+    followup(message=QUESTION)
+    assert tool(name, args={"action": "patch"}) is None
+    assert last_decision(tmp_path)["event"] == "allow"
+
+
+@pytest.mark.parametrize("name", REVIEW_FORK_TOOLS)
+def test_review_fork_tools_pass_after_the_turn_was_blocked(name):
+    turn()
+    followup()
+    assert is_blocked(tool("patch", args={"path": "x"}))
+    assert tool("todo_list", args=UNDECIDED) is None
+    assert is_blocked(shell("git diff"))
+    assert tool(name) is None
+
+
+def test_skill_manage_is_not_a_decision_and_does_not_unlock_work():
+    turn()
+    assert tool("skill_manage", args={"action": "patch", "name": "x"}) is None
+    assert is_blocked(tool("patch", args={"path": "x"}))
