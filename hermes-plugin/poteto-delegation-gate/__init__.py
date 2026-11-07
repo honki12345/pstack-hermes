@@ -2,6 +2,10 @@
 
 위임을 강제하지 않는다. 막는 것은 "결정 없이 작업부터 시작하는 것"뿐이고, 위임을 가리키는 항목에
 `skip: <사유>`를 적는 것도 유효한 결정이다. 결정 항목이 없는 todolist는 작업을 풀지 못한다.
+
+poteto 턴이 있었던 세션에서는 마커 없는 후속 턴도 새 턴으로 보고 같은 관문을 건다. 짧은 읽기 조회
+몇 번까지는 결정 없이 통과시키고, 그 너머의 조사나 쓰기부터 결정을 요구한다. 게이트웨이가 넣는
+비동기 완료 알림 턴은 새 작업이 아니므로 앞선 턴의 상태를 이어 간다.
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import threading
 import time
 from dataclasses import dataclass
@@ -53,6 +58,36 @@ def _is_decision(text: str) -> bool:
 # 횟수만큼만 막는다.
 MAX_DECISION_BLOCKS = 2
 
+# 마커 없는 후속 턴에서 결정 없이 통과시키는 읽기 조회의 상한. "방금 뭐 바꿨어?" 같은 질문은 보통
+# `git status`와 `git diff` 정도로 끝난다. 이를 넘는 조사는 넓은 조사의 시작으로 보고 막는다.
+# 첫 차단이나 결정 없는 todolist 쓰기가 있으면 이 허용은 닫혀서, 이후 흐름은 마커 턴과 같다.
+FOLLOWUP_FREE_READS = 3
+
+# 세션별 상태는 프로세스 메모리에만 있다. 오래 쉰 세션은 만료시키고 개수에도 상한을 둬서 무한히
+# 쌓이지 않게 한다. 밀려난 세션은 poteto 이력이 없는 세션처럼 다룬다.
+SESSION_TTL_SECONDS = 24 * 60 * 60
+MAX_SESSIONS = 256
+
+# 이름만으로 읽기 전용인 도구. 쉘 명령은 아래 규칙으로 따로 가린다.
+READ_ONLY_TOOLS = frozenset({"search_files", "session_search"})
+_READ_ONLY_COMMANDS = frozenset({
+    "ls", "cat", "head", "tail", "wc", "pwd", "grep", "rg", "stat", "file", "which", "du", "find",
+})
+_READ_ONLY_GIT = frozenset({
+    "diff", "log", "status", "show", "blame", "shortlog", "rev-parse", "ls-files", "describe",
+})
+# 이 인자가 하나라도 있으면 읽기 전용으로 보지 않는다. 파일을 바꾸거나 다른 명령을 실행한다.
+_UNSAFE_ARGS = frozenset({
+    "-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls",
+})
+_UNSAFE_PREFIXES = ("--output", "--pre", "--ext-diff", "--textconv")
+# 리다이렉션, 명령 치환, `;`, 줄바꿈, 백슬래시, 괄호, 중괄호, 단독 `&`(백그라운드 실행).
+_SHELL_META_RE = re.compile(r"[;<>`$\n\r\\(){}]|(?<!&)&(?!&)")
+
+# 게이트웨이가 에이전트 대화에 끼워 넣는 완료 알림. 사용자가 새로 시킨 작업이 아니다.
+# Hermes 의 tools/process_registry_notifications.py 가 만드는 머리말과 같아야 한다.
+_NOTICE_RE = re.compile(r"\[(?:ASYNC DELEGATION |IMPORTANT: (?:Background process |\d+ background processes ))")
+
 _FORMAT_HINT = (
     "Recommended item: `Delegation decision: delegate_task <the steps that go to a child>` (with "
     "pstack_role) or `Delegation decision: skip: <reason>` with the reason on the same line."
@@ -87,10 +122,21 @@ class _TurnState:
     decision_blocks: int = 0
     delegated: int = 0
     turn_id: str = ""
+    # 마커 없는 후속 턴이다. 읽기 조회 허용(free_reads)은 이 턴에서만 쓴다.
+    followup: bool = False
+    free_reads: int = 0
+    # 이 턴에서 한 번이라도 막았다. 막힌 뒤에는 읽기 조회 허용을 닫는다.
+    blocked: bool = False
+    # 마지막으로 이 세션을 본 시각. 만료와 개수 상한에 쓴다.
+    seen: float = 0.0
 
 
 _STATES: dict[str, _TurnState] = {}
 _LOCK = threading.Lock()
+
+
+def _now() -> float:
+    return time.time()
 
 
 def _log_path() -> Path:
@@ -125,6 +171,49 @@ def _invoked_skill_tokens(user_message: object) -> list[str]:
 
 def _is_poteto_invocation(user_message: object) -> bool:
     return any(t.lstrip("/").rsplit(":", 1)[-1] == SKILL_NAME for t in _invoked_skill_tokens(user_message))
+
+
+def _is_notice(user_message: object) -> bool:
+    return isinstance(user_message, str) and bool(_NOTICE_RE.match(user_message))
+
+
+def _shell_segment_is_read_only(segment: str) -> bool:
+    try:
+        words = shlex.split(segment)
+    except ValueError:
+        return False
+    if not words:
+        return False
+    if any(w in _UNSAFE_ARGS or w.startswith(_UNSAFE_PREFIXES) for w in words):
+        return False
+    head, rest = words[0], words[1:]
+    if head == "git":
+        if rest[:1] == ["-C"] and len(rest) >= 3:
+            rest = rest[2:]
+        return bool(rest) and rest[0] in _READ_ONLY_GIT
+    return head in _READ_ONLY_COMMANDS
+
+
+def _is_read_only_shell(command: object) -> bool:
+    """읽기만 하는 쉘 명령이면 참. 리다이렉션, 치환, `;`, 백그라운드 실행이 있으면 거짓이다.
+    `|` 와 `&&` 로 이은 명령은 조각마다 읽기 전용일 때만 참이다."""
+    if not isinstance(command, str) or not command.strip() or _SHELL_META_RE.search(command):
+        return False
+    segments = [part for chunk in command.split("&&") for part in chunk.split("|")]
+    return all(_shell_segment_is_read_only(seg) for seg in segments)
+
+
+def _read_cost(entries: list[tuple[str, dict]]) -> int | None:
+    """준비 도구를 뺀 나머지가 모두 읽기 전용이면 그 호출 수, 하나라도 아니면 None."""
+    cost = 0
+    for name, args in entries:
+        if name in ALLOWED_BEFORE_TODO:
+            continue
+        if name in READ_ONLY_TOOLS or (name == "terminal" and _is_read_only_shell(args.get("command"))):
+            cost += 1
+        else:
+            return None
+    return cost
 
 
 def _json_value(value: object) -> object:
@@ -185,6 +274,17 @@ def _has_decision(args: dict) -> bool:
     return any(_is_decision(text) for text in _item_texts(args))
 
 
+def _expire(now: float, keep: str) -> None:
+    """락 안에서 호출한다. 오래 쉰 세션을 지우고, 상한을 넘으면 가장 오래된 것부터 지운다."""
+    for sid in [k for k, v in _STATES.items() if k != keep and now - v.seen > SESSION_TTL_SECONDS]:
+        del _STATES[sid]
+    while len(_STATES) > MAX_SESSIONS:
+        oldest = min((k for k in _STATES if k != keep), key=lambda k: _STATES[k].seen, default=None)
+        if oldest is None:
+            break
+        del _STATES[oldest]
+
+
 def _on_pre_llm_call(**kwargs):
     try:
         if kwargs.get("parent_session_id"):
@@ -193,17 +293,33 @@ def _on_pre_llm_call(**kwargs):
         if not isinstance(session_id, str) or not session_id:
             return None
         turn_id = str(kwargs.get("turn_id") or "")
-        marked = _is_poteto_invocation(kwargs.get("user_message"))
+        message = kwargs.get("user_message")
+        marked = _is_poteto_invocation(message)
+        now = _now()
         with _LOCK:
             state = _STATES.get(session_id)
+            # 같은 턴의 재호출이 todolist 기록을 지우면 안 된다.
+            same_turn = bool(state and turn_id and state.turn_id == turn_id)
             if marked:
-                # 같은 턴의 재호출이 todolist 기록을 지우면 안 된다.
-                if not (state and state.active and turn_id and state.turn_id == turn_id):
-                    _STATES[session_id] = _TurnState(active=True, turn_id=turn_id)
+                if not (state and state.active and same_turn):
+                    _STATES[session_id] = _TurnState(active=True, turn_id=turn_id, seen=now)
                     _audit("turn_armed", session_id=session_id, turn_id=turn_id)
-            elif state and state.active:
-                state.active = False
-                _audit("turn_disarmed", session_id=session_id, turn_id=turn_id)
+            elif state and state.active and not same_turn:
+                if _invoked_skill_tokens(message):
+                    # 사용자가 다른 스킬을 직접 불렀다. poteto 를 이어 가지 않는다.
+                    state.active = False
+                    _audit("turn_disarmed", session_id=session_id, turn_id=turn_id)
+                elif _is_notice(message):
+                    # 알림은 새 작업이 아니다. 앞선 턴의 todolist, 결정, 차단 횟수를 그대로 둔다.
+                    state.turn_id = turn_id
+                    _audit("turn_continued", session_id=session_id, turn_id=turn_id, kind="notice")
+                else:
+                    _STATES[session_id] = _TurnState(active=True, followup=True, turn_id=turn_id, seen=now)
+                    _audit("turn_continued", session_id=session_id, turn_id=turn_id, kind="followup")
+            current = _STATES.get(session_id)
+            if current:
+                current.seen = now
+            _expire(now, session_id)
     except Exception:
         logger.debug("poteto-delegation-gate: pre_llm_call failed", exc_info=True)
     return None
@@ -230,6 +346,12 @@ def _decide(state: _TurnState, tool_name: str, args: object) -> tuple[str, str]:
             state.todo_pending = True
             return "allow", "todo_pending_decision"
         return "allow", "preparatory_tool"
+    reads = _read_cost(entries)
+    if (state.followup and reads is not None and not state.blocked and not state.todo_pending
+            and not undecided_write and state.free_reads + reads <= FOLLOWUP_FREE_READS):
+        state.free_reads += reads
+        return "allow", "followup_read"
+    state.blocked = True
     if state.todo_pending or undecided_write:
         if state.decision_blocks >= MAX_DECISION_BLOCKS:
             state.released = True
@@ -251,6 +373,7 @@ def _on_pre_tool_call(**kwargs):
                 return None
             decision, reason = _decide(state, tool_name, kwargs.get("args"))
             delegated = state.delegated
+            state.seen = _now()
         names = _bridged_names(kwargs.get("args")) if tool_name == BRIDGE_TOOL else []
         # 풀린 tool_call bridge는 로그와 세션 DB의 도구 이름이 달라서, 읽는 쪽이 이름 대신 id로 짝짓게 한다.
         _audit(decision, session_id=session_id, tool_name=tool_name, bridged=names, reason=reason,
