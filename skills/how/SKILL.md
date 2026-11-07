@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
 
-Each spawn below names a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `inherit-parent`. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
+Each spawn below names a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply.
 
 ## Step 1. Assess Complexity
 
@@ -23,9 +23,8 @@ When in doubt, take the simple path.
 
 Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single message:
 
-- `delegate_task`: role `leaf`
-- `model`: the `how explorer` line, default `grok-4.7-xhigh-fast`
-- `readonly`: `true`
+- `delegate_task` task with `pstack_role`: `how explorer` (upstream default `grok-4.7-xhigh-fast`)
+- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`)
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
 
@@ -33,9 +32,8 @@ Each explorer gets the prompt in `references/explorer-prompt.md` with its angle 
 
 Spawn one delegate subagent that explores and explains in one pass:
 
-- `delegate_task`: role `leaf`
-- `model`: the `how explainer` line, default `claude-opus-5-5-max`
-- `readonly`: `true`
+- `delegate_task` task with `pstack_role`: `how explainer` (upstream default `claude-opus-5-5-max`)
+- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`)
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section, and instruct the explainer to inspect the code itself before answering (there are no explorer findings to rely on). Go to Step 4.
 
@@ -43,9 +41,8 @@ Build its prompt from `references/explainer-prompt.md` without the explorer-find
 
 Once all explorers have returned, spawn one delegate subagent to synthesize their findings into one explanation:
 
-- `delegate_task`: role `leaf`
-- `model`: the `how explainer` line, default `claude-opus-5-5-max`
-- `readonly`: `true`
+- `delegate_task` task with `pstack_role`: `how explainer` (upstream default `claude-opus-5-5-max`)
+- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`)
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.
 

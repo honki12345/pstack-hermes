@@ -1632,6 +1632,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         f"issue #33) applied across {t14_files} skill file(s) "
         "(stacker clone, one-stacker serialization, retarget)"
     )
+    apply_h1_contract(out, st)
     audit_anchor_hits(
         {
             "T8_MAP": T8_MAP,
@@ -1643,6 +1644,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
             "T12_SCRIPT_MAP": T12_SCRIPT_MAP,
             "T13_MAP": T13_MAP,
             "T14_MAP": T14_MAP,
+            "H1_MAP": H1_MAP,
         },
         st,
     )
@@ -1965,6 +1967,138 @@ T14_MAP = [
         "PR closes and retargets go through the stacker only. Closing a base PR orphans every chain above it. Retargeting through the stacker requires Graphite (`gt`); ordinary base changes to an existing child or the bottom PR go through the resolved forge (`origin pr edit` / `gh pr edit`) and need no stacker. Merges and stack surgery are units with briefs like any other.",
     ),
 ]
+
+
+# --- H1: Hermes delegation contract (fork) ---------------------------------
+# Hermes v0.23.0 delegate_task has no per-task `model` (core-reserved: dropped
+# silently, the child runs on the parent model) and no `readonly` (undeclared:
+# the task is refused). Cron never resumes the arming session. These pairs
+# rewrite the post-T14 text so the skills route by `pstack_role` through the
+# pstack delegation backend (hermes-plugin/pstack-delegation), keep read-only
+# as an advisory + verified contract, and describe cron ticks as fresh runs.
+# The contract itself ships as skills/poteto-mode/references/hermes-delegation.md
+# (tools/assets/hermes-delegation.md). Audited like every other map.
+H1_CONTRACT = "`../poteto-mode/references/hermes-delegation.md`"
+H1_PB_CONTRACT = "`../references/hermes-delegation.md`"
+H1_RO = "- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (" + H1_CONTRACT + ")"
+H1_MAP = [
+    (
+        "Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `inherit-parent`. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.",
+        "Route each spawn per the Hermes delegation contract (" + H1_CONTRACT + "): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply.",
+    ),
+    (
+        "- `delegate_task`: role `leaf`\n- `model`: the `how explorer` line, default `grok-4.7-xhigh-fast`\n- `readonly`: `true`",
+        "- `delegate_task` task with `pstack_role`: `how explorer` (upstream default `grok-4.7-xhigh-fast`)\n" + H1_RO,
+    ),
+    (
+        "- `delegate_task`: role `leaf`\n- `model`: the `how explainer` line, default `claude-opus-5-5-max`\n- `readonly`: `true`",
+        "- `delegate_task` task with `pstack_role`: `how explainer` (upstream default `claude-opus-5-5-max`)\n" + H1_RO,
+    ),
+    (
+        "- `delegate_task`: role `leaf`\n- `model`: the `why investigators` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)\n- `readonly`: `false` (agent mode) so investigators can record findings if needed. Note: readonly on hermes restricts file writes only, so MCP access is unaffected. Investigators still shouldn't write anything.",
+        "- `delegate_task` task with `pstack_role`: `why investigators` (fallback: the parent chat model)\n" + H1_RO + ". Hermes children keep the parent's MCP tools, so MCP-backed investigators keep their lookups.",
+    ),
+    (
+        "- `delegate_task`: role `leaf`\n- `model`: the `why synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model)\n- `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly mode on hermes restricts file writes only - MCP access is unaffected - but agent mode keeps the option to record findings.",
+        "- `delegate_task` task with `pstack_role`: `why synthesizer` (fallback: the parent chat model)\n" + H1_RO + ". The synthesizer spot-verifies citations through MCP, which Hermes children keep.",
+    ),
+    (
+        "three `delegate_task` calls (role: `leaf`), with `model` set as below, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly on hermes restricts file writes only, so MCP access is unaffected.",
+        "one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (" + H1_CONTRACT + "). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript); Hermes children keep the parent's MCP tools.",
+    ),
+    (
+        "One `delegate_task` call (role: `leaf`), using the `reflect judgment, divergent, synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected.",
+        "One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (fallback: the parent chat model) and `access: read-only`. The synthesizer's quality check includes spot-verifying citations, which can require MCP access; Hermes children keep the parent's MCP tools.",
+    ),
+    (
+        "- `delegate_task`: role `leaf`\n- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line. For an `inherit-parent` entry, omit `model` so that reviewer runs on the parent model.\n- `readonly`: `true`",
+        "- `delegate_task` task with `pstack_role`: `interrogate reviewers` and `seat`: the reviewer's 0-based entry (Reviewer A is seat 0). The backend resolves the configured entry or the table default; never pass `model`.\n" + H1_RO + ". Without the pstack delegation backend, omit those keys, still spawn one reviewer per entry, and report the panel as single-model: the cross-family check is unmet.",
+    ),
+    (
+        "If delegate_task rejects a configured entry, run that reviewer on the table default of its family and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use Reviewer A's default. If it rejects a table default, check the valid slugs in delegate_task's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with it, and open a separate PR to update the default table. Do not block the review on the slug issue. Never treat an alias entry as a rejected slug or apply either fallback to it.",
+        "If delegate_task refuses a seat because its entry cannot be resolved (unknown model, provider, or profile), rerun that reviewer once without `seat` and `pstack_role`, so it runs on the parent model, say so, and fix the entry in `pstack-models.json` afterwards. Do not block the review on the slug issue. Each result's `route` label records the model a reviewer actually ran on; cite it.",
+    ),
+    (
+        "For `inherit-parent`, omit `model` so the workers run on the parent model. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message. For a model race, name each arm's model up front.",
+        "Route workers with `pstack_role: swarm workers` per " + H1_CONTRACT + "; never pass `model`. For a model race, give each arm a panel seat (`pstack_role: arena runners`, `seat: n`) and name each arm's resolved model from its result `route` label.",
+    ),
+    (
+        "with `delegate_task` (role: `leaf`), background execution, and the step 4 model, left unset for `inherit-parent`.",
+        "in one `delegate_task` call (Hermes always runs it in the background), each task carrying the step 4 `pstack_role`.",
+    ),
+    (
+        "An `inherit-parent` entry in this line or the cross-judge line means the parent model, so omit `model` for it. If delegate_task rejects a configured entry, run that seat on its family's default and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use `claude-opus-5-5-max`. If it rejects a default, use the closest valid slug of the same family from its error message.",
+        "Spawn runner n with `pstack_role` set to the runners line (`arena runners`, or `architect runners` from architect) and `seat: n`; the cross-judge uses `pstack_role: arena cross-judge pool` with a seat whose family differs from the parent's. Never pass `model` (" + H1_CONTRACT + "). If delegate_task refuses a seat, rerun it on the parent model, say so, and fix the panel entry.",
+    ),
+    (
+        "background execution, agent mode (readonly restricts file writes only; MCP access is unaffected), file pointers not inlined context, explicit model per role",
+        "background execution (always, on Hermes), full tool access (children inherit your toolsets; see `references/hermes-delegation.md`), file pointers not inlined context, explicit `pstack_role` per role",
+    ),
+    (
+        "runs that role on the parent chat model (omit the delegate's `model`).",
+        "runs that role on the parent chat model (the pstack delegation backend returns the parent route; never pass `model`).",
+    ),
+    (
+        "with `delegate_task` (role: `leaf`) with the poteto-mode wrapper instructions in the task prompt and an explicit model per the Subagents section",
+        "with `delegate_task` tasks carrying the poteto-mode wrapper instructions in `context` and an explicit `pstack_role` per the Subagents section",
+    ),
+    (
+        "nesting works to depth 3, and a nested spawn has the full Task schema including `environment`",
+        "nesting is bounded by `delegation.max_spawn_depth`, and a nested spawn has the same `delegate_task` schema",
+    ),
+    (
+        "Always local execution unless the task needs this machine: `control-ui` or `control-cli` runtime verification. Reading session history from the local hermes store. Simulators and local IDE state. Auth that exists only here. Cloud agents cannot read the local store, so their briefs inline what they need or point at repo paths.",
+        "Always a local `delegate_task` child; Hermes has no cloud workers. A brief names any local state the task needs: `control-ui` or `control-cli` runtime verification, session history in the local hermes store, simulators and local IDE state, auth that exists only here. Children start without this conversation, so their briefs inline what they need or point at repo paths.",
+    ),
+    (
+        "arms a recurring or one-shot job whose delivery re-wakes this session with the wake prompt.",
+        "arms a recurring or one-shot job. Each tick is a fresh agent run, never a resume of this session, so follow the wake rules in " + H1_PB_CONTRACT + ": a self-contained prompt, `--continuity`, `--workdir`, and `hermes cron remove` once the predicate holds.",
+    ),
+    (
+        "with a hermes cron job that re-wakes this session on the hunt at a fixed interval until the mechanism is confirmed.",
+        "with a fixed-interval hermes cron job whose self-contained prompt carries the hunt state (each tick is a fresh run; see " + H1_PB_CONTRACT + "), removed once the mechanism is confirmed.",
+    ),
+    (
+        "In a local session, a recurring hermes cron job that delivers the tick prompt. In a local root, a wake chain arms each tick as a recurring hermes cron job whose delivery re-wakes this session.",
+        "Arm one recurring hermes cron job (`--continuity`, `--workdir <repo>`, `--deliver origin`) whose prompt is the tick prompt below plus the plan and store paths. Each tick is a fresh run, not a resume of this chat (`skills/poteto-mode/references/hermes-delegation.md`). Record the job id in the plan.",
+    ),
+    (
+        "A local root arms each tick as a recurring hermes cron job (30-minute interval) whose delivery re-wakes this session with the tick prompt; the cron run record, not a completion notification, is the wake. A local root uses the existing wake chain instead.",
+        "The root arms each tick as one recurring hermes cron job (30-minute interval) whose self-contained prompt is the tick prompt; each tick is a fresh run that re-reads the plan store, not a resume of this session (" + H1_PB_CONTRACT + "). Remove the job when the queue completes or the operator stands it down.",
+    ),
+]
+
+#: Text the H1 pass must leave nowhere in skills/**/*.md.
+H1_FORBIDDEN = (
+    "- `readonly`: `true`",
+    "`readonly: false`",
+    "omit `model`",
+    "re-wakes this session",
+    "MCP access is unaffected",
+)
+
+
+def apply_h1_contract(out: Path, st: Stats) -> None:
+    """Ship the Hermes delegation contract and point the spawn/wake prose at it."""
+    asset = SCRIPT_DIR / "assets" / "hermes-delegation.md"
+    if not asset.is_file():
+        raise ConvertError(f"H1 contract asset missing: {asset}")
+    refs = out / "skills" / "poteto-mode" / "references"
+    refs.mkdir(parents=True, exist_ok=True)
+    copy_file(asset, refs / "hermes-delegation.md", st)
+    changed = apply_map(sorted((out / "skills").rglob("*.md")), H1_MAP, map_name="H1_MAP", st=st)
+    leftovers = []
+    for p in sorted((out / "skills").rglob("*.md")):
+        t = p.read_text(encoding="utf-8")
+        leftovers.extend((str(p.relative_to(out)), tok) for tok in H1_FORBIDDEN if tok in t)
+    if leftovers:
+        raise ConvertError(f"H1 delegation contract incomplete: {leftovers}")
+    st.fixes.append(
+        f"H1: Hermes delegation contract applied across {changed} skill file(s) + "
+        "skills/poteto-mode/references/hermes-delegation.md (route by pstack_role via the pstack "
+        "delegation backend; model is dropped and readonly refused by core; read-only advisory + "
+        "verified; cron ticks are fresh runs)"
+    )
 
 
 def apply_map(

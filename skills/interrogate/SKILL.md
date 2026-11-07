@@ -42,11 +42,10 @@ Launch all reviewers in a single message using delegate_task. Use the `interroga
 | Reviewer C | `grok-4.7-xhigh-fast` |
 
 For each reviewer:
-- `delegate_task`: role `leaf`
-- `model`: the configured `interrogate reviewers` entry, or the table default with no configured line. For an `inherit-parent` entry, omit `model` so that reviewer runs on the parent model.
-- `readonly`: `true`
+- `delegate_task` task with `pstack_role`: `interrogate reviewers` and `seat`: the reviewer's 0-based entry (Reviewer A is seat 0). The backend resolves the configured entry or the table default; never pass `model`.
+- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Without the pstack delegation backend, omit those keys, still spawn one reviewer per entry, and report the panel as single-model: the cross-family check is unmet.
 
-If delegate_task rejects a configured entry, run that reviewer on the table default of its family and say so. Families go by prefix: `claude-*`, `gpt-*`, and `grok-*`. With no family match, use Reviewer A's default. If it rejects a table default, check the valid slugs in delegate_task's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with it, and open a separate PR to update the default table. Do not block the review on the slug issue. Never treat an alias entry as a rejected slug or apply either fallback to it.
+If delegate_task refuses a seat because its entry cannot be resolved (unknown model, provider, or profile), rerun that reviewer once without `seat` and `pstack_role`, so it runs on the parent model, say so, and fix the entry in `pstack-models.json` afterwards. Do not block the review on the slug issue. Each result's `route` label records the model a reviewer actually ran on; cite it.
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent

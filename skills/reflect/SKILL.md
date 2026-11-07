@@ -20,9 +20,9 @@ The parent locates the current session via `session_search` (hermes stores sessi
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `delegate_task` calls (role: `leaf`), with `model` set as below, agent mode (`readonly: false`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript). Readonly on hermes restricts file writes only, so MCP access is unaffected.
+One message, one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (`../poteto-mode/references/hermes-delegation.md`). Reviewers need MCP access for context lookups (tickets, chat threads, observability traces referenced in the transcript); Hermes children keep the parent's MCP tools.
 
-Each reviewer and the synthesizer name a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `inherit-parent`. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.
+Each reviewer and the synthesizer name a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply.
 
 | Lens | Role line | Default `model` | Prompt template |
 |---|---|---|---|
@@ -34,7 +34,7 @@ Pass each template verbatim, substituting the Hermes session id or digest where 
 
 ### 3. Synthesize
 
-One `delegate_task` call (role: `leaf`), using the `reflect judgment, divergent, synthesizer` line from the model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) (fallback: the parent chat model), agent mode (`readonly: false`). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Readonly on hermes restricts file writes only, so MCP access is unaffected. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (fallback: the parent chat model) and `access: read-only`. The synthesizer's quality check includes spot-verifying citations, which can require MCP access; Hermes children keep the parent's MCP tools. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 
