@@ -1,0 +1,1 @@
+README.md 첫 줄 제목이 'Shop Apii'라고 오타가 나 있어요. 'Shop API'로 고쳐 주세요.

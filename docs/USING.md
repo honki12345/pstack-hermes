@@ -104,6 +104,17 @@ useful fixes are welcome as PRs there.
 > machine enforces this; a skill that instructs Cursor-style `Task`
 > subagents or `AskQuestion` will silently mislead the agent on hermes.
 
+## Delegation gate (optional)
+
+The repository also ships `poteto-delegation-gate`, a Hermes plugin that is not part of the
+package. On a `/poteto-mode` turn it blocks working tools until the agent has written a todolist
+that records its delegation decision. An item that mentions delegation and says `skip: <reason>` counts as a decision, so the gate never
+forces delegation. The gate stays on for the later turns of that session, including follow-ups
+without the header, and a few read-only calls such as `git diff` do not need a decision. It is off until you link it into a profile and enable it. Install, disable and
+rollback steps, and the audit log format, are in
+[hermes-plugin/poteto-delegation-gate/README.md](../hermes-plugin/poteto-delegation-gate/README.md).
+`tools/eval/README.md` describes the harness that measures its effect on a real agent.
+
 ## Reporting problems
 
 Read [SECURITY.md](../SECURITY.md) first — it defines what belongs to this port
