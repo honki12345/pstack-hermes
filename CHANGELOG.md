@@ -10,9 +10,10 @@ Entries below this section are history inherited from the original port.
 ### Added
 - `tools/eval/`: prompt `p5-ops-errors` and the `fulfilment-api` fixture. A request to find and fix
   intermittent production errors across a twelve-module service, with a mixed log and two
-  unrelated defects (payment retry key, stock release), so a delegated investigation shows up
-  where p1's one-function bug cannot. The judge grades it with G1, G2 and G3 (same definitions
-  as p1); the other metrics stay `null`.
+  unrelated defects (payment retry key, stock release). It checks that the decision item is
+  written and both defects are found on a task wider than p1's one-function bug. The judge grades
+  it with G1, G2 and G3 (same definitions as p1); the other metrics stay `null`. In the baseline
+  the agent fixed both defects alone in one to two minutes, so G3 false is not a defect by itself.
 - `hermes-plugin/poteto-delegation-gate/`: the delegation gate moves into the repository
   with no code change. It blocks working tools on a `/poteto-mode` turn until the todolist records
   the delegation decision (hooks `pre_llm_call` and `pre_tool_call`). The audit log now records
@@ -20,6 +21,55 @@ Entries below this section are history inherited from the original port.
   `tools/tests/test_poteto_delegation_gate.py` collects its 43 cases in CI.
 
 ### Changed
+- `poteto-delegation-gate` keeps the gate on for follow-up turns. Before, the first turn without
+  the `poteto-mode` header in a session switched it off (`turn_disarmed`), so a follow-up that
+  became a wide investigation skipped the delegation decision. Now such a turn starts fresh and
+  is logged as `turn_continued`. A follow-up may make up to three read-only calls without a
+  decision (`followup_read`), so a question turn is not blocked, and a gateway notice such as
+  `[ASYNC DELEGATION BATCH COMPLETE` continues the previous turn's state. Another skill's header
+  still turns the gate off, a new `poteto-mode` header re-arms it, and sessions without a
+  `poteto-mode` turn are unaffected. Session state expires after 24 hours and is capped at 256
+  sessions. It is still lost when the process restarts. The gate has 615 cases now.
+- `poteto-delegation-gate` follow-up turns, second round. Every Hermes notice header is
+  recognised (heartbeat, watch disabled, overflow and resumed, busy-fold, batch, subagent batch),
+  and so is the `[INTERNAL NOTIFICATION` footer the gateway appends. The read-only shell check is
+  quote aware, takes `;` as a piece separator, and allows `>/dev/null` and `2>&1`, read `gh`
+  subcommands, `git --no-pager`, `sed -n '<address>p'`. `file` accepts only read flags and
+  `rg --hostname-bin` is refused. On this machine's terminal history the check refused 90% of
+  read-only commands before and refuses 44% now. A follow-up `read_file` counts against the
+  three-call allowance unless the path is a skill or playbook file. A follow-up's first block has
+  its own message. `skill_manage` is a preparatory tool because Hermes' background review fork shares
+  the parent session, and the `tools/eval/` judge leaves those fork calls out of
+  `unpaired_events`. The 24-hour expiry now applies to the speaking session too.
+- `poteto-delegation-gate` follow-up turns, third round. `cut`, `date` (format, `-u` and the
+  output-format flags, optionally after `TZ=`), the listing forms of `git branch` and `git remote`,
+  and `gh auth status` with no flags are read-only. On the same terminal history the check then
+  refused 23% of read-only commands. The goal loop's continuation prompt continues the previous
+  turn like a notice.
+- `poteto-delegation-gate` follow-up turns, fourth round. The read-only shell check now refuses
+  a shape it cannot read with certainty instead of parsing it more exactly. A `#`, a newline or any
+  other control character anywhere in the command, quotes included, makes it not read-only.
+  A `sed -n` address with a backslash or `[` in its regex is refused. `gh` takes only the read
+  flags of each subcommand from an allowlist, so `--jq`, `-q`, `--template`, `-t`, `-w`, `--web`,
+  `--watch`, `--flag=value` forms and bundled short flags are refused, and `gh auth status` takes
+  no flag. `jq` is no longer read-only because `env` and `$ENV` print the environment. All four
+  goal continuation templates are recognised, including the quality-gate form. The gateway footer
+  is found with `rfind` from the end, so detection is linear in the message length. Before, a
+  57 KB message that repeated the footer opening took 4.3 seconds and 114 KB took 34 seconds. A
+  `read_file` counts as a skill file only when its normalised path is a `.md` file under a `skills`
+  directory and has no `..` part. Deeply nested JSON in a tool call is read as unreadable, so it is
+  blocked and logged instead of raising and being allowed with no log line. `skill_manage` can
+  still write a skill file on a marker turn without a decision, because it is a preparatory tool.
+  On the same terminal history the check refuses 26% of read-only commands, up from 24% measured
+  on the same data before this round. These rules reduce friction and are not a security boundary.
+- `poteto-delegation-gate` reads the todolist. Working tools stay blocked until a `todo_list` item
+  names `delegate_task`, or mentions delegation and holds `skip:` with a same-line reason, instead
+  of unlocking on any `todo_list` call. A `skip:` on a playbook step does not count. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
+  the next working call is blocked with `todo_without_decision`. After two such blocks in a turn
+  the gate releases with `decision_missing_released` so an agent that cannot write the item is not
+  stalled. `tools/eval/judge.py` treats `todo_pending_decision` as a step toward the todolist when
+  it grades recovery (G2). Calls after a release are logged as `released`, not `todo_written`.
+  The G1 and G4 checks use the same decision criterion as the gate. The gate has 91 cases now.
 - **Re-pin to upstream `c742dd6` (pstack v0.15.36); package rebuilt.** 58
   skills (34 workflow/mode + 24 `principle-*`): 11 new upstream skills ship,
   `poteto-help` adapted to Hermes through the new audited `HELP_MAP` (P1).

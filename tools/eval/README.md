@@ -15,7 +15,7 @@ It spends model calls, so CI never runs it. CI only runs the judge's unit tests
 | `prompts/p2-why.txt` | a "how and why does this work" question; routes to investigation |
 | `prompts/p3-oneline.txt` | a one-line README fix; delegating it would be over-delegation |
 | `prompts/p4-followup.txt` | a follow-up in the p1 session, sent without the skill marker |
-| `prompts/p5-ops-errors.txt` | a request to find and fix intermittent production errors across several modules; delegating the investigation is clearly the better call |
+| `prompts/p5-ops-errors.txt` | a request to find and fix intermittent production errors across several modules. A wide investigation is plausible here, so G3 shows whether the agent delegates it. The baseline agent fixed both defects alone in one to two minutes, so skipping delegation can still be the right call |
 | `fixtures/shop-api/` | small service with one pricing bug; copied to a fresh git checkout per run (p1-p4) |
 | `fixtures/fulfilment-api/` | twelve-module order service with a mixed production log and two unrelated defects (a payment retry that changes its idempotency key, a stock release that is not final); copied to a fresh git checkout for p5 |
 | `run_eval.py` | builds the marked message, runs it in a profile, writes `run.json`, calls the judge |
@@ -130,10 +130,10 @@ its own line.
 
 | Metric | Prompt | True when |
 |---|---|---|
-| G1 decision first | p1, p3, p5 | the gate armed, and a `todo_list` containing `delegate_task` or `skip:` came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
+| G1 decision first | p1, p3, p5 | the gate armed, and a `todo_list` with a decision item (one item naming `delegate_task`, or mentioning delegation and holding `skip:` with a same-line reason, the gate's criterion) came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
 | G2 recovery | all | after a gate block, the agent writes the todolist without a second block. Blocks that come from one assistant message are one attempt; only a block in a later message fails it |
 | G3 delegation happens | p1, p5 | at least one `delegate_task` executed and was not rejected; a rejected call counts only if a child session exists |
-| G4 no over-delegation | p3 | no `delegate_task`, no child session, and a `skip:` with a non-blank reason on the same line in the todolist |
+| G4 no over-delegation | p3 | no `delegate_task`, no child session, and a decision item with a `skip:` that has a non-blank reason on the same line (also read from `skip delegate_task: <reason>`) in the todolist |
 | G5 reroute | p2 | the sandbox ends as it began (same `HEAD`, same porcelain status, new files included) and no file-writing tool (`write_file`, `patch`, `skill_manage`) ran. `null` when `run.json` has no recorded before/after state, e.g. when grading a bare session with `--session-id` |
 | G6 follow-up turn | p4 | the second turn of the session still has gate events and no `turn_disarmed` |
 

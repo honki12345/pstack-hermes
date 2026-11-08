@@ -12,7 +12,7 @@ Metrics (null when the prompt does not exercise them):
   G2 recovery            after a gate block, the agent writes the todolist without being blocked
                          again in a later assistant message (parallel blocks are one attempt)
   G3 delegation happens  p1, p5: at least one delegate_task executed and not rejected
-  G4 no over-delegation  p3: no delegate_task, no child session, and a `skip:` reason is written
+  G4 no over-delegation  p3: no delegate_task, no child session, and a `skip:` reason is written in a decision item
   G5 reroute             p2: the sandbox ends as it began (same HEAD, same porcelain status) and
                          no file-writing tool ran; null without a recorded before/after state
   G6 follow-up turn      p4: the gate stays active on the second turn of the same session
@@ -37,21 +37,42 @@ DELEGATE_TOOL = "delegate_task"
 # Mirrors the gate's ALLOWED_BEFORE_TODO. Kept as a copy so the judge works on logs written by
 # any gate version.
 PREPARATORY_TOOLS = frozenset({
-    "read_file", "skill_view", "skills_list", "tool_search", "tool_describe", TODO_TOOL,
-    DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect", "hindsight_retain",
+    "read_file", "skill_view", "skills_list", "skill_manage", "tool_search", "tool_describe",
+    TODO_TOOL, DELEGATE_TOOL, "clarify", "memory", "hindsight_recall", "hindsight_reflect",
+    "hindsight_retain",
 })
+# Hermes' background skill and memory review runs a fork under the parent's session id, and the fork's
+# messages never reach state.db. The gate logs its calls anyway, so an event for one of these tools
+# that no stored call owns is the fork's, not a mismatch. Tools the parent shares with the fork
+# (read_file, search_files) are not listed, so a real unpaired event of those still shows.
+REVIEW_FORK_TOOLS = frozenset({"skill_view", "skills_list", "skill_manage", "memory"})
 # Hermes' file-writing tools. Shell and code tools are judged by their effect on the sandbox.
+# `skill_manage` is in PREPARATORY_TOOLS too, and both are intended. The gate lets it through before a
+# decision, so G1 does not count it as work, and G5 still counts it as a file write.
 FILE_WRITE_TOOLS = frozenset({"write_file", "patch", "skill_manage"})
 
 # What a bad path, a missing state.db or a malformed run.json raise while grading.
 GRADE_ERRORS = (OSError, ValueError, KeyError, TypeError, sqlite3.Error)
 
-# An operations investigation across several modules: delegating it is clearly the better call.
+# An operations investigation across several modules with two independent defects. It is the
+# case where a wide investigation is plausible, so G3 shows whether the agent delegates it.
 INVESTIGATION = "p5-ops-errors"
 
-DECISION_RE = re.compile(r"delegate_task|skip\s*:", re.IGNORECASE)
-# Same line only: a reason on the next line would be the next todo item's text.
-SKIP_RE = re.compile(r"skip[ \t]*:[ \t]*([^\n]*)", re.IGNORECASE)
+# Same criterion as the gate's _is_decision: one todo item either names `delegate_task`, or mentions
+# delegation (`deleg`) and holds `skip:` with a same-line reason. A `skip:` with no mention of
+# delegation is how the playbook marks a skipped step, so it is not a delegation decision.
+DECISION_RE = re.compile(r"delegate_task", re.IGNORECASE)
+DELEG_RE = re.compile(r"deleg", re.IGNORECASE)
+SKIP_REASON_RE = re.compile(r"skip[ \t]*:[ \t]*\S", re.IGNORECASE)
+# Same line only: a reason on the next line would be the next todo item's text. `skip delegate_task:`
+# is the form agents write; the gate accepts it through `delegate_task`, so the reason is read here.
+SKIP_RE = re.compile(r"skip(?:[ \t]+delegate_task)?[ \t]*:[ \t]*([^\n]*)", re.IGNORECASE)
+
+
+def is_decision(text: str) -> bool:
+    if DECISION_RE.search(text):
+        return True
+    return bool(DELEG_RE.search(text) and SKIP_REASON_RE.search(text))
 
 
 @dataclass
@@ -208,7 +229,7 @@ def _decision_first(calls: list[Call]) -> tuple[bool, str | None, bool]:
         before = calls[:end]
     texts = [t for c in before for t in _todo_texts(c)]
     todo_written = any(TODO_TOOL in c.names for c in before)
-    decided = any(DECISION_RE.search(t) for t in texts)
+    decided = any(is_decision(t) for t in texts)
     first_tool = (
         next((n for n in first_work.names if n not in PREPARATORY_TOOLS), None)
         if first_work else None
@@ -256,7 +277,7 @@ def _pair_by_id(calls: list[Call], tool_events: list[dict]) -> Pairing:
         call = by_id.pop(event["tool_call_id"], None) if isinstance(
             event.get("tool_call_id"), str) else None
         if call is None:
-            unpaired += 1
+            unpaired += event.get("tool_name") not in REVIEW_FORK_TOOLS
             continue
         kept.append(event)
         owner.append(call.message)
@@ -291,7 +312,9 @@ def _pair_by_name(calls: list[Call], tool_events: list[dict]) -> Pairing:
         if used:
             # Whatever precedes a matched event belongs to calls this turn never recorded.
             free = [i for i in free if i > max(used)]
-    return Pairing("name", tool_events, owner, sum(1 for o in owner if o < 0))
+    unpaired = sum(1 for o, e in zip(owner, tool_events, strict=True)
+                   if o < 0 and e.get("tool_name") not in REVIEW_FORK_TOOLS)
+    return Pairing("name", tool_events, owner, unpaired)
 
 
 def _recovered(pairing: Pairing) -> bool | None:
@@ -311,7 +334,8 @@ def _recovered(pairing: Pairing) -> bool | None:
             if written:
                 return True
             continue
-        if event.get("reason") == "preparatory_tool":
+        # A todolist written without a delegation decision is a step toward the todolist, not a miss.
+        if event.get("reason") in {"preparatory_tool", "todo_pending_decision"}:
             continue
         return written
     return False
@@ -384,7 +408,11 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
     armed = any(e.get("event") in {"turn_armed", "turn_continued"} for e in events)
     todo_text = [t for c in current.calls for t in _todo_texts(c)]
     skip_reasons = [
-        reason for t in todo_text for m in SKIP_RE.finditer(t) if (reason := m.group(1).strip())
+        reason
+        for t in todo_text
+        if is_decision(t)
+        for m in SKIP_RE.finditer(t)
+        if (reason := m.group(1).strip())
     ]
     blocks = sum(1 for e in pairing.events if e["event"] == "block")
     block_messages = len({
