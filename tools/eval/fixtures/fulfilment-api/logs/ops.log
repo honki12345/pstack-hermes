@@ -1,0 +1,936 @@
+2026-10-24T08:42:00Z INFO  api       order accepted order=o-10401 lines=2 amount=12800
+2026-10-24T08:42:01Z INFO  inventory reserved order=o-10401 grinder=2 mug=1
+2026-10-24T08:42:03Z INFO  payments  captured order=o-10401 charge=ch_08101 key=k-07001 attempt=1
+2026-10-24T08:42:05Z INFO  notifier  webhook delivered order=o-10401 attempt=1/3
+2026-10-24T08:42:06Z WARN  api       slow request order=o-10401 ms=2935
+2026-10-24T08:55:00Z INFO  api       order accepted order=o-10402 lines=1 amount=13500
+2026-10-24T08:55:01Z INFO  inventory reserved order=o-10402 kettle=3
+2026-10-24T08:55:03Z INFO  payments  captured order=o-10402 charge=ch_08102 key=k-07002 attempt=1
+2026-10-24T08:55:05Z WARN  notifier  webhook 503 order=o-10402 attempt=1/3
+2026-10-24T08:55:06Z INFO  notifier  webhook delivered order=o-10402 attempt=2/3
+2026-10-24T09:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T09:35:00Z INFO  api       order accepted order=o-10403 lines=1 amount=1800
+2026-10-24T09:35:01Z INFO  inventory reserved order=o-10403 mug=1
+2026-10-24T09:35:03Z INFO  payments  captured order=o-10403 charge=ch_08103 key=k-07003 attempt=1
+2026-10-24T09:35:05Z INFO  notifier  webhook delivered order=o-10403 attempt=1/3
+2026-10-24T09:35:06Z WARN  api       slow request order=o-10403 ms=2821
+2026-10-24T10:05:00Z INFO  api       order accepted order=o-10404 lines=1 amount=5500
+2026-10-24T10:05:01Z INFO  inventory reserved order=o-10404 grinder=1
+2026-10-24T10:05:03Z INFO  payments  captured order=o-10404 charge=ch_08104 key=k-07004 attempt=1
+2026-10-24T10:05:05Z WARN  notifier  webhook 503 order=o-10404 attempt=1/3
+2026-10-24T10:05:06Z INFO  notifier  webhook delivered order=o-10404 attempt=2/3
+2026-10-24T10:22:00Z INFO  api       order accepted order=o-10405 lines=1 amount=3600
+2026-10-24T10:22:01Z INFO  inventory reserved order=o-10405 tea=3
+2026-10-24T10:22:03Z INFO  payments  captured order=o-10405 charge=ch_08105 key=k-07005 attempt=1
+2026-10-24T10:22:05Z INFO  notifier  webhook delivered order=o-10405 attempt=1/3
+2026-10-24T10:55:00Z INFO  api       order accepted order=o-10406 lines=2 amount=6700
+2026-10-24T10:55:01Z INFO  inventory reserved order=o-10406 grinder=1 tea=1
+2026-10-24T10:55:03Z INFO  payments  captured order=o-10406 charge=ch_08106 key=k-07006 attempt=1
+2026-10-24T10:55:05Z INFO  notifier  webhook delivered order=o-10406 attempt=1/3
+2026-10-24T11:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T11:37:00Z ERROR api       order rejected order=o-10407 reason=unknown_sku sku=mug-xl status=400
+2026-10-24T11:50:00Z INFO  api       order accepted order=o-10408 lines=2 amount=3200
+2026-10-24T11:50:01Z INFO  inventory reserved order=o-10408 mug=1 filter=2
+2026-10-24T11:50:03Z INFO  payments  captured order=o-10408 charge=ch_08107 key=k-07007 attempt=1
+2026-10-24T11:50:05Z WARN  notifier  webhook 503 order=o-10408 attempt=1/3
+2026-10-24T11:50:06Z INFO  notifier  webhook delivered order=o-10408 attempt=2/3
+2026-10-24T12:22:00Z INFO  api       order accepted order=o-10409 lines=1 amount=1800
+2026-10-24T12:22:01Z INFO  inventory reserved order=o-10409 mug=1
+2026-10-24T12:22:03Z INFO  payments  captured order=o-10409 charge=ch_08108 key=k-07008 attempt=1
+2026-10-24T12:22:05Z INFO  notifier  webhook delivered order=o-10409 attempt=1/3
+2026-10-24T13:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T13:02:00Z INFO  api       order accepted order=o-10410 lines=2 amount=8100
+2026-10-24T13:02:01Z INFO  inventory reserved order=o-10410 kettle=1 mug=2
+2026-10-24T13:02:03Z INFO  payments  captured order=o-10410 charge=ch_08109 key=k-07009 attempt=1
+2026-10-24T13:02:05Z WARN  notifier  webhook 503 order=o-10410 attempt=1/3
+2026-10-24T13:02:06Z INFO  notifier  webhook delivered order=o-10410 attempt=2/3
+2026-10-24T13:36:00Z INFO  api       order accepted order=o-10411 lines=1 amount=700
+2026-10-24T13:36:01Z INFO  inventory reserved order=o-10411 filter=1
+2026-10-24T13:36:03Z ERROR payments  declined order=o-10411 reason=insufficient_funds
+2026-10-24T13:36:03Z INFO  inventory released order=o-10411 filter=1
+2026-10-24T13:36:03Z WARN  api       order failed order=o-10411 status=402
+2026-10-24T13:49:00Z INFO  api       order accepted order=o-10412 lines=1 amount=5500
+2026-10-24T13:49:01Z INFO  inventory reserved order=o-10412 grinder=1
+2026-10-24T13:49:03Z INFO  payments  captured order=o-10412 charge=ch_08110 key=k-07010 attempt=1
+2026-10-24T13:49:05Z INFO  notifier  webhook delivered order=o-10412 attempt=1/3
+2026-10-24T14:25:00Z INFO  api       order accepted order=o-10413 lines=1 amount=5500
+2026-10-24T14:25:01Z INFO  inventory reserved order=o-10413 grinder=1
+2026-10-24T14:25:03Z INFO  payments  captured order=o-10413 charge=ch_08111 key=k-07011 attempt=1
+2026-10-24T14:25:05Z INFO  notifier  webhook delivered order=o-10413 attempt=1/3
+2026-10-24T14:41:00Z INFO  api       order accepted order=o-10414 lines=1 amount=1800
+2026-10-24T14:41:01Z INFO  inventory reserved order=o-10414 mug=1
+2026-10-24T14:41:03Z INFO  payments  captured order=o-10414 charge=ch_08112 key=k-07012 attempt=1
+2026-10-24T14:41:05Z INFO  notifier  webhook delivered order=o-10414 attempt=1/3
+2026-10-24T15:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T15:09:00Z INFO  api       order accepted order=o-10415 lines=1 amount=13500
+2026-10-24T15:09:01Z INFO  inventory reserved order=o-10415 kettle=3
+2026-10-24T15:09:03Z INFO  payments  captured order=o-10415 charge=ch_08113 key=k-07013 attempt=1
+2026-10-24T15:09:05Z INFO  notifier  webhook delivered order=o-10415 attempt=1/3
+2026-10-24T15:50:00Z INFO  api       order accepted order=o-10416 lines=1 amount=700
+2026-10-24T15:50:01Z INFO  inventory reserved order=o-10416 filter=1
+2026-10-24T15:50:03Z INFO  payments  captured order=o-10416 charge=ch_08114 key=k-07014 attempt=1
+2026-10-24T15:50:05Z WARN  notifier  webhook 503 order=o-10416 attempt=1/3
+2026-10-24T15:50:06Z INFO  notifier  webhook delivered order=o-10416 attempt=2/3
+2026-10-24T16:35:00Z INFO  api       order accepted order=o-10417 lines=2 amount=15300
+2026-10-24T16:35:01Z INFO  inventory reserved order=o-10417 mug=1 kettle=3
+2026-10-24T16:35:03Z INFO  payments  captured order=o-10417 charge=ch_08115 key=k-07015 attempt=1
+2026-10-24T16:35:05Z WARN  notifier  webhook 503 order=o-10417 attempt=1/3
+2026-10-24T16:35:06Z INFO  notifier  webhook delivered order=o-10417 attempt=2/3
+2026-10-24T16:48:00Z WARN  api       order rejected order=o-10418 reason=out_of_stock sku=kettle status=409
+2026-10-24T17:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T17:31:00Z INFO  api       order accepted order=o-10419 lines=1 amount=3600
+2026-10-24T17:31:01Z INFO  inventory reserved order=o-10419 mug=2
+2026-10-24T17:31:03Z INFO  payments  captured order=o-10419 charge=ch_08116 key=k-07016 attempt=1
+2026-10-24T17:31:05Z INFO  notifier  webhook delivered order=o-10419 attempt=1/3
+2026-10-24T18:02:00Z INFO  api       order accepted order=o-10420 lines=1 amount=5500
+2026-10-24T18:02:01Z INFO  inventory reserved order=o-10420 grinder=1
+2026-10-24T18:02:03Z INFO  payments  captured order=o-10420 charge=ch_08117 key=k-07017 attempt=1
+2026-10-24T18:02:05Z INFO  notifier  webhook delivered order=o-10420 attempt=1/3
+2026-10-24T18:47:00Z INFO  api       order accepted order=o-10421 lines=1 amount=13500
+2026-10-24T18:47:01Z INFO  inventory reserved order=o-10421 kettle=3
+2026-10-24T18:47:03Z INFO  payments  captured order=o-10421 charge=ch_08118 key=k-07018 attempt=1
+2026-10-24T18:47:05Z INFO  notifier  webhook delivered order=o-10421 attempt=1/3
+2026-10-24T19:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T19:30:00Z INFO  api       order accepted order=o-10422 lines=1 amount=13500
+2026-10-24T19:30:01Z INFO  inventory reserved order=o-10422 kettle=3
+2026-10-24T19:30:03Z INFO  payments  captured order=o-10422 charge=ch_08119 key=k-07019 attempt=1
+2026-10-24T19:30:05Z WARN  notifier  webhook 503 order=o-10422 attempt=1/3
+2026-10-24T19:30:06Z WARN  notifier  webhook 503 order=o-10422 attempt=2/3
+2026-10-24T19:30:07Z WARN  notifier  webhook 503 order=o-10422 attempt=3/3
+2026-10-24T19:30:08Z ERROR notifier  webhook dropped order=o-10422 partner=unavailable
+2026-10-24T19:58:00Z INFO  api       order accepted order=o-10423 lines=1 amount=700
+2026-10-24T19:58:01Z INFO  inventory reserved order=o-10423 filter=1
+2026-10-24T19:58:03Z INFO  payments  captured order=o-10423 charge=ch_08120 key=k-07020 attempt=1
+2026-10-24T19:58:05Z INFO  notifier  webhook delivered order=o-10423 attempt=1/3
+2026-10-24T20:23:00Z INFO  api       order accepted order=o-10424 lines=1 amount=2400
+2026-10-24T20:23:01Z INFO  inventory reserved order=o-10424 tea=2
+2026-10-24T20:23:03Z ERROR payments  declined order=o-10424 reason=card_declined
+2026-10-24T20:23:03Z INFO  inventory released order=o-10424 tea=2
+2026-10-24T20:23:03Z WARN  api       order failed order=o-10424 status=402
+2026-10-24T20:43:00Z INFO  api       order accepted order=o-10425 lines=1 amount=1400
+2026-10-24T20:43:01Z INFO  inventory reserved order=o-10425 filter=2
+2026-10-24T20:43:03Z ERROR payments  declined order=o-10425 reason=card_declined
+2026-10-24T20:43:03Z INFO  inventory released order=o-10425 filter=2
+2026-10-24T20:43:03Z WARN  api       order failed order=o-10425 status=402
+2026-10-24T20:59:00Z INFO  api       order accepted order=o-10426 lines=1 amount=1200
+2026-10-24T20:59:01Z INFO  inventory reserved order=o-10426 tea=1
+2026-10-24T20:59:03Z INFO  payments  captured order=o-10426 charge=ch_08121 key=k-07021 attempt=1
+2026-10-24T20:59:05Z INFO  notifier  webhook delivered order=o-10426 attempt=1/3
+2026-10-24T21:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T21:39:00Z INFO  api       order accepted order=o-10427 lines=1 amount=4500
+2026-10-24T21:39:01Z INFO  inventory reserved order=o-10427 kettle=1
+2026-10-24T21:39:03Z INFO  payments  captured order=o-10427 charge=ch_08122 key=k-07022 attempt=1
+2026-10-24T21:39:05Z INFO  notifier  webhook delivered order=o-10427 attempt=1/3
+2026-10-24T21:39:06Z WARN  api       slow request order=o-10427 ms=3795
+2026-10-24T22:15:00Z WARN  api       order rejected order=o-10428 reason=out_of_stock sku=kettle status=409
+2026-10-24T22:47:00Z INFO  api       order accepted order=o-10429 lines=1 amount=3600
+2026-10-24T22:47:01Z INFO  inventory reserved order=o-10429 mug=2
+2026-10-24T22:47:03Z INFO  payments  captured order=o-10429 charge=ch_08123 key=k-07023 attempt=1
+2026-10-24T22:47:05Z INFO  notifier  webhook delivered order=o-10429 attempt=1/3
+2026-10-24T23:00:00Z INFO  scheduler sweep expired=none
+2026-10-24T23:01:00Z INFO  api       order accepted order=o-10430 lines=2 amount=14500
+2026-10-24T23:01:01Z INFO  inventory reserved order=o-10430 kettle=2 grinder=1
+2026-10-24T23:01:03Z INFO  payments  captured order=o-10430 charge=ch_08124 key=k-07024 attempt=1
+2026-10-24T23:01:05Z INFO  notifier  webhook delivered order=o-10430 attempt=1/3
+2026-10-24T23:21:00Z INFO  api       order accepted order=o-10431 lines=1 amount=700
+2026-10-24T23:21:01Z INFO  inventory reserved order=o-10431 filter=1
+2026-10-24T23:21:03Z INFO  payments  captured order=o-10431 charge=ch_08125 key=k-07025 attempt=1
+2026-10-24T23:21:05Z INFO  notifier  webhook delivered order=o-10431 attempt=1/3
+2026-10-24T23:34:00Z INFO  api       order accepted order=o-10432 lines=1 amount=1200
+2026-10-24T23:34:01Z INFO  inventory reserved order=o-10432 tea=1
+2026-10-24T23:34:03Z INFO  payments  captured order=o-10432 charge=ch_08126 key=k-07026 attempt=1
+2026-10-24T23:34:05Z INFO  notifier  webhook delivered order=o-10432 attempt=1/3
+2026-10-24T23:49:00Z INFO  api       order accepted order=o-10433 lines=2 amount=3200
+2026-10-24T23:49:01Z INFO  inventory reserved order=o-10433 mug=1 filter=2
+2026-10-24T23:49:03Z INFO  payments  captured order=o-10433 charge=ch_08127 key=k-07027 attempt=1
+2026-10-24T23:49:05Z INFO  notifier  webhook delivered order=o-10433 attempt=1/3
+2026-10-25T00:05:00Z INFO  api       order accepted order=o-10434 lines=2 amount=14600
+2026-10-25T00:05:01Z INFO  inventory reserved order=o-10434 tea=3 grinder=2
+2026-10-25T00:05:03Z INFO  payments  captured order=o-10434 charge=ch_08128 key=k-07028 attempt=1
+2026-10-25T00:05:05Z INFO  notifier  webhook delivered order=o-10434 attempt=1/3
+2026-10-25T00:28:00Z INFO  api       order accepted order=o-10435 lines=2 amount=2500
+2026-10-25T00:28:01Z INFO  inventory reserved order=o-10435 mug=1 filter=1
+2026-10-25T00:28:03Z INFO  payments  captured order=o-10435 charge=ch_08129 key=k-07029 attempt=1
+2026-10-25T00:28:05Z INFO  notifier  webhook delivered order=o-10435 attempt=1/3
+2026-10-25T00:54:00Z INFO  api       order accepted order=o-10436 lines=1 amount=4500
+2026-10-25T00:54:01Z INFO  inventory reserved order=o-10436 kettle=1
+2026-10-25T00:54:03Z INFO  payments  captured order=o-10436 charge=ch_08130 key=k-07030 attempt=1
+2026-10-25T00:54:05Z INFO  notifier  webhook delivered order=o-10436 attempt=1/3
+2026-10-25T01:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T01:31:00Z INFO  api       order accepted order=o-10437 lines=2 amount=9000
+2026-10-25T01:31:01Z INFO  inventory reserved order=o-10437 tea=3 mug=3
+2026-10-25T01:31:03Z ERROR payments  declined order=o-10437 reason=card_declined
+2026-10-25T01:31:03Z INFO  inventory released order=o-10437 tea=3 mug=3
+2026-10-25T01:31:03Z WARN  api       order failed order=o-10437 status=402
+2026-10-25T02:00:00Z INFO  scheduler reconcile charges ok
+2026-10-25T02:00:30Z ERROR scheduler stock drift sku=mug system=338 counted=332
+2026-10-25T02:00:30Z ERROR scheduler stock drift sku=tea system=724 counted=720
+2026-10-25T02:00:30Z ERROR scheduler stock drift sku=filter system=544 counted=537
+2026-10-25T02:11:00Z INFO  api       order accepted order=o-10438 lines=1 amount=1200
+2026-10-25T02:11:01Z INFO  inventory reserved order=o-10438 tea=1
+2026-10-25T02:11:03Z INFO  payments  captured order=o-10438 charge=ch_08131 key=k-07031 attempt=1
+2026-10-25T02:11:05Z INFO  notifier  webhook delivered order=o-10438 attempt=1/3
+2026-10-25T02:47:00Z INFO  api       order accepted order=o-10439 lines=2 amount=25500
+2026-10-25T02:47:01Z INFO  inventory reserved order=o-10439 grinder=3 kettle=2
+2026-10-25T02:47:03Z INFO  payments  captured order=o-10439 charge=ch_08132 key=k-07032 attempt=1
+2026-10-25T02:47:05Z INFO  notifier  webhook delivered order=o-10439 attempt=1/3
+2026-10-25T03:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T03:12:00Z INFO  api       order accepted order=o-10440 lines=1 amount=1800
+2026-10-25T03:12:01Z INFO  inventory reserved order=o-10440 mug=1
+2026-10-25T03:12:03Z INFO  payments  captured order=o-10440 charge=ch_08133 key=k-07033 attempt=1
+2026-10-25T03:12:05Z INFO  notifier  webhook delivered order=o-10440 attempt=1/3
+2026-10-25T03:39:00Z INFO  api       order accepted order=o-10441 lines=1 amount=3600
+2026-10-25T03:39:01Z INFO  inventory reserved order=o-10441 mug=2
+2026-10-25T03:39:03Z ERROR payments  declined order=o-10441 reason=expired_card
+2026-10-25T03:39:03Z INFO  inventory released order=o-10441 mug=2
+2026-10-25T03:39:03Z WARN  api       order failed order=o-10441 status=402
+2026-10-25T04:11:00Z INFO  api       order accepted order=o-10442 lines=1 amount=3600
+2026-10-25T04:11:01Z INFO  inventory reserved order=o-10442 mug=2
+2026-10-25T04:11:03Z INFO  payments  captured order=o-10442 charge=ch_08134 key=k-07034 attempt=1
+2026-10-25T04:11:05Z INFO  notifier  webhook delivered order=o-10442 attempt=1/3
+2026-10-25T04:55:00Z INFO  api       order accepted order=o-10443 lines=1 amount=5400
+2026-10-25T04:55:01Z INFO  inventory reserved order=o-10443 mug=3
+2026-10-25T04:55:03Z INFO  payments  captured order=o-10443 charge=ch_08135 key=k-07035 attempt=1
+2026-10-25T04:55:05Z INFO  notifier  webhook delivered order=o-10443 attempt=1/3
+2026-10-25T05:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T05:28:00Z INFO  api       order accepted order=o-10444 lines=2 amount=6600
+2026-10-25T05:28:01Z INFO  inventory reserved order=o-10444 filter=3 kettle=1
+2026-10-25T05:28:03Z INFO  payments  captured order=o-10444 charge=ch_08136 key=k-07036 attempt=1
+2026-10-25T05:28:05Z INFO  notifier  webhook delivered order=o-10444 attempt=1/3
+2026-10-25T05:53:00Z INFO  api       order accepted order=o-10445 lines=1 amount=700
+2026-10-25T05:53:01Z INFO  inventory reserved order=o-10445 filter=1
+2026-10-25T05:53:03Z INFO  payments  captured order=o-10445 charge=ch_08137 key=k-07037 attempt=1
+2026-10-25T05:53:05Z INFO  notifier  webhook delivered order=o-10445 attempt=1/3
+2026-10-25T06:16:00Z INFO  api       order accepted order=o-10446 lines=2 amount=14700
+2026-10-25T06:16:01Z INFO  inventory reserved order=o-10446 kettle=3 tea=1
+2026-10-25T06:16:03Z INFO  payments  captured order=o-10446 charge=ch_08138 key=k-07038 attempt=1
+2026-10-25T06:16:05Z INFO  notifier  webhook delivered order=o-10446 attempt=1/3
+2026-10-25T07:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T07:01:00Z INFO  api       order accepted order=o-10447 lines=2 amount=17200
+2026-10-25T07:01:01Z INFO  inventory reserved order=o-10447 grinder=3 filter=1
+2026-10-25T07:01:03Z INFO  payments  captured order=o-10447 charge=ch_08139 key=k-07039 attempt=1
+2026-10-25T07:01:05Z INFO  notifier  webhook delivered order=o-10447 attempt=1/3
+2026-10-25T07:27:00Z INFO  api       order accepted order=o-10448 lines=1 amount=11000
+2026-10-25T07:27:01Z INFO  inventory reserved order=o-10448 grinder=2
+2026-10-25T07:27:03Z INFO  payments  captured order=o-10448 charge=ch_08140 key=k-07040 attempt=1
+2026-10-25T07:27:05Z INFO  notifier  webhook delivered order=o-10448 attempt=1/3
+2026-10-25T07:29:00Z INFO  api       hold accepted order=o-10449 lines=1
+2026-10-25T07:29:01Z INFO  inventory reserved order=o-10449 filter=2
+2026-10-25T07:36:00Z INFO  orders    cancelled order=o-10449
+2026-10-25T07:36:00Z INFO  inventory released order=o-10449 filter=2
+2026-10-25T07:47:11Z INFO  scheduler sweep expired=o-10449
+2026-10-25T07:47:11Z INFO  inventory released order=o-10449 filter=2
+2026-10-25T07:55:00Z INFO  api       order accepted order=o-10450 lines=1 amount=700
+2026-10-25T07:55:01Z INFO  inventory reserved order=o-10450 filter=1
+2026-10-25T07:55:03Z INFO  payments  captured order=o-10450 charge=ch_08141 key=k-07041 attempt=1
+2026-10-25T07:55:05Z INFO  notifier  webhook delivered order=o-10450 attempt=1/3
+2026-10-25T07:57:00Z INFO  api       hold accepted order=o-10451 lines=1
+2026-10-25T07:57:01Z INFO  inventory reserved order=o-10451 tea=2
+2026-10-25T08:04:00Z INFO  orders    cancelled order=o-10451
+2026-10-25T08:04:00Z INFO  inventory released order=o-10451 tea=2
+2026-10-25T08:15:14Z INFO  scheduler sweep expired=o-10451
+2026-10-25T08:15:14Z INFO  inventory released order=o-10451 tea=2
+2026-10-25T08:24:00Z INFO  api       order accepted order=o-10452 lines=2 amount=3300
+2026-10-25T08:24:01Z INFO  inventory reserved order=o-10452 filter=3 tea=1
+2026-10-25T08:24:03Z INFO  payments  captured order=o-10452 charge=ch_08142 key=k-07042 attempt=1
+2026-10-25T08:24:05Z INFO  notifier  webhook delivered order=o-10452 attempt=1/3
+2026-10-25T09:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T09:08:00Z INFO  api       order accepted order=o-10453 lines=1 amount=16500
+2026-10-25T09:08:01Z INFO  inventory reserved order=o-10453 grinder=3
+2026-10-25T09:08:03Z INFO  payments  captured order=o-10453 charge=ch_08143 key=k-07043 attempt=1
+2026-10-25T09:08:05Z WARN  notifier  webhook 503 order=o-10453 attempt=1/3
+2026-10-25T09:08:06Z INFO  notifier  webhook delivered order=o-10453 attempt=2/3
+2026-10-25T09:21:00Z INFO  api       order accepted order=o-10454 lines=2 amount=3900
+2026-10-25T09:21:01Z INFO  inventory reserved order=o-10454 mug=1 filter=3
+2026-10-25T09:21:03Z INFO  payments  captured order=o-10454 charge=ch_08144 key=k-07044 attempt=1
+2026-10-25T09:21:05Z INFO  notifier  webhook delivered order=o-10454 attempt=1/3
+2026-10-25T09:38:00Z INFO  api       order accepted order=o-10455 lines=2 amount=9000
+2026-10-25T09:38:01Z INFO  inventory reserved order=o-10455 tea=3 mug=3
+2026-10-25T09:38:03Z INFO  payments  captured order=o-10455 charge=ch_08145 key=k-07045 attempt=1
+2026-10-25T09:38:05Z INFO  notifier  webhook delivered order=o-10455 attempt=1/3
+2026-10-25T10:15:00Z ERROR api       order rejected order=o-10456 reason=unknown_sku sku=mug-xl status=400
+2026-10-25T10:58:00Z INFO  api       order accepted order=o-10457 lines=1 amount=13500
+2026-10-25T10:58:01Z INFO  inventory reserved order=o-10457 kettle=3
+2026-10-25T10:58:03Z INFO  payments  captured order=o-10457 charge=ch_08146 key=k-07046 attempt=1
+2026-10-25T10:58:05Z INFO  notifier  webhook delivered order=o-10457 attempt=1/3
+2026-10-25T11:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T11:40:00Z INFO  api       order accepted order=o-10458 lines=2 amount=9900
+2026-10-25T11:40:01Z INFO  inventory reserved order=o-10458 kettle=1 mug=3
+2026-10-25T11:40:03Z INFO  payments  captured order=o-10458 charge=ch_08147 key=k-07047 attempt=1
+2026-10-25T11:40:05Z INFO  notifier  webhook delivered order=o-10458 attempt=1/3
+2026-10-25T11:53:00Z INFO  api       order accepted order=o-10459 lines=1 amount=1200
+2026-10-25T11:53:01Z INFO  inventory reserved order=o-10459 tea=1
+2026-10-25T11:53:03Z INFO  payments  captured order=o-10459 charge=ch_08148 key=k-07048 attempt=1
+2026-10-25T11:53:05Z INFO  notifier  webhook delivered order=o-10459 attempt=1/3
+2026-10-25T12:07:00Z INFO  api       order accepted order=o-10460 lines=1 amount=1200
+2026-10-25T12:07:01Z INFO  inventory reserved order=o-10460 tea=1
+2026-10-25T12:07:03Z INFO  payments  captured order=o-10460 charge=ch_08149 key=k-07049 attempt=1
+2026-10-25T12:07:05Z INFO  notifier  webhook delivered order=o-10460 attempt=1/3
+2026-10-25T12:19:00Z INFO  api       order accepted order=o-10461 lines=2 amount=14500
+2026-10-25T12:19:01Z INFO  inventory reserved order=o-10461 kettle=2 grinder=1
+2026-10-25T12:19:03Z INFO  payments  captured order=o-10461 charge=ch_08150 key=k-07050 attempt=1
+2026-10-25T12:19:05Z WARN  notifier  webhook 503 order=o-10461 attempt=1/3
+2026-10-25T12:19:06Z WARN  notifier  webhook 503 order=o-10461 attempt=2/3
+2026-10-25T12:19:07Z WARN  notifier  webhook 503 order=o-10461 attempt=3/3
+2026-10-25T12:19:08Z ERROR notifier  webhook dropped order=o-10461 partner=unavailable
+2026-10-25T13:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T13:02:00Z INFO  api       order accepted order=o-10462 lines=1 amount=700
+2026-10-25T13:02:01Z INFO  inventory reserved order=o-10462 filter=1
+2026-10-25T13:02:03Z INFO  payments  captured order=o-10462 charge=ch_08151 key=k-07051 attempt=1
+2026-10-25T13:02:05Z WARN  notifier  webhook 503 order=o-10462 attempt=1/3
+2026-10-25T13:02:06Z INFO  notifier  webhook delivered order=o-10462 attempt=2/3
+2026-10-25T13:46:00Z ERROR api       order rejected order=o-10463 reason=unknown_sku sku=mug-xl status=400
+2026-10-25T14:22:00Z INFO  api       order accepted order=o-10464 lines=2 amount=1900
+2026-10-25T14:22:01Z INFO  inventory reserved order=o-10464 filter=1 tea=1
+2026-10-25T14:22:03Z INFO  payments  captured order=o-10464 charge=ch_08152 key=k-07052 attempt=1
+2026-10-25T14:22:05Z WARN  notifier  webhook 503 order=o-10464 attempt=1/3
+2026-10-25T14:22:06Z INFO  notifier  webhook delivered order=o-10464 attempt=2/3
+2026-10-25T15:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T15:07:00Z INFO  api       order accepted order=o-10465 lines=1 amount=5500
+2026-10-25T15:07:01Z INFO  inventory reserved order=o-10465 grinder=1
+2026-10-25T15:07:03Z INFO  payments  captured order=o-10465 charge=ch_08153 key=k-07053 attempt=1
+2026-10-25T15:07:05Z INFO  notifier  webhook delivered order=o-10465 attempt=1/3
+2026-10-25T15:33:00Z INFO  api       order accepted order=o-10466 lines=2 amount=11400
+2026-10-25T15:33:01Z INFO  inventory reserved order=o-10466 kettle=2 tea=2
+2026-10-25T15:33:03Z INFO  payments  captured order=o-10466 charge=ch_08154 key=k-07054 attempt=1
+2026-10-25T15:33:05Z INFO  notifier  webhook delivered order=o-10466 attempt=1/3
+2026-10-25T15:57:00Z INFO  api       order accepted order=o-10467 lines=1 amount=1200
+2026-10-25T15:57:01Z INFO  inventory reserved order=o-10467 tea=1
+2026-10-25T15:57:03Z INFO  payments  captured order=o-10467 charge=ch_08155 key=k-07055 attempt=1
+2026-10-25T15:57:05Z INFO  notifier  webhook delivered order=o-10467 attempt=1/3
+2026-10-25T16:17:00Z INFO  api       order accepted order=o-10468 lines=1 amount=1200
+2026-10-25T16:17:01Z INFO  inventory reserved order=o-10468 tea=1
+2026-10-25T16:17:03Z INFO  payments  captured order=o-10468 charge=ch_08156 key=k-07056 attempt=1
+2026-10-25T16:17:05Z WARN  notifier  webhook 503 order=o-10468 attempt=1/3
+2026-10-25T16:17:06Z WARN  notifier  webhook 503 order=o-10468 attempt=2/3
+2026-10-25T16:17:07Z WARN  notifier  webhook 503 order=o-10468 attempt=3/3
+2026-10-25T16:17:08Z ERROR notifier  webhook dropped order=o-10468 partner=unavailable
+2026-10-25T16:45:00Z INFO  api       order accepted order=o-10469 lines=1 amount=5400
+2026-10-25T16:45:01Z INFO  inventory reserved order=o-10469 mug=3
+2026-10-25T16:45:03Z INFO  payments  captured order=o-10469 charge=ch_08157 key=k-07057 attempt=1
+2026-10-25T16:45:05Z INFO  notifier  webhook delivered order=o-10469 attempt=1/3
+2026-10-25T17:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T17:23:00Z INFO  api       order accepted order=o-10470 lines=2 amount=9100
+2026-10-25T17:23:01Z INFO  inventory reserved order=o-10470 tea=3 grinder=1
+2026-10-25T17:23:03Z INFO  payments  captured order=o-10470 charge=ch_08158 key=k-07058 attempt=1
+2026-10-25T17:23:05Z INFO  notifier  webhook delivered order=o-10470 attempt=1/3
+2026-10-25T17:41:00Z INFO  api       order accepted order=o-10471 lines=1 amount=11000
+2026-10-25T17:41:01Z INFO  inventory reserved order=o-10471 grinder=2
+2026-10-25T17:41:03Z INFO  payments  captured order=o-10471 charge=ch_08159 key=k-07059 attempt=1
+2026-10-25T17:41:05Z INFO  notifier  webhook delivered order=o-10471 attempt=1/3
+2026-10-25T18:16:00Z INFO  api       order accepted order=o-10472 lines=1 amount=11000
+2026-10-25T18:16:01Z INFO  inventory reserved order=o-10472 grinder=2
+2026-10-25T18:16:03Z INFO  payments  captured order=o-10472 charge=ch_08160 key=k-07060 attempt=1
+2026-10-25T18:16:05Z INFO  notifier  webhook delivered order=o-10472 attempt=1/3
+2026-10-25T19:00:00Z INFO  api       order accepted order=o-10473 lines=2 amount=5400
+2026-10-25T19:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T19:00:01Z INFO  inventory reserved order=o-10473 tea=3 mug=1
+2026-10-25T19:00:03Z INFO  payments  captured order=o-10473 charge=ch_08161 key=k-07061 attempt=1
+2026-10-25T19:00:05Z INFO  notifier  webhook delivered order=o-10473 attempt=1/3
+2026-10-25T19:13:00Z INFO  api       order accepted order=o-10474 lines=1 amount=16500
+2026-10-25T19:13:01Z INFO  inventory reserved order=o-10474 grinder=3
+2026-10-25T19:13:03Z INFO  payments  captured order=o-10474 charge=ch_08162 key=k-07062 attempt=1
+2026-10-25T19:13:05Z WARN  notifier  webhook 503 order=o-10474 attempt=1/3
+2026-10-25T19:13:06Z WARN  notifier  webhook 503 order=o-10474 attempt=2/3
+2026-10-25T19:13:07Z WARN  notifier  webhook 503 order=o-10474 attempt=3/3
+2026-10-25T19:13:08Z ERROR notifier  webhook dropped order=o-10474 partner=unavailable
+2026-10-25T19:34:00Z INFO  api       order accepted order=o-10475 lines=1 amount=1200
+2026-10-25T19:34:01Z INFO  inventory reserved order=o-10475 tea=1
+2026-10-25T19:34:03Z INFO  payments  captured order=o-10475 charge=ch_08163 key=k-07063 attempt=1
+2026-10-25T19:34:05Z INFO  notifier  webhook delivered order=o-10475 attempt=1/3
+2026-10-25T19:59:00Z WARN  api       order rejected order=o-10476 reason=out_of_stock sku=kettle status=409
+2026-10-25T20:17:00Z INFO  api       order accepted order=o-10477 lines=2 amount=6600
+2026-10-25T20:17:01Z INFO  inventory reserved order=o-10477 mug=3 tea=1
+2026-10-25T20:17:03Z INFO  payments  captured order=o-10477 charge=ch_08164 key=k-07064 attempt=1
+2026-10-25T20:17:05Z INFO  notifier  webhook delivered order=o-10477 attempt=1/3
+2026-10-25T20:17:06Z WARN  api       slow request order=o-10477 ms=2496
+2026-10-25T20:49:00Z INFO  api       order accepted order=o-10478 lines=1 amount=2100
+2026-10-25T20:49:01Z INFO  inventory reserved order=o-10478 filter=3
+2026-10-25T20:49:03Z INFO  payments  captured order=o-10478 charge=ch_08165 key=k-07065 attempt=1
+2026-10-25T20:49:05Z WARN  notifier  webhook 503 order=o-10478 attempt=1/3
+2026-10-25T20:49:06Z INFO  notifier  webhook delivered order=o-10478 attempt=2/3
+2026-10-25T21:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T21:33:00Z INFO  api       order accepted order=o-10479 lines=1 amount=700
+2026-10-25T21:33:01Z INFO  inventory reserved order=o-10479 filter=1
+2026-10-25T21:33:03Z INFO  payments  captured order=o-10479 charge=ch_08166 key=k-07066 attempt=1
+2026-10-25T21:33:05Z INFO  notifier  webhook delivered order=o-10479 attempt=1/3
+2026-10-25T22:08:00Z INFO  api       order accepted order=o-10480 lines=1 amount=1800
+2026-10-25T22:08:01Z INFO  inventory reserved order=o-10480 mug=1
+2026-10-25T22:08:03Z ERROR payments  declined order=o-10480 reason=card_declined
+2026-10-25T22:08:03Z INFO  inventory released order=o-10480 mug=1
+2026-10-25T22:08:03Z WARN  api       order failed order=o-10480 status=402
+2026-10-25T22:46:00Z INFO  api       order accepted order=o-10481 lines=1 amount=9000
+2026-10-25T22:46:01Z INFO  inventory reserved order=o-10481 kettle=2
+2026-10-25T22:46:03Z INFO  payments  captured order=o-10481 charge=ch_08167 key=k-07067 attempt=1
+2026-10-25T22:46:05Z INFO  notifier  webhook delivered order=o-10481 attempt=1/3
+2026-10-25T23:00:00Z INFO  scheduler sweep expired=none
+2026-10-25T23:23:00Z INFO  api       order accepted order=o-10482 lines=1 amount=5500
+2026-10-25T23:23:01Z INFO  inventory reserved order=o-10482 grinder=1
+2026-10-25T23:23:03Z INFO  payments  captured order=o-10482 charge=ch_08168 key=k-07068 attempt=1
+2026-10-25T23:23:05Z INFO  notifier  webhook delivered order=o-10482 attempt=1/3
+2026-10-25T23:41:00Z INFO  api       order accepted order=o-10483 lines=2 amount=15300
+2026-10-25T23:41:01Z INFO  inventory reserved order=o-10483 mug=1 kettle=3
+2026-10-25T23:41:03Z INFO  payments  captured order=o-10483 charge=ch_08169 key=k-07069 attempt=1
+2026-10-25T23:41:05Z WARN  notifier  webhook 503 order=o-10483 attempt=1/3
+2026-10-25T23:41:06Z WARN  notifier  webhook 503 order=o-10483 attempt=2/3
+2026-10-25T23:41:07Z WARN  notifier  webhook 503 order=o-10483 attempt=3/3
+2026-10-25T23:41:08Z ERROR notifier  webhook dropped order=o-10483 partner=unavailable
+2026-10-26T00:05:00Z INFO  api       order accepted order=o-10484 lines=2 amount=20000
+2026-10-26T00:05:01Z INFO  inventory reserved order=o-10484 grinder=2 kettle=2
+2026-10-26T00:05:03Z INFO  payments  captured order=o-10484 charge=ch_08170 key=k-07070 attempt=1
+2026-10-26T00:05:05Z INFO  notifier  webhook delivered order=o-10484 attempt=1/3
+2026-10-26T00:24:00Z INFO  api       order accepted order=o-10485 lines=2 amount=2600
+2026-10-26T00:24:01Z INFO  inventory reserved order=o-10485 tea=1 filter=2
+2026-10-26T00:24:03Z INFO  payments  captured order=o-10485 charge=ch_08171 key=k-07071 attempt=1
+2026-10-26T00:24:05Z INFO  notifier  webhook delivered order=o-10485 attempt=1/3
+2026-10-26T00:59:00Z INFO  api       order accepted order=o-10486 lines=1 amount=3600
+2026-10-26T00:59:01Z INFO  inventory reserved order=o-10486 tea=3
+2026-10-26T00:59:03Z INFO  payments  captured order=o-10486 charge=ch_08172 key=k-07072 attempt=1
+2026-10-26T00:59:05Z WARN  notifier  webhook 503 order=o-10486 attempt=1/3
+2026-10-26T00:59:06Z INFO  notifier  webhook delivered order=o-10486 attempt=2/3
+2026-10-26T01:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T01:24:00Z INFO  api       order accepted order=o-10487 lines=2 amount=6000
+2026-10-26T01:24:01Z INFO  inventory reserved order=o-10487 tea=2 mug=2
+2026-10-26T01:24:03Z INFO  payments  captured order=o-10487 charge=ch_08173 key=k-07073 attempt=1
+2026-10-26T01:24:05Z INFO  notifier  webhook delivered order=o-10487 attempt=1/3
+2026-10-26T02:00:00Z INFO  scheduler reconcile charges ok
+2026-10-26T02:00:30Z ERROR scheduler stock drift sku=mug system=338 counted=332
+2026-10-26T02:00:30Z ERROR scheduler stock drift sku=tea system=724 counted=720
+2026-10-26T02:00:30Z ERROR scheduler stock drift sku=filter system=544 counted=537
+2026-10-26T02:06:00Z INFO  api       order accepted order=o-10488 lines=1 amount=3600
+2026-10-26T02:06:01Z INFO  inventory reserved order=o-10488 mug=2
+2026-10-26T02:06:03Z INFO  payments  captured order=o-10488 charge=ch_08174 key=k-07074 attempt=1
+2026-10-26T02:06:05Z INFO  notifier  webhook delivered order=o-10488 attempt=1/3
+2026-10-26T02:21:00Z INFO  api       order accepted order=o-10489 lines=1 amount=9000
+2026-10-26T02:21:01Z INFO  inventory reserved order=o-10489 kettle=2
+2026-10-26T02:21:03Z INFO  payments  captured order=o-10489 charge=ch_08175 key=k-07075 attempt=1
+2026-10-26T02:21:05Z INFO  notifier  webhook delivered order=o-10489 attempt=1/3
+2026-10-26T02:54:00Z INFO  api       order accepted order=o-10490 lines=1 amount=700
+2026-10-26T02:54:01Z INFO  inventory reserved order=o-10490 filter=1
+2026-10-26T02:54:03Z INFO  payments  captured order=o-10490 charge=ch_08176 key=k-07076 attempt=1
+2026-10-26T02:54:05Z INFO  notifier  webhook delivered order=o-10490 attempt=1/3
+2026-10-26T02:54:06Z WARN  api       slow request order=o-10490 ms=4283
+2026-10-26T03:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T03:10:00Z INFO  api       order accepted order=o-10491 lines=1 amount=16500
+2026-10-26T03:10:01Z INFO  inventory reserved order=o-10491 grinder=3
+2026-10-26T03:10:03Z INFO  payments  captured order=o-10491 charge=ch_08177 key=k-07077 attempt=1
+2026-10-26T03:10:05Z INFO  notifier  webhook delivered order=o-10491 attempt=1/3
+2026-10-26T03:35:00Z INFO  api       order accepted order=o-10492 lines=2 amount=2500
+2026-10-26T03:35:01Z INFO  inventory reserved order=o-10492 mug=1 filter=1
+2026-10-26T03:35:03Z INFO  payments  captured order=o-10492 charge=ch_08178 key=k-07078 attempt=1
+2026-10-26T03:35:05Z INFO  notifier  webhook delivered order=o-10492 attempt=1/3
+2026-10-26T03:53:00Z ERROR api       order rejected order=o-10493 reason=unknown_sku sku=mug-xl status=400
+2026-10-26T04:37:00Z INFO  api       order accepted order=o-10494 lines=1 amount=3600
+2026-10-26T04:37:01Z INFO  inventory reserved order=o-10494 tea=3
+2026-10-26T04:37:03Z INFO  payments  captured order=o-10494 charge=ch_08179 key=k-07079 attempt=1
+2026-10-26T04:37:05Z INFO  notifier  webhook delivered order=o-10494 attempt=1/3
+2026-10-26T04:49:00Z INFO  api       order accepted order=o-10495 lines=1 amount=9000
+2026-10-26T04:49:01Z INFO  inventory reserved order=o-10495 kettle=2
+2026-10-26T04:49:03Z INFO  payments  captured order=o-10495 charge=ch_08180 key=k-07080 attempt=1
+2026-10-26T04:49:05Z INFO  notifier  webhook delivered order=o-10495 attempt=1/3
+2026-10-26T05:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T05:18:00Z INFO  api       order accepted order=o-10496 lines=1 amount=16500
+2026-10-26T05:18:01Z INFO  inventory reserved order=o-10496 grinder=3
+2026-10-26T05:18:03Z INFO  payments  captured order=o-10496 charge=ch_08181 key=k-07081 attempt=1
+2026-10-26T05:18:05Z INFO  notifier  webhook delivered order=o-10496 attempt=1/3
+2026-10-26T06:03:00Z INFO  api       order accepted order=o-10497 lines=2 amount=2500
+2026-10-26T06:03:01Z INFO  inventory reserved order=o-10497 mug=1 filter=1
+2026-10-26T06:03:03Z INFO  payments  captured order=o-10497 charge=ch_08182 key=k-07082 attempt=1
+2026-10-26T06:03:05Z INFO  notifier  webhook delivered order=o-10497 attempt=1/3
+2026-10-26T06:39:00Z INFO  api       order accepted order=o-10498 lines=1 amount=2100
+2026-10-26T06:39:01Z INFO  inventory reserved order=o-10498 filter=3
+2026-10-26T06:39:03Z INFO  payments  captured order=o-10498 charge=ch_08183 key=k-07083 attempt=1
+2026-10-26T06:39:05Z INFO  notifier  webhook delivered order=o-10498 attempt=1/3
+2026-10-26T07:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T07:01:00Z INFO  api       order accepted order=o-10499 lines=1 amount=5500
+2026-10-26T07:01:01Z INFO  inventory reserved order=o-10499 grinder=1
+2026-10-26T07:01:03Z INFO  payments  captured order=o-10499 charge=ch_08184 key=k-07084 attempt=1
+2026-10-26T07:01:05Z INFO  notifier  webhook delivered order=o-10499 attempt=1/3
+2026-10-26T07:40:00Z INFO  api       order accepted order=o-10500 lines=1 amount=1400
+2026-10-26T07:40:01Z INFO  inventory reserved order=o-10500 filter=2
+2026-10-26T07:40:03Z INFO  payments  captured order=o-10500 charge=ch_08185 key=k-07085 attempt=1
+2026-10-26T07:40:05Z INFO  notifier  webhook delivered order=o-10500 attempt=1/3
+2026-10-26T08:25:00Z INFO  api       order accepted order=o-10501 lines=1 amount=11000
+2026-10-26T08:25:01Z INFO  inventory reserved order=o-10501 grinder=2
+2026-10-26T08:25:03Z INFO  payments  captured order=o-10501 charge=ch_08186 key=k-07086 attempt=1
+2026-10-26T08:25:05Z INFO  notifier  webhook delivered order=o-10501 attempt=1/3
+2026-10-26T08:25:06Z WARN  api       slow request order=o-10501 ms=3597
+2026-10-26T09:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T09:10:00Z INFO  api       order accepted order=o-10502 lines=1 amount=1400
+2026-10-26T09:10:01Z INFO  inventory reserved order=o-10502 filter=2
+2026-10-26T09:10:03Z INFO  payments  captured order=o-10502 charge=ch_08187 key=k-07087 attempt=1
+2026-10-26T09:10:05Z INFO  notifier  webhook delivered order=o-10502 attempt=1/3
+2026-10-26T09:40:00Z INFO  api       order accepted order=o-10503 lines=2 amount=6300
+2026-10-26T09:40:01Z INFO  inventory reserved order=o-10503 kettle=1 mug=1
+2026-10-26T09:40:03Z INFO  payments  captured order=o-10503 charge=ch_08188 key=k-07088 attempt=1
+2026-10-26T09:40:05Z INFO  notifier  webhook delivered order=o-10503 attempt=1/3
+2026-10-26T09:54:00Z INFO  api       order accepted order=o-10504 lines=2 amount=4300
+2026-10-26T09:54:01Z INFO  inventory reserved order=o-10504 tea=3 filter=1
+2026-10-26T09:54:03Z ERROR payments  declined order=o-10504 reason=insufficient_funds
+2026-10-26T09:54:03Z INFO  inventory released order=o-10504 tea=3 filter=1
+2026-10-26T09:54:03Z WARN  api       order failed order=o-10504 status=402
+2026-10-26T10:31:00Z INFO  api       order accepted order=o-10505 lines=1 amount=11000
+2026-10-26T10:31:01Z INFO  inventory reserved order=o-10505 grinder=2
+2026-10-26T10:31:03Z INFO  payments  captured order=o-10505 charge=ch_08189 key=k-07089 attempt=1
+2026-10-26T10:31:05Z INFO  notifier  webhook delivered order=o-10505 attempt=1/3
+2026-10-26T10:31:06Z WARN  api       slow request order=o-10505 ms=2401
+2026-10-26T10:57:00Z INFO  api       order accepted order=o-10506 lines=1 amount=1400
+2026-10-26T10:57:01Z INFO  inventory reserved order=o-10506 filter=2
+2026-10-26T10:57:03Z INFO  payments  captured order=o-10506 charge=ch_08190 key=k-07090 attempt=1
+2026-10-26T10:57:05Z INFO  notifier  webhook delivered order=o-10506 attempt=1/3
+2026-10-26T11:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T11:24:00Z INFO  api       order accepted order=o-10507 lines=1 amount=5500
+2026-10-26T11:24:01Z INFO  inventory reserved order=o-10507 grinder=1
+2026-10-26T11:24:03Z INFO  payments  captured order=o-10507 charge=ch_08191 key=k-07091 attempt=1
+2026-10-26T11:24:05Z WARN  notifier  webhook 503 order=o-10507 attempt=1/3
+2026-10-26T11:24:06Z WARN  notifier  webhook 503 order=o-10507 attempt=2/3
+2026-10-26T11:24:07Z WARN  notifier  webhook 503 order=o-10507 attempt=3/3
+2026-10-26T11:24:08Z ERROR notifier  webhook dropped order=o-10507 partner=unavailable
+2026-10-26T12:05:00Z INFO  api       order accepted order=o-10508 lines=1 amount=1200
+2026-10-26T12:05:01Z INFO  inventory reserved order=o-10508 tea=1
+2026-10-26T12:05:03Z INFO  payments  captured order=o-10508 charge=ch_08192 key=k-07092 attempt=1
+2026-10-26T12:05:05Z INFO  notifier  webhook delivered order=o-10508 attempt=1/3
+2026-10-26T12:20:00Z INFO  api       order accepted order=o-10509 lines=2 amount=6200
+2026-10-26T12:20:01Z INFO  inventory reserved order=o-10509 filter=1 grinder=1
+2026-10-26T12:20:03Z INFO  payments  captured order=o-10509 charge=ch_08193 key=k-07093 attempt=1
+2026-10-26T12:20:05Z INFO  notifier  webhook delivered order=o-10509 attempt=1/3
+2026-10-26T12:35:00Z INFO  api       order accepted order=o-10510 lines=1 amount=5500
+2026-10-26T12:35:01Z INFO  inventory reserved order=o-10510 grinder=1
+2026-10-26T12:35:03Z INFO  payments  captured order=o-10510 charge=ch_08194 key=k-07094 attempt=1
+2026-10-26T12:35:05Z INFO  notifier  webhook delivered order=o-10510 attempt=1/3
+2026-10-26T12:54:00Z INFO  api       order accepted order=o-10511 lines=1 amount=700
+2026-10-26T12:54:01Z INFO  inventory reserved order=o-10511 filter=1
+2026-10-26T12:54:03Z INFO  payments  captured order=o-10511 charge=ch_08195 key=k-07095 attempt=1
+2026-10-26T12:54:05Z INFO  notifier  webhook delivered order=o-10511 attempt=1/3
+2026-10-26T12:54:06Z WARN  api       slow request order=o-10511 ms=3807
+2026-10-26T13:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T13:35:00Z INFO  api       order accepted order=o-10512 lines=2 amount=9700
+2026-10-26T13:35:01Z INFO  inventory reserved order=o-10512 kettle=2 filter=1
+2026-10-26T13:35:03Z INFO  payments  captured order=o-10512 charge=ch_08196 key=k-07096 attempt=1
+2026-10-26T13:35:05Z INFO  notifier  webhook delivered order=o-10512 attempt=1/3
+2026-10-26T14:05:00Z INFO  api       order accepted order=o-10513 lines=2 amount=9100
+2026-10-26T14:05:01Z INFO  inventory reserved order=o-10513 tea=3 grinder=1
+2026-10-26T14:05:03Z INFO  payments  captured order=o-10513 charge=ch_08197 key=k-07097 attempt=1
+2026-10-26T14:05:05Z INFO  notifier  webhook delivered order=o-10513 attempt=1/3
+2026-10-26T14:49:00Z INFO  api       order accepted order=o-10514 lines=1 amount=11000
+2026-10-26T14:49:01Z INFO  inventory reserved order=o-10514 grinder=2
+2026-10-26T14:49:03Z INFO  payments  captured order=o-10514 charge=ch_08198 key=k-07098 attempt=1
+2026-10-26T14:49:05Z INFO  notifier  webhook delivered order=o-10514 attempt=1/3
+2026-10-26T15:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T15:18:00Z INFO  api       order accepted order=o-10515 lines=1 amount=5500
+2026-10-26T15:18:01Z INFO  inventory reserved order=o-10515 grinder=1
+2026-10-26T15:18:03Z INFO  payments  captured order=o-10515 charge=ch_08199 key=k-07099 attempt=1
+2026-10-26T15:18:05Z WARN  notifier  webhook 503 order=o-10515 attempt=1/3
+2026-10-26T15:18:06Z INFO  notifier  webhook delivered order=o-10515 attempt=2/3
+2026-10-26T15:47:00Z INFO  api       order accepted order=o-10516 lines=1 amount=1200
+2026-10-26T15:47:01Z INFO  inventory reserved order=o-10516 tea=1
+2026-10-26T15:47:03Z INFO  payments  captured order=o-10516 charge=ch_08200 key=k-07100 attempt=1
+2026-10-26T15:47:05Z INFO  notifier  webhook delivered order=o-10516 attempt=1/3
+2026-10-26T16:31:00Z INFO  api       order accepted order=o-10517 lines=2 amount=3000
+2026-10-26T16:31:01Z INFO  inventory reserved order=o-10517 tea=1 mug=1
+2026-10-26T16:31:03Z ERROR payments  declined order=o-10517 reason=insufficient_funds
+2026-10-26T16:31:03Z INFO  inventory released order=o-10517 tea=1 mug=1
+2026-10-26T16:31:03Z WARN  api       order failed order=o-10517 status=402
+2026-10-26T16:59:00Z INFO  api       order accepted order=o-10518 lines=1 amount=1800
+2026-10-26T16:59:01Z INFO  inventory reserved order=o-10518 mug=1
+2026-10-26T16:59:11Z WARN  payments  gateway timeout order=o-10518 attempt=1/3 key=k-07101
+2026-10-26T16:59:12Z INFO  payments  captured order=o-10518 charge=ch_08202 key=k-07102 attempt=2
+2026-10-26T16:59:14Z INFO  notifier  webhook delivered order=o-10518 attempt=1/3
+2026-10-26T17:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T17:17:00Z INFO  api       order accepted order=o-10519 lines=1 amount=11000
+2026-10-26T17:17:01Z INFO  inventory reserved order=o-10519 grinder=2
+2026-10-26T17:17:03Z INFO  payments  captured order=o-10519 charge=ch_08203 key=k-07103 attempt=1
+2026-10-26T17:17:05Z INFO  notifier  webhook delivered order=o-10519 attempt=1/3
+2026-10-26T17:17:06Z WARN  api       slow request order=o-10519 ms=2396
+2026-10-26T17:34:00Z INFO  api       order accepted order=o-10520 lines=2 amount=18900
+2026-10-26T17:34:01Z INFO  inventory reserved order=o-10520 tea=2 grinder=3
+2026-10-26T17:34:03Z INFO  payments  captured order=o-10520 charge=ch_08204 key=k-07104 attempt=1
+2026-10-26T17:34:05Z WARN  notifier  webhook 503 order=o-10520 attempt=1/3
+2026-10-26T17:34:06Z WARN  notifier  webhook 503 order=o-10520 attempt=2/3
+2026-10-26T17:34:07Z WARN  notifier  webhook 503 order=o-10520 attempt=3/3
+2026-10-26T17:34:08Z ERROR notifier  webhook dropped order=o-10520 partner=unavailable
+2026-10-26T18:16:00Z INFO  api       order accepted order=o-10521 lines=1 amount=2400
+2026-10-26T18:16:01Z INFO  inventory reserved order=o-10521 tea=2
+2026-10-26T18:16:03Z INFO  payments  captured order=o-10521 charge=ch_08205 key=k-07105 attempt=1
+2026-10-26T18:16:05Z WARN  notifier  webhook 503 order=o-10521 attempt=1/3
+2026-10-26T18:16:06Z INFO  notifier  webhook delivered order=o-10521 attempt=2/3
+2026-10-26T18:49:00Z INFO  api       order accepted order=o-10522 lines=1 amount=1200
+2026-10-26T18:49:01Z INFO  inventory reserved order=o-10522 tea=1
+2026-10-26T18:49:11Z WARN  payments  gateway timeout order=o-10522 attempt=1/3 key=k-07106
+2026-10-26T18:49:12Z INFO  payments  captured order=o-10522 charge=ch_08207 key=k-07107 attempt=2
+2026-10-26T18:49:14Z INFO  notifier  webhook delivered order=o-10522 attempt=1/3
+2026-10-26T19:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T19:08:00Z INFO  api       order accepted order=o-10523 lines=1 amount=5500
+2026-10-26T19:08:01Z INFO  inventory reserved order=o-10523 grinder=1
+2026-10-26T19:08:03Z INFO  payments  captured order=o-10523 charge=ch_08208 key=k-07108 attempt=1
+2026-10-26T19:08:05Z INFO  notifier  webhook delivered order=o-10523 attempt=1/3
+2026-10-26T19:48:00Z INFO  api       order accepted order=o-10524 lines=1 amount=13500
+2026-10-26T19:48:01Z INFO  inventory reserved order=o-10524 kettle=3
+2026-10-26T19:48:03Z INFO  payments  captured order=o-10524 charge=ch_08209 key=k-07109 attempt=1
+2026-10-26T19:48:05Z INFO  notifier  webhook delivered order=o-10524 attempt=1/3
+2026-10-26T19:50:00Z INFO  api       hold accepted order=o-10525 lines=1
+2026-10-26T19:50:01Z INFO  inventory reserved order=o-10525 mug=3
+2026-10-26T19:54:00Z INFO  orders    cancelled order=o-10525
+2026-10-26T19:54:00Z INFO  inventory released order=o-10525 mug=3
+2026-10-26T20:08:47Z INFO  scheduler sweep expired=o-10525
+2026-10-26T20:08:47Z INFO  inventory released order=o-10525 mug=3
+2026-10-26T20:20:00Z INFO  api       order accepted order=o-10526 lines=1 amount=5500
+2026-10-26T20:20:01Z INFO  inventory reserved order=o-10526 grinder=1
+2026-10-26T20:20:03Z INFO  payments  captured order=o-10526 charge=ch_08210 key=k-07110 attempt=1
+2026-10-26T20:20:05Z INFO  notifier  webhook delivered order=o-10526 attempt=1/3
+2026-10-26T20:20:06Z WARN  api       slow request order=o-10526 ms=3851
+2026-10-26T20:55:00Z INFO  api       order accepted order=o-10527 lines=2 amount=4300
+2026-10-26T20:55:01Z INFO  inventory reserved order=o-10527 mug=2 filter=1
+2026-10-26T20:55:03Z INFO  payments  captured order=o-10527 charge=ch_08211 key=k-07111 attempt=1
+2026-10-26T20:55:05Z INFO  notifier  webhook delivered order=o-10527 attempt=1/3
+2026-10-26T21:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T21:12:00Z INFO  api       order accepted order=o-10528 lines=1 amount=16500
+2026-10-26T21:12:01Z INFO  inventory reserved order=o-10528 grinder=3
+2026-10-26T21:12:03Z INFO  payments  captured order=o-10528 charge=ch_08212 key=k-07112 attempt=1
+2026-10-26T21:12:05Z INFO  notifier  webhook delivered order=o-10528 attempt=1/3
+2026-10-26T21:53:00Z INFO  api       order accepted order=o-10529 lines=1 amount=1800
+2026-10-26T21:53:01Z INFO  inventory reserved order=o-10529 mug=1
+2026-10-26T21:53:03Z INFO  payments  captured order=o-10529 charge=ch_08213 key=k-07113 attempt=1
+2026-10-26T21:53:05Z INFO  notifier  webhook delivered order=o-10529 attempt=1/3
+2026-10-26T22:24:00Z INFO  api       order accepted order=o-10530 lines=1 amount=5500
+2026-10-26T22:24:01Z INFO  inventory reserved order=o-10530 grinder=1
+2026-10-26T22:24:03Z INFO  payments  captured order=o-10530 charge=ch_08214 key=k-07114 attempt=1
+2026-10-26T22:24:05Z INFO  notifier  webhook delivered order=o-10530 attempt=1/3
+2026-10-26T22:55:00Z INFO  api       order accepted order=o-10531 lines=1 amount=9000
+2026-10-26T22:55:01Z INFO  inventory reserved order=o-10531 kettle=2
+2026-10-26T22:55:03Z INFO  payments  captured order=o-10531 charge=ch_08215 key=k-07115 attempt=1
+2026-10-26T22:55:05Z WARN  notifier  webhook 503 order=o-10531 attempt=1/3
+2026-10-26T22:55:06Z INFO  notifier  webhook delivered order=o-10531 attempt=2/3
+2026-10-26T23:00:00Z INFO  scheduler sweep expired=none
+2026-10-26T23:16:00Z INFO  api       order accepted order=o-10532 lines=1 amount=9000
+2026-10-26T23:16:01Z INFO  inventory reserved order=o-10532 kettle=2
+2026-10-26T23:16:03Z INFO  payments  captured order=o-10532 charge=ch_08216 key=k-07116 attempt=1
+2026-10-26T23:16:05Z INFO  notifier  webhook delivered order=o-10532 attempt=1/3
+2026-10-26T23:51:00Z INFO  api       order accepted order=o-10533 lines=1 amount=13500
+2026-10-26T23:51:01Z INFO  inventory reserved order=o-10533 kettle=3
+2026-10-26T23:51:03Z INFO  payments  captured order=o-10533 charge=ch_08217 key=k-07117 attempt=1
+2026-10-26T23:51:05Z INFO  notifier  webhook delivered order=o-10533 attempt=1/3
+2026-10-27T00:20:00Z INFO  api       order accepted order=o-10534 lines=1 amount=11000
+2026-10-27T00:20:01Z INFO  inventory reserved order=o-10534 grinder=2
+2026-10-27T00:20:11Z WARN  payments  gateway timeout order=o-10534 attempt=1/3 key=k-07118
+2026-10-27T00:20:12Z INFO  payments  captured order=o-10534 charge=ch_08219 key=k-07119 attempt=2
+2026-10-27T00:20:14Z INFO  notifier  webhook delivered order=o-10534 attempt=1/3
+2026-10-27T01:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T01:01:00Z INFO  api       order accepted order=o-10535 lines=1 amount=3600
+2026-10-27T01:01:01Z INFO  inventory reserved order=o-10535 tea=3
+2026-10-27T01:01:03Z INFO  payments  captured order=o-10535 charge=ch_08220 key=k-07120 attempt=1
+2026-10-27T01:01:05Z INFO  notifier  webhook delivered order=o-10535 attempt=1/3
+2026-10-27T01:03:00Z INFO  api       hold accepted order=o-10536 lines=1
+2026-10-27T01:03:01Z INFO  inventory reserved order=o-10536 filter=2
+2026-10-27T01:06:00Z INFO  orders    cancelled order=o-10536
+2026-10-27T01:06:00Z INFO  inventory released order=o-10536 filter=2
+2026-10-27T01:20:32Z INFO  scheduler sweep expired=o-10536
+2026-10-27T01:20:32Z INFO  inventory released order=o-10536 filter=2
+2026-10-27T01:36:00Z INFO  api       order accepted order=o-10537 lines=1 amount=13500
+2026-10-27T01:36:01Z INFO  inventory reserved order=o-10537 kettle=3
+2026-10-27T01:36:03Z INFO  payments  captured order=o-10537 charge=ch_08221 key=k-07121 attempt=1
+2026-10-27T01:36:05Z WARN  notifier  webhook 503 order=o-10537 attempt=1/3
+2026-10-27T01:36:06Z INFO  notifier  webhook delivered order=o-10537 attempt=2/3
+2026-10-27T02:00:00Z ERROR scheduler duplicate charge order=o-10518 charges=ch_08201,ch_08202 amount=1800
+2026-10-27T02:00:00Z ERROR scheduler duplicate charge order=o-10522 charges=ch_08206,ch_08207 amount=1200
+2026-10-27T02:00:00Z ERROR scheduler duplicate charge order=o-10534 charges=ch_08218,ch_08219 amount=11000
+2026-10-27T02:00:30Z ERROR scheduler stock drift sku=mug system=338 counted=332
+2026-10-27T02:00:30Z ERROR scheduler stock drift sku=tea system=724 counted=720
+2026-10-27T02:00:30Z ERROR scheduler stock drift sku=filter system=544 counted=537
+2026-10-27T02:12:00Z INFO  api       order accepted order=o-10538 lines=1 amount=11000
+2026-10-27T02:12:01Z INFO  inventory reserved order=o-10538 grinder=2
+2026-10-27T02:12:01Z WARN  inventory low stock sku=grinder left=3
+2026-10-27T02:12:03Z INFO  payments  captured order=o-10538 charge=ch_08222 key=k-07122 attempt=1
+2026-10-27T02:12:05Z INFO  notifier  webhook delivered order=o-10538 attempt=1/3
+2026-10-27T02:12:06Z WARN  api       slow request order=o-10538 ms=3698
+2026-10-27T02:33:00Z INFO  api       order accepted order=o-10539 lines=2 amount=6700
+2026-10-27T02:33:01Z INFO  inventory reserved order=o-10539 grinder=1 tea=1
+2026-10-27T02:33:01Z WARN  inventory low stock sku=grinder left=2
+2026-10-27T02:33:03Z INFO  payments  captured order=o-10539 charge=ch_08223 key=k-07123 attempt=1
+2026-10-27T02:33:05Z INFO  notifier  webhook delivered order=o-10539 attempt=1/3
+2026-10-27T03:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T03:14:00Z INFO  api       order accepted order=o-10540 lines=1 amount=1800
+2026-10-27T03:14:01Z INFO  inventory reserved order=o-10540 mug=1
+2026-10-27T03:14:03Z INFO  payments  captured order=o-10540 charge=ch_08224 key=k-07124 attempt=1
+2026-10-27T03:14:05Z WARN  notifier  webhook 503 order=o-10540 attempt=1/3
+2026-10-27T03:14:06Z INFO  notifier  webhook delivered order=o-10540 attempt=2/3
+2026-10-27T03:59:00Z INFO  api       order accepted order=o-10541 lines=1 amount=5500
+2026-10-27T03:59:01Z INFO  inventory reserved order=o-10541 grinder=1
+2026-10-27T03:59:01Z WARN  inventory low stock sku=grinder left=1
+2026-10-27T03:59:03Z INFO  payments  captured order=o-10541 charge=ch_08225 key=k-07125 attempt=1
+2026-10-27T03:59:05Z INFO  notifier  webhook delivered order=o-10541 attempt=1/3
+2026-10-27T04:29:00Z INFO  api       order accepted order=o-10542 lines=1 amount=700
+2026-10-27T04:29:01Z INFO  inventory reserved order=o-10542 filter=1
+2026-10-27T04:29:03Z ERROR payments  declined order=o-10542 reason=expired_card
+2026-10-27T04:29:03Z INFO  inventory released order=o-10542 filter=1
+2026-10-27T04:29:03Z WARN  api       order failed order=o-10542 status=402
+2026-10-27T05:00:00Z INFO  api       order accepted order=o-10543 lines=2 amount=10800
+2026-10-27T05:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T05:00:01Z INFO  inventory reserved order=o-10543 mug=1 kettle=2
+2026-10-27T05:00:03Z INFO  payments  captured order=o-10543 charge=ch_08226 key=k-07126 attempt=1
+2026-10-27T05:00:05Z INFO  notifier  webhook delivered order=o-10543 attempt=1/3
+2026-10-27T05:18:00Z INFO  api       order accepted order=o-10544 lines=1 amount=1800
+2026-10-27T05:18:01Z INFO  inventory reserved order=o-10544 mug=1
+2026-10-27T05:18:03Z INFO  payments  captured order=o-10544 charge=ch_08227 key=k-07127 attempt=1
+2026-10-27T05:18:05Z INFO  notifier  webhook delivered order=o-10544 attempt=1/3
+2026-10-27T05:39:00Z INFO  api       order accepted order=o-10545 lines=1 amount=700
+2026-10-27T05:39:01Z INFO  inventory reserved order=o-10545 filter=1
+2026-10-27T05:39:03Z INFO  payments  captured order=o-10545 charge=ch_08228 key=k-07128 attempt=1
+2026-10-27T05:39:05Z INFO  notifier  webhook delivered order=o-10545 attempt=1/3
+2026-10-27T06:05:00Z INFO  api       order accepted order=o-10546 lines=1 amount=11000
+2026-10-27T06:05:01Z INFO  inventory reserved order=o-10546 grinder=2
+2026-10-27T06:05:01Z WARN  inventory low stock sku=grinder left=-1
+2026-10-27T06:05:03Z INFO  payments  captured order=o-10546 charge=ch_08229 key=k-07129 attempt=1
+2026-10-27T06:05:05Z INFO  notifier  webhook delivered order=o-10546 attempt=1/3
+2026-10-27T06:46:00Z INFO  api       order accepted order=o-10547 lines=1 amount=9000
+2026-10-27T06:46:01Z INFO  inventory reserved order=o-10547 kettle=2
+2026-10-27T06:46:03Z INFO  payments  captured order=o-10547 charge=ch_08230 key=k-07130 attempt=1
+2026-10-27T06:46:05Z INFO  notifier  webhook delivered order=o-10547 attempt=1/3
+2026-10-27T07:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T07:19:00Z INFO  api       order accepted order=o-10548 lines=2 amount=4300
+2026-10-27T07:19:01Z INFO  inventory reserved order=o-10548 tea=3 filter=1
+2026-10-27T07:19:11Z WARN  payments  gateway timeout order=o-10548 attempt=1/3 key=k-07131
+2026-10-27T07:19:12Z INFO  payments  captured order=o-10548 charge=ch_08232 key=k-07132 attempt=2
+2026-10-27T07:19:14Z INFO  notifier  webhook delivered order=o-10548 attempt=1/3
+2026-10-27T07:33:00Z INFO  api       order accepted order=o-10549 lines=1 amount=4500
+2026-10-27T07:33:01Z INFO  inventory reserved order=o-10549 kettle=1
+2026-10-27T07:33:03Z INFO  payments  captured order=o-10549 charge=ch_08233 key=k-07133 attempt=1
+2026-10-27T07:33:05Z WARN  notifier  webhook 503 order=o-10549 attempt=1/3
+2026-10-27T07:33:06Z WARN  notifier  webhook 503 order=o-10549 attempt=2/3
+2026-10-27T07:33:07Z WARN  notifier  webhook 503 order=o-10549 attempt=3/3
+2026-10-27T07:33:08Z ERROR notifier  webhook dropped order=o-10549 partner=unavailable
+2026-10-27T08:09:00Z INFO  api       order accepted order=o-10550 lines=1 amount=700
+2026-10-27T08:09:01Z INFO  inventory reserved order=o-10550 filter=1
+2026-10-27T08:09:03Z INFO  payments  captured order=o-10550 charge=ch_08234 key=k-07134 attempt=1
+2026-10-27T08:09:05Z INFO  notifier  webhook delivered order=o-10550 attempt=1/3
+2026-10-27T08:54:00Z INFO  api       order accepted order=o-10551 lines=1 amount=1800
+2026-10-27T08:54:01Z INFO  inventory reserved order=o-10551 mug=1
+2026-10-27T08:54:03Z INFO  payments  captured order=o-10551 charge=ch_08235 key=k-07135 attempt=1
+2026-10-27T08:54:05Z INFO  notifier  webhook delivered order=o-10551 attempt=1/3
+2026-10-27T09:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T09:32:00Z INFO  api       order accepted order=o-10552 lines=1 amount=1200
+2026-10-27T09:32:01Z INFO  inventory reserved order=o-10552 tea=1
+2026-10-27T09:32:03Z INFO  payments  captured order=o-10552 charge=ch_08236 key=k-07136 attempt=1
+2026-10-27T09:32:05Z INFO  notifier  webhook delivered order=o-10552 attempt=1/3
+2026-10-27T09:54:00Z INFO  api       order accepted order=o-10553 lines=2 amount=2600
+2026-10-27T09:54:01Z INFO  inventory reserved order=o-10553 filter=2 tea=1
+2026-10-27T09:54:03Z INFO  payments  captured order=o-10553 charge=ch_08237 key=k-07137 attempt=1
+2026-10-27T09:54:05Z INFO  notifier  webhook delivered order=o-10553 attempt=1/3
+2026-10-27T10:30:00Z INFO  api       order accepted order=o-10554 lines=1 amount=11000
+2026-10-27T10:30:01Z INFO  inventory reserved order=o-10554 grinder=2
+2026-10-27T10:30:01Z WARN  inventory low stock sku=grinder left=-3
+2026-10-27T10:30:03Z INFO  payments  captured order=o-10554 charge=ch_08238 key=k-07138 attempt=1
+2026-10-27T10:30:05Z INFO  notifier  webhook delivered order=o-10554 attempt=1/3
+2026-10-27T10:30:06Z WARN  api       slow request order=o-10554 ms=3222
+2026-10-27T10:45:00Z INFO  api       order accepted order=o-10555 lines=1 amount=4500
+2026-10-27T10:45:01Z INFO  inventory reserved order=o-10555 kettle=1
+2026-10-27T10:45:11Z WARN  payments  gateway timeout order=o-10555 attempt=1/3 key=k-07139
+2026-10-27T10:45:12Z INFO  payments  captured order=o-10555 charge=ch_08240 key=k-07140 attempt=2
+2026-10-27T10:45:14Z INFO  notifier  webhook delivered order=o-10555 attempt=1/3
+2026-10-27T11:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T11:16:00Z INFO  api       order accepted order=o-10556 lines=2 amount=17700
+2026-10-27T11:16:01Z INFO  inventory reserved order=o-10556 tea=1 grinder=3
+2026-10-27T11:16:01Z WARN  inventory low stock sku=grinder left=-6
+2026-10-27T11:16:03Z INFO  payments  captured order=o-10556 charge=ch_08241 key=k-07141 attempt=1
+2026-10-27T11:16:05Z INFO  notifier  webhook delivered order=o-10556 attempt=1/3
+2026-10-27T11:29:00Z INFO  api       order accepted order=o-10557 lines=2 amount=3200
+2026-10-27T11:29:01Z INFO  inventory reserved order=o-10557 filter=2 mug=1
+2026-10-27T11:29:03Z ERROR payments  declined order=o-10557 reason=card_declined
+2026-10-27T11:29:03Z INFO  inventory released order=o-10557 filter=2 mug=1
+2026-10-27T11:29:03Z WARN  api       order failed order=o-10557 status=402
+2026-10-27T11:52:00Z INFO  api       order accepted order=o-10558 lines=1 amount=1200
+2026-10-27T11:52:01Z INFO  inventory reserved order=o-10558 tea=1
+2026-10-27T11:52:03Z INFO  payments  captured order=o-10558 charge=ch_08242 key=k-07142 attempt=1
+2026-10-27T11:52:05Z WARN  notifier  webhook 503 order=o-10558 attempt=1/3
+2026-10-27T11:52:06Z INFO  notifier  webhook delivered order=o-10558 attempt=2/3
+2026-10-27T12:34:00Z WARN  api       order rejected order=o-10559 reason=out_of_stock sku=kettle status=409
+2026-10-27T13:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T13:03:00Z INFO  api       order accepted order=o-10560 lines=1 amount=2400
+2026-10-27T13:03:01Z INFO  inventory reserved order=o-10560 tea=2
+2026-10-27T13:03:03Z INFO  payments  captured order=o-10560 charge=ch_08243 key=k-07143 attempt=1
+2026-10-27T13:03:05Z INFO  notifier  webhook delivered order=o-10560 attempt=1/3
+2026-10-27T13:03:06Z WARN  api       slow request order=o-10560 ms=4667
+2026-10-27T13:45:00Z INFO  api       order accepted order=o-10561 lines=1 amount=2100
+2026-10-27T13:45:01Z INFO  inventory reserved order=o-10561 filter=3
+2026-10-27T13:45:03Z INFO  payments  captured order=o-10561 charge=ch_08244 key=k-07144 attempt=1
+2026-10-27T13:45:05Z INFO  notifier  webhook delivered order=o-10561 attempt=1/3
+2026-10-27T14:18:00Z INFO  api       order accepted order=o-10562 lines=2 amount=18300
+2026-10-27T14:18:01Z INFO  inventory reserved order=o-10562 grinder=3 mug=1
+2026-10-27T14:18:01Z WARN  inventory low stock sku=grinder left=-9
+2026-10-27T14:18:03Z INFO  payments  captured order=o-10562 charge=ch_08245 key=k-07145 attempt=1
+2026-10-27T14:18:05Z INFO  notifier  webhook delivered order=o-10562 attempt=1/3
+2026-10-27T14:20:00Z INFO  api       hold accepted order=o-10563 lines=1
+2026-10-27T14:20:01Z INFO  inventory reserved order=o-10563 tea=2
+2026-10-27T14:24:00Z INFO  orders    cancelled order=o-10563
+2026-10-27T14:24:00Z INFO  inventory released order=o-10563 tea=2
+2026-10-27T14:36:34Z INFO  scheduler sweep expired=o-10563
+2026-10-27T14:36:34Z INFO  inventory released order=o-10563 tea=2
+2026-10-27T14:54:00Z INFO  api       order accepted order=o-10564 lines=2 amount=10000
+2026-10-27T14:54:01Z INFO  inventory reserved order=o-10564 grinder=1 kettle=1
+2026-10-27T14:54:01Z WARN  inventory low stock sku=grinder left=-10
+2026-10-27T14:54:03Z INFO  payments  captured order=o-10564 charge=ch_08246 key=k-07146 attempt=1
+2026-10-27T14:54:05Z INFO  notifier  webhook delivered order=o-10564 attempt=1/3
+2026-10-27T15:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T15:06:00Z INFO  api       order accepted order=o-10565 lines=1 amount=13500
+2026-10-27T15:06:01Z INFO  inventory reserved order=o-10565 kettle=3
+2026-10-27T15:06:03Z ERROR payments  declined order=o-10565 reason=card_declined
+2026-10-27T15:06:03Z INFO  inventory released order=o-10565 kettle=3
+2026-10-27T15:06:03Z WARN  api       order failed order=o-10565 status=402
+2026-10-27T15:44:00Z INFO  api       order accepted order=o-10566 lines=2 amount=2600
+2026-10-27T15:44:01Z INFO  inventory reserved order=o-10566 tea=1 filter=2
+2026-10-27T15:44:03Z INFO  payments  captured order=o-10566 charge=ch_08247 key=k-07147 attempt=1
+2026-10-27T15:44:05Z INFO  notifier  webhook delivered order=o-10566 attempt=1/3
+2026-10-27T16:05:00Z INFO  api       order accepted order=o-10567 lines=1 amount=5500
+2026-10-27T16:05:01Z INFO  inventory reserved order=o-10567 grinder=1
+2026-10-27T16:05:01Z WARN  inventory low stock sku=grinder left=-11
+2026-10-27T16:05:03Z INFO  payments  captured order=o-10567 charge=ch_08248 key=k-07148 attempt=1
+2026-10-27T16:05:05Z INFO  notifier  webhook delivered order=o-10567 attempt=1/3
+2026-10-27T16:07:00Z INFO  api       hold accepted order=o-10568 lines=1
+2026-10-27T16:07:01Z INFO  inventory reserved order=o-10568 filter=3
+2026-10-27T16:14:00Z INFO  orders    cancelled order=o-10568
+2026-10-27T16:14:00Z INFO  inventory released order=o-10568 filter=3
+2026-10-27T16:20:00Z INFO  api       order accepted order=o-10569 lines=1 amount=5500
+2026-10-27T16:20:01Z INFO  inventory reserved order=o-10569 grinder=1
+2026-10-27T16:20:01Z WARN  inventory low stock sku=grinder left=-12
+2026-10-27T16:20:03Z ERROR payments  declined order=o-10569 reason=card_declined
+2026-10-27T16:20:03Z INFO  inventory released order=o-10569 grinder=1
+2026-10-27T16:20:03Z WARN  api       order failed order=o-10569 status=402
+2026-10-27T16:25:16Z INFO  scheduler sweep expired=o-10568
+2026-10-27T16:25:16Z INFO  inventory released order=o-10568 filter=3
+2026-10-27T16:45:00Z INFO  api       order accepted order=o-10570 lines=1 amount=1200
+2026-10-27T16:45:01Z INFO  inventory reserved order=o-10570 tea=1
+2026-10-27T16:45:03Z INFO  payments  captured order=o-10570 charge=ch_08249 key=k-07149 attempt=1
+2026-10-27T16:45:05Z INFO  notifier  webhook delivered order=o-10570 attempt=1/3
+2026-10-27T17:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T17:19:00Z INFO  api       order accepted order=o-10571 lines=1 amount=5500
+2026-10-27T17:19:01Z INFO  inventory reserved order=o-10571 grinder=1
+2026-10-27T17:19:01Z WARN  inventory low stock sku=grinder left=-12
+2026-10-27T17:19:03Z INFO  payments  captured order=o-10571 charge=ch_08250 key=k-07150 attempt=1
+2026-10-27T17:19:05Z INFO  notifier  webhook delivered order=o-10571 attempt=1/3
+2026-10-27T18:01:00Z ERROR api       order rejected order=o-10572 reason=unknown_sku sku=mug-xl status=400
+2026-10-27T18:25:00Z INFO  api       order accepted order=o-10573 lines=1 amount=1200
+2026-10-27T18:25:01Z INFO  inventory reserved order=o-10573 tea=1
+2026-10-27T18:25:03Z INFO  payments  captured order=o-10573 charge=ch_08251 key=k-07151 attempt=1
+2026-10-27T18:25:05Z INFO  notifier  webhook delivered order=o-10573 attempt=1/3
+2026-10-27T19:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T19:05:00Z INFO  api       order accepted order=o-10574 lines=1 amount=5400
+2026-10-27T19:05:01Z INFO  inventory reserved order=o-10574 mug=3
+2026-10-27T19:05:03Z INFO  payments  captured order=o-10574 charge=ch_08252 key=k-07152 attempt=1
+2026-10-27T19:05:05Z INFO  notifier  webhook delivered order=o-10574 attempt=1/3
+2026-10-27T19:50:00Z INFO  api       order accepted order=o-10575 lines=1 amount=2400
+2026-10-27T19:50:01Z INFO  inventory reserved order=o-10575 tea=2
+2026-10-27T19:50:03Z INFO  payments  captured order=o-10575 charge=ch_08253 key=k-07153 attempt=1
+2026-10-27T19:50:05Z INFO  notifier  webhook delivered order=o-10575 attempt=1/3
+2026-10-27T20:22:00Z INFO  api       order accepted order=o-10576 lines=1 amount=700
+2026-10-27T20:22:01Z INFO  inventory reserved order=o-10576 filter=1
+2026-10-27T20:22:03Z INFO  payments  captured order=o-10576 charge=ch_08254 key=k-07154 attempt=1
+2026-10-27T20:22:05Z INFO  notifier  webhook delivered order=o-10576 attempt=1/3
+2026-10-27T20:53:00Z INFO  api       order accepted order=o-10577 lines=1 amount=3600
+2026-10-27T20:53:01Z INFO  inventory reserved order=o-10577 mug=2
+2026-10-27T20:53:03Z INFO  payments  captured order=o-10577 charge=ch_08255 key=k-07155 attempt=1
+2026-10-27T20:53:05Z INFO  notifier  webhook delivered order=o-10577 attempt=1/3
+2026-10-27T21:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T21:09:00Z INFO  api       order accepted order=o-10578 lines=2 amount=9000
+2026-10-27T21:09:01Z INFO  inventory reserved order=o-10578 tea=3 mug=3
+2026-10-27T21:09:03Z INFO  payments  captured order=o-10578 charge=ch_08256 key=k-07156 attempt=1
+2026-10-27T21:09:05Z INFO  notifier  webhook delivered order=o-10578 attempt=1/3
+2026-10-27T21:28:00Z INFO  api       order accepted order=o-10579 lines=2 amount=7500
+2026-10-27T21:28:01Z INFO  inventory reserved order=o-10579 filter=3 mug=3
+2026-10-27T21:28:03Z INFO  payments  captured order=o-10579 charge=ch_08257 key=k-07157 attempt=1
+2026-10-27T21:28:05Z INFO  notifier  webhook delivered order=o-10579 attempt=1/3
+2026-10-27T21:55:00Z INFO  api       order accepted order=o-10580 lines=1 amount=5500
+2026-10-27T21:55:01Z INFO  inventory reserved order=o-10580 grinder=1
+2026-10-27T21:55:01Z WARN  inventory low stock sku=grinder left=-13
+2026-10-27T21:55:03Z INFO  payments  captured order=o-10580 charge=ch_08258 key=k-07158 attempt=1
+2026-10-27T21:55:05Z INFO  notifier  webhook delivered order=o-10580 attempt=1/3
+2026-10-27T22:36:00Z INFO  api       order accepted order=o-10581 lines=1 amount=1200
+2026-10-27T22:36:01Z INFO  inventory reserved order=o-10581 tea=1
+2026-10-27T22:36:03Z INFO  payments  captured order=o-10581 charge=ch_08259 key=k-07159 attempt=1
+2026-10-27T22:36:05Z INFO  notifier  webhook delivered order=o-10581 attempt=1/3
+2026-10-27T23:00:00Z INFO  scheduler sweep expired=none
+2026-10-27T23:06:00Z INFO  api       order accepted order=o-10582 lines=2 amount=14900
+2026-10-27T23:06:01Z INFO  inventory reserved order=o-10582 filter=2 kettle=3
+2026-10-27T23:06:03Z INFO  payments  captured order=o-10582 charge=ch_08260 key=k-07160 attempt=1
+2026-10-27T23:06:05Z INFO  notifier  webhook delivered order=o-10582 attempt=1/3
+2026-10-27T23:23:00Z INFO  api       order accepted order=o-10583 lines=1 amount=1200
+2026-10-27T23:23:01Z INFO  inventory reserved order=o-10583 tea=1
+2026-10-27T23:23:03Z INFO  payments  captured order=o-10583 charge=ch_08261 key=k-07161 attempt=1
+2026-10-27T23:23:05Z INFO  notifier  webhook delivered order=o-10583 attempt=1/3
+2026-10-27T23:59:00Z INFO  api       order accepted order=o-10584 lines=2 amount=12600
+2026-10-27T23:59:01Z INFO  inventory reserved order=o-10584 mug=2 kettle=2
+2026-10-27T23:59:03Z INFO  payments  captured order=o-10584 charge=ch_08262 key=k-07162 attempt=1
+2026-10-27T23:59:05Z INFO  notifier  webhook delivered order=o-10584 attempt=1/3
+2026-10-28T00:41:00Z INFO  api       order accepted order=o-10585 lines=2 amount=14200
+2026-10-28T00:41:01Z INFO  inventory reserved order=o-10585 kettle=3 filter=1
+2026-10-28T00:41:03Z ERROR payments  declined order=o-10585 reason=card_declined
+2026-10-28T00:41:03Z INFO  inventory released order=o-10585 kettle=3 filter=1
+2026-10-28T00:41:03Z WARN  api       order failed order=o-10585 status=402
+2026-10-28T01:00:00Z INFO  scheduler sweep expired=none
+2026-10-28T01:02:00Z INFO  api       order accepted order=o-10586 lines=2 amount=3000
+2026-10-28T01:02:01Z INFO  inventory reserved order=o-10586 mug=1 tea=1
+2026-10-28T01:02:03Z INFO  payments  captured order=o-10586 charge=ch_08263 key=k-07163 attempt=1
+2026-10-28T01:02:05Z INFO  notifier  webhook delivered order=o-10586 attempt=1/3
+2026-10-28T01:26:00Z INFO  api       order accepted order=o-10587 lines=1 amount=5400
+2026-10-28T01:26:01Z INFO  inventory reserved order=o-10587 mug=3
+2026-10-28T01:26:03Z INFO  payments  captured order=o-10587 charge=ch_08264 key=k-07164 attempt=1
+2026-10-28T01:26:05Z INFO  notifier  webhook delivered order=o-10587 attempt=1/3
+2026-10-28T01:43:00Z INFO  api       order accepted order=o-10588 lines=1 amount=1200
+2026-10-28T01:43:01Z INFO  inventory reserved order=o-10588 tea=1
+2026-10-28T01:43:03Z INFO  payments  captured order=o-10588 charge=ch_08265 key=k-07165 attempt=1
+2026-10-28T01:43:05Z WARN  notifier  webhook 503 order=o-10588 attempt=1/3
+2026-10-28T01:43:06Z WARN  notifier  webhook 503 order=o-10588 attempt=2/3
+2026-10-28T01:43:07Z WARN  notifier  webhook 503 order=o-10588 attempt=3/3
+2026-10-28T01:43:08Z ERROR notifier  webhook dropped order=o-10588 partner=unavailable
+2026-10-28T02:00:00Z ERROR scheduler duplicate charge order=o-10518 charges=ch_08201,ch_08202 amount=1800
+2026-10-28T02:00:00Z ERROR scheduler duplicate charge order=o-10522 charges=ch_08206,ch_08207 amount=1200
+2026-10-28T02:00:00Z ERROR scheduler duplicate charge order=o-10534 charges=ch_08218,ch_08219 amount=11000
+2026-10-28T02:00:00Z ERROR scheduler duplicate charge order=o-10548 charges=ch_08231,ch_08232 amount=4300
+2026-10-28T02:00:00Z ERROR scheduler duplicate charge order=o-10555 charges=ch_08239,ch_08240 amount=4500
+2026-10-28T02:00:30Z ERROR scheduler stock drift sku=mug system=338 counted=332
+2026-10-28T02:00:30Z ERROR scheduler stock drift sku=tea system=724 counted=720
+2026-10-28T02:00:30Z ERROR scheduler stock drift sku=filter system=544 counted=537
+2026-10-28T02:05:00Z INFO  api       order accepted order=o-10589 lines=1 amount=2100
+2026-10-28T02:05:01Z INFO  inventory reserved order=o-10589 filter=3
+2026-10-28T02:05:03Z INFO  payments  captured order=o-10589 charge=ch_08266 key=k-07166 attempt=1
+2026-10-28T02:05:05Z INFO  notifier  webhook delivered order=o-10589 attempt=1/3
+2026-10-28T02:07:00Z INFO  api       hold accepted order=o-10590 lines=1
+2026-10-28T02:07:01Z INFO  inventory reserved order=o-10590 mug=3
+2026-10-28T02:13:00Z INFO  orders    cancelled order=o-10590
+2026-10-28T02:13:00Z INFO  inventory released order=o-10590 mug=3
+2026-10-28T02:25:00Z INFO  api       order accepted order=o-10591 lines=2 amount=20100
+2026-10-28T02:25:01Z INFO  inventory reserved order=o-10591 tea=3 grinder=3
+2026-10-28T02:25:01Z WARN  inventory low stock sku=grinder left=-16
+2026-10-28T02:25:03Z INFO  payments  captured order=o-10591 charge=ch_08267 key=k-07167 attempt=1
+2026-10-28T02:25:05Z WARN  notifier  webhook 503 order=o-10591 attempt=1/3
+2026-10-28T02:25:06Z INFO  notifier  webhook delivered order=o-10591 attempt=2/3
+2026-10-28T02:25:10Z INFO  scheduler sweep expired=o-10590
+2026-10-28T02:25:10Z INFO  inventory released order=o-10590 mug=3
+2026-10-28T02:58:00Z ERROR api       order rejected order=o-10592 reason=unknown_sku sku=mug-xl status=400
+2026-10-28T03:00:00Z INFO  scheduler sweep expired=none
+2026-10-28T03:35:00Z INFO  api       order accepted order=o-10593 lines=2 amount=6900
+2026-10-28T03:35:01Z INFO  inventory reserved order=o-10593 kettle=1 tea=2
+2026-10-28T03:35:03Z INFO  payments  captured order=o-10593 charge=ch_08268 key=k-07168 attempt=1
+2026-10-28T03:35:05Z INFO  notifier  webhook delivered order=o-10593 attempt=1/3
+2026-10-28T03:35:06Z WARN  api       slow request order=o-10593 ms=3455
+2026-10-28T03:59:00Z INFO  api       order accepted order=o-10594 lines=1 amount=13500
+2026-10-28T03:59:01Z INFO  inventory reserved order=o-10594 kettle=3
+2026-10-28T03:59:03Z ERROR payments  declined order=o-10594 reason=card_declined
+2026-10-28T03:59:03Z INFO  inventory released order=o-10594 kettle=3
+2026-10-28T03:59:03Z WARN  api       order failed order=o-10594 status=402
+2026-10-28T04:35:00Z INFO  api       order accepted order=o-10595 lines=1 amount=11000
+2026-10-28T04:35:01Z INFO  inventory reserved order=o-10595 grinder=2
+2026-10-28T04:35:01Z WARN  inventory low stock sku=grinder left=-18
+2026-10-28T04:35:03Z INFO  payments  captured order=o-10595 charge=ch_08269 key=k-07169 attempt=1
+2026-10-28T04:35:05Z INFO  notifier  webhook delivered order=o-10595 attempt=1/3
+2026-10-28T05:00:00Z INFO  scheduler sweep expired=none
+2026-10-28T05:05:00Z INFO  api       order accepted order=o-10596 lines=1 amount=5500
+2026-10-28T05:05:01Z INFO  inventory reserved order=o-10596 grinder=1
+2026-10-28T05:05:01Z WARN  inventory low stock sku=grinder left=-19
+2026-10-28T05:05:03Z INFO  payments  captured order=o-10596 charge=ch_08270 key=k-07170 attempt=1
+2026-10-28T05:05:05Z INFO  notifier  webhook delivered order=o-10596 attempt=1/3
+2026-10-28T05:33:00Z INFO  api       order accepted order=o-10597 lines=2 amount=10200
+2026-10-28T05:33:01Z INFO  inventory reserved order=o-10597 kettle=2 tea=1
+2026-10-28T05:33:11Z WARN  payments  gateway timeout order=o-10597 attempt=1/3 key=k-07171
+2026-10-28T05:33:12Z INFO  payments  captured order=o-10597 charge=ch_08272 key=k-07172 attempt=2
+2026-10-28T05:33:14Z INFO  notifier  webhook delivered order=o-10597 attempt=1/3
+2026-10-28T07:00:00Z INFO  scheduler sweep expired=none

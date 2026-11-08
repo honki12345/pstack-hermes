@@ -15,7 +15,9 @@ It spends model calls, so CI never runs it. CI only runs the judge's unit tests
 | `prompts/p2-why.txt` | a "how and why does this work" question; routes to investigation |
 | `prompts/p3-oneline.txt` | a one-line README fix; delegating it would be over-delegation |
 | `prompts/p4-followup.txt` | a follow-up in the p1 session, sent without the skill marker |
-| `fixtures/shop-api/` | small service with one pricing bug; copied to a fresh git checkout per run |
+| `prompts/p5-ops-errors.txt` | a request to find and fix intermittent production errors across several modules. A wide investigation is plausible here, so G3 shows whether the agent delegates it. The baseline agent fixed both defects alone in one to two minutes, so skipping delegation can still be the right call |
+| `fixtures/shop-api/` | small service with one pricing bug; copied to a fresh git checkout per run (p1-p4) |
+| `fixtures/fulfilment-api/` | twelve-module order service with a mixed production log and two unrelated defects (a payment retry that changes its idempotency key, a stock release that is not final); copied to a fresh git checkout for p5 |
 | `run_eval.py` | builds the marked message, runs it in a profile, writes `run.json`, calls the judge |
 | `judge.py` | grades a run from the gate log and `state.db`; no model involved |
 | `hermes_side.py` | the two steps that need Hermes' own interpreter (marker, in-process run) |
@@ -57,7 +59,7 @@ hermes profile delete pstacklane-demo -y
 - A signal that unwinds the harness (Ctrl-C, SIGTERM, SIGHUP) kills the child and its processes
   and deletes the sandbox, including when it arrives while the sandbox is being built. SIGKILL
   cannot be handled.
-- `--timeout` bounds one run (default 900 s). `--cleanup` removes the `shop-api` checkout.
+- `--timeout` bounds one run (default 900 s). `--cleanup` removes the sandbox checkout (`shop-api`, or `fulfilment-api` for p5).
 
 Output in `--out`: `run.json`, `verdict.json` (an array, one verdict per graded turn), the
 marked messages, stdout/stderr of the run, and one verdict per line on stdout. Use a new path
@@ -128,9 +130,9 @@ its own line.
 
 | Metric | Prompt | True when |
 |---|---|---|
-| G1 decision first | p1, p3 | the gate armed, and a `todo_list` with a decision item (one item naming `delegate_task`, or mentioning delegation and holding `skip:` with a same-line reason, the gate's criterion) came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
+| G1 decision first | p1, p3, p5 | the gate armed, and a `todo_list` with a decision item (one item naming `delegate_task`, or mentioning delegation and holding `skip:` with a same-line reason, the gate's criterion) came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
 | G2 recovery | all | after a gate block, the agent writes the todolist without a second block. Blocks that come from one assistant message are one attempt; only a block in a later message fails it |
-| G3 delegation happens | p1 | at least one `delegate_task` executed and was not rejected; a rejected call counts only if a child session exists |
+| G3 delegation happens | p1, p5 | at least one `delegate_task` executed and was not rejected; a rejected call counts only if a child session exists |
 | G4 no over-delegation | p3 | no `delegate_task`, no child session, and a decision item with a `skip:` that has a non-blank reason on the same line (also read from `skip delegate_task: <reason>`) in the todolist |
 | G5 reroute | p2 | the sandbox ends as it began (same `HEAD`, same porcelain status, new files included) and no file-writing tool (`write_file`, `patch`, `skill_manage`) ran. `null` when `run.json` has no recorded before/after state, e.g. when grading a bare session with `--session-id` |
 | G6 follow-up turn | p4 | the second turn of the session still has gate events and no `turn_disarmed` |
@@ -170,5 +172,5 @@ writing `run.json`, so the run can be graded again with `judge.py --run-dir`.
 Model output varies run to run. Judge a change on the pass rate over several runs of the same
 prompt, before and after, not on one verdict. `run.json` carries `elapsed_seconds` and
 `cost_usd` (the parent sessions' estimate; `evidence.child_cost_usd` adds delegated sessions),
-and `usage-*.json` the raw token counts. One pass over all four prompts is budgeted at 20
-minutes and 3 USD.
+and `usage-*.json` the raw token counts. One pass over p1-p4 is budgeted at 20
+minutes and 3 USD; one p5 run is expected to stay under 1.5 USD.
