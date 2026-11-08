@@ -98,7 +98,7 @@ bun run typecheck   # deps + tsc --noEmit --strict
 | Package identity | Plugin name `pstack`; repository `honki12345/pstack-hermes`, installed from the repo root (pin with `--ref <sha>`); upstream version follows the pin (`plugin.json`); update mechanics live in the package README |
 | Upstream | Lauren Tan's pstack in `cursor/plugins`, tracked through `tools/convert.py` at `UPSTREAM_PIN`; `iap/pstack-hermes` is attribution only ([NOTICE.md](NOTICE.md)) |
 | Releases | Our own `v*` tags on `main`, recorded in `CHANGELOG.md`; never move an existing tag |
-| Planning | GitHub issues, native sub-issues and milestones own plans; `docs/` holds instructions only |
+| Planning | GitHub issues, native sub-issues and milestones own plans; while issues are disabled on this fork, `docs/fork/BACKLOG-ko.md` holds the backlog; otherwise `docs/` holds instructions only |
 | Encoding | LF-only, no BOM, UTF-8 (CI-enforced) |
 | Branches | Default `develop`; flow `feature → develop → main` |
 
