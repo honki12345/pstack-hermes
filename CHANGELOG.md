@@ -8,6 +8,12 @@ Independent fork maintained by honki12345 as `honki12345/pstack-hermes`.
 Entries below this section are history inherited from the original port.
 
 ### Added
+- `tools/eval/`: prompt `p5-ops-errors` and the `fulfilment-api` fixture. A request to find and fix
+  intermittent production errors across a twelve-module service, with a mixed log and two
+  unrelated defects (payment retry key, stock release). It checks that the decision item is
+  written and both defects are found on a task wider than p1's one-function bug. The judge grades
+  it with G1, G2 and G3 (same definitions as p1); the other metrics stay `null`. In the baseline
+  the agent fixed both defects alone in one to two minutes, so G3 false is not a defect by itself.
 - `hermes-plugin/poteto-delegation-gate/`: the delegation gate moves into the repository
   with no code change. It blocks working tools on a `/poteto-mode` turn until the todolist records
   the delegation decision (hooks `pre_llm_call` and `pre_tool_call`). The audit log now records
