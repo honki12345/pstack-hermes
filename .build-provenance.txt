@@ -2,8 +2,8 @@ package: pstack (hermes agent-plugins-v1, Phase-0 conversion)
 source: (local clone; public origin in source_url)
 source_url: https://github.com/cursor/plugins.git
 source_commit: c742dd61706fbacc1b95f1a20b7b988cf096ce6c
-converted_at: 2026-11-07T04:19:09Z
-converter: convert.py (sha256[:16]=b6cbbe1a51e600a5)
+converted_at: 2026-11-08T01:32:16Z
+converter: convert.py (sha256[:16]=1cd03b9756f7b955)
 schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
 fixes:
   - F-publish: skills/make-bot-ui excluded (Tailscale privilege-escalation scan; F33; upstream flattened the grokbot container)
@@ -21,7 +21,7 @@ fixes:
   - T12: Cursor built-in wake/goal rewording applied across 8 skill file(s) + 1 checker file(s) (terminal /loop -> gateway cron wake; armed /goal -> goal.md in the agent store; check-plan marker aligned)
   - T13: residual Cursor-vendor coupling Phase-2 wrap-up applied across 6 skill file(s) (cursor-team-kit plugin references, cloud-agent fleet, Graphite `gt` rewording)
   - P1: poteto-help Cursor-only mechanisms re-pointed at Hermes across 3 file(s) (install, Custom Modes, setup-pstack panel, cross-harness note, /loop, hermesbot row)
-  - H1: Hermes delegation contract applied across 12 skill file(s) + skills/poteto-mode/references/hermes-delegation.md (route by pstack_role via the pstack delegation backend; model is dropped and readonly refused by core; read-only advisory + verified; cron ticks are fresh runs)
+  - H1: Hermes delegation contract applied across 12 skill file(s) + skills/poteto-mode/references/hermes-delegation.md (route by the advanced-delegation model_map `option`; model is dropped and readonly refused by core; read-only advisory + verified; cron ticks are fresh runs)
   - Phase-2A: Comment Sicko persona copied into no-comments references for hermes prompt inlining
   - F-publish: automations/benny excluded (scanner persistence verdict) and skills/make-bot-ui excluded (scanner privilege verdict; F33)
   - assets/: 1 file(s) copied verbatim (referenced by the manifest)

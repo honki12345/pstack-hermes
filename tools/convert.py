@@ -395,12 +395,12 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         ),
         (
             "Every spawn is `generalPurpose` with `readonly: false` (agent mode). **Do not use readonly/Ask mode.** It strips MCP access, which disables the MCP-backed investigators and the synthesizer's citation spot-checks. Investigators still shouldn't write anything.",
-            "Every spawn is a read-only `delegate_task` task: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Hermes children keep the parent's MCP tools, so the MCP-backed investigators and the synthesizer's citation spot-checks keep their lookups. Investigators still shouldn't write anything.",
+            "Every spawn is a read-only `delegate_task` task: the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Hermes children keep the parent's MCP tools, so the MCP-backed investigators and the synthesizer's citation spot-checks keep their lookups. Investigators still shouldn't write anything.",
         ),
         ("Use Read, Grep, and Glob as needed.", "Use read_file and search_files as needed."),
         (
             "in `~/.cursor/rules/pstack-models.mdc`",
-            "in the configured pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`)",
+            "in the pstack role table (`../poteto-mode/references/hermes-delegation.md`; the routes live in `delegation.backends.model_map` of hermes' `config.yaml`)",
         ),
         (
             "[Guard the Context Window](../principle-guard-the-context-window/SKILL.md)",
@@ -408,7 +408,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         ),
         (
             "in the `pstack-models.mdc` rule",
-            "in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`)",
+            "in the pstack role table (`../poteto-mode/references/hermes-delegation.md`; the routes live in `delegation.backends.model_map` of hermes' `config.yaml`)",
         ),
         (
             "A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.",
@@ -474,11 +474,11 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
     T10_MAP = [
         (
             "Detects your available models and writes an always-applied rule that overrides the skill defaults.",
-            "Detects your available models and writes a per-role panel beside `config.yaml` in the hermes config directory, outside the plugin tree, so it survives plugin updates.",
+            "Detects your available models and writes the per-route model table to `delegation.backends.model_map` in the hermes `config.yaml`, outside the plugin tree, so it survives plugin updates.",
         ),
         (
             "Write `~/.cursor/rules/pstack-models.mdc`, an always-applied rule that sets pstack's model per role.",
-            "Write `pstack-models.json` in the hermes config directory (next to `config.yaml`: `~/.hermes/` on Linux, `%LOCALAPPDATA%\\hermes\\` on Windows) - **outside** the plugin directory. pstack replaces the installed package on every `plugins update`, so a panel written inside the plugin tree is silently discarded, while a file beside `config.yaml` survives reinstalls.",
+            "Write pstack's routes to `delegation.backends.model_map` in the hermes `config.yaml` of the active profile (`~/.hermes/config.yaml`, or `$HERMES_HOME/config.yaml` for a named profile) - **outside** the plugin directory. pstack replaces the installed package on every `plugins update`, so a table written inside the plugin tree is silently discarded, while `config.yaml` survives reinstalls. The routes belong to the `model_map` delegation backend of the `advanced-delegation` plugin (`delegation.backend: model_map`), and every other delegation in the profile picks from the same table (`../poteto-mode/references/hermes-delegation.md`).",
         ),
         (
             "Enumerate the model slugs you can pass to a `delegate_task` subagent in this session. That is the dependable source. If Cursor also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness. If you cannot detect any, ask the user to paste the slugs they have access to. Never write a real slug you have not confirmed is available. The aliases `inherit-parent` and `auto` are always valid even though they are not detected slugs.",
@@ -486,7 +486,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         ),
         (
             "The default role-to-model mapping is the rule shape shown in step 5 below. If `~/.cursor/rules/pstack-models.mdc` already exists, read it and treat its `# budget` line and its role values as the current choices. Otherwise start from those defaults.",
-            "The default role-to-model mapping is the shape shown in step 5 below. If `pstack-models.json` already exists in the hermes config directory, read it and treat its `budget` entry and its role values as the current choices. Otherwise start from these defaults. Do NOT try to recover an older in-package `config/models.json`: a plugin update replaces that file with the shipped default before this skill runs, so anything found there is the default rather than the user's saved choices, and copying it forward would silently discard their configuration. If they expected a configuration to still be there, tell them plainly that an update overwrote it and ask them to re-run setup-pstack.",
+            "The default role-to-model mapping is the shape shown in step 5 below. If `config.yaml` already has `delegation.backends.model_map.options` (`hermes delegation config --show` prints them), treat each pstack route's model and reasoning effort as the current choice for every role on that route (the role table is in `../poteto-mode/references/hermes-delegation.md`). The routes record no budget label, so ask for one. Otherwise start from these defaults. Do NOT try to recover an older in-package `config/models.json`: a plugin update replaces that file with the shipped default before this skill runs, so anything found there is the default rather than the user's saved choices, and copying it forward would silently discard their configuration. If they expected a configuration to still be there, tell them plainly that an update overwrote it and ask them to re-run setup-pstack.",
         ),
         (
             "offering the detected models plus `inherit-parent` and `auto` (both mean: this role runs on the parent chat model, which is how Auto users stay on Auto) as the options.",
@@ -498,7 +498,7 @@ def apply_phase1_transforms(out: Path, st: Stats) -> None:
         ),
         (
             '### 5. Write the rule\n\nWrite `~/.cursor/rules/pstack-models.mdc` with `alwaysApply: true`, a `# budget` line with the chosen label and its target effort, and one line per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```\n---\ndescription: pstack per-role model choices (overrides skill defaults)\nalwaysApply: true\n---\n# pstack model configuration. One line per role. Delete a line to fall back to the skill default.\n# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.\n# budget: large (xhigh)\nfeature, refactoring: grok-4.7-xhigh-fast\nbug-fix: grok-4.7-xhigh-fast\nperf-issue: grok-4.7-xhigh-fast\nhillclimb: grok-4.7-xhigh-fast\njudgment and prose: claude-opus-5-5-xhigh\nhardest tasks: claude-opus-5-5-xhigh\nhow explorer: grok-4.7-xhigh-fast\nhow explainer: claude-opus-5-5-xhigh\nwhy investigators: grok-4.7-xhigh-fast\nwhy synthesizer: claude-opus-5-5-xhigh\nreflect tooling: grok-4.7-xhigh-fast\nreflect judgment, divergent, synthesizer: claude-opus-5-5-xhigh\narena runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\narena cross-judge pool: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\nswarm workers: grok-4.7-xhigh-fast\narchitect runners: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\ninterrogate reviewers: claude-opus-5-5-xhigh, grok-4.7-xhigh-fast\n```',
-            '### 5. Write the config\n\nWrite `pstack-models.json` in the hermes config directory (next to `config.yaml`), never inside the plugin directory - a panel stored with the package is lost on the next `plugins update`. One entry per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:\n\n```json\n{\n  "budget": "large",\n  "roles": {\n    "feature, refactoring": "inherit-parent",\n    "bug-fix": "inherit-parent",\n    "perf-issue": "inherit-parent",\n    "hillclimb": "inherit-parent",\n    "judgment and prose": "inherit-parent",\n    "hardest tasks": "inherit-parent",\n    "how explorer": "inherit-parent",\n    "how explainer": "inherit-parent",\n    "how critics": ["inherit-parent"],\n    "why investigators": "inherit-parent",\n    "why synthesizer": "inherit-parent",\n    "reflect tooling": "inherit-parent",\n    "reflect judgment, divergent, synthesizer": "inherit-parent",\n    "arena runners": ["inherit-parent"],\n    "arena cross-judge pool": ["inherit-parent"],\n    "swarm workers": "inherit-parent",\n    "architect runners": ["inherit-parent"],\n    "interrogate reviewers": ["inherit-parent"]\n  }\n}\n```\nPanel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY; one subagent runs per entry, so the list length sets the count. `swarm workers` is the default for every worker unless a race assigns another model per arm.',
+            '### 5. Write the routes\n\nGroup the roles by route with the role table in `../poteto-mode/references/hermes-delegation.md`. Every role on one route shares its model, so when the chosen models differ inside a route, ask the user which one the route takes. Write each choice as a Hermes model id plus its effort, `<model>@<effort>`, or as `{"provider": ..., "model": ..., "reasoning_effort": ...}` for a provider other than the main one. Save the choices to a scratch file in this shape, then build the block and write it in one command. The builder keeps routes the profile added itself and replaces pstack\'s own, so re-runs stay idempotent:\n\n```json\n{\n  "budget": "large",\n  "roles": {\n    "feature, refactoring": "inherit-parent",\n    "bug-fix": "inherit-parent",\n    "perf-issue": "inherit-parent",\n    "hillclimb": "inherit-parent",\n    "judgment and prose": "inherit-parent",\n    "hardest tasks": "inherit-parent",\n    "how explorer": "inherit-parent",\n    "how explainer": "inherit-parent",\n    "how critics": ["inherit-parent"],\n    "why investigators": "inherit-parent",\n    "why synthesizer": "inherit-parent",\n    "reflect tooling": "inherit-parent",\n    "reflect judgment, divergent, synthesizer": "inherit-parent",\n    "arena runners": ["inherit-parent"],\n    "arena cross-judge pool": ["inherit-parent"],\n    "swarm workers": "inherit-parent",\n    "architect runners": ["inherit-parent"],\n    "interrogate reviewers": ["inherit-parent"]\n  }\n}\n```\n\n```sh\nHOME_DIR="${HERMES_HOME:-$HOME/.hermes}"\nBLOCK=$("$HOME/.hermes/hermes-agent/venv/bin/python" "$HOME_DIR/plugins/pstack/tools/model_map_options.py" --panel <scratch file> --config "$HOME_DIR/config.yaml")\nhermes config set delegation.backends.model_map "$BLOCK"\nhermes config set delegation.backend model_map\n```\n\nThe builder fails with the reason when roles on one route name different models; ask the user and run it again. Panel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY, and all five share one list: each entry becomes one `panel-` route, so the list length sets the seat count. `swarm workers` is the default for every worker unless a race assigns another model per arm. The routes need the `advanced-delegation` plugin. If `hermes plugins list` does not show it enabled, ask before running `hermes plugins install advanced-delegation`.',
         ),
         (
             "On yes, invoke `/create-verification-skill` (resolves wherever pstack is installed: workspace, user, or plugin).",
@@ -979,7 +979,7 @@ HELP_MAP = [
     ),
     (
         "- No `~/.cursor/rules/pstack-models.mdc` means `/setup-pstack` hasn't run for this user, so every role uses its default model.",
-        "- No `pstack-models.json` beside hermes' `config.yaml` means `/setup-pstack` hasn't run for this user, so every role uses its default model.",
+        "- No `delegation.backends.model_map` routes in hermes' `config.yaml` means `/setup-pstack` hasn't run for this user, so every spawn runs on the parent model.",
     ),
     (
         '1. Install with `/add-plugin pstack` in chat, or from Customize in the sidebar.',
@@ -987,7 +987,7 @@ HELP_MAP = [
     ),
     (
         'It asks for a reasoning budget, maps a model to each role, and writes a rule. The rule applies to new chats.',
-        "It asks for a reasoning budget, maps a model to each role, and writes `pstack-models.json` beside hermes' `config.yaml`. Spawns follow it only through the pstack delegation backend (`../poteto-mode/references/hermes-delegation.md`).",
+        "It asks for a reasoning budget, maps a model to each role's route, and writes the routes to `delegation.backends.model_map` in hermes' `config.yaml`. Spawns follow them only through the model_map delegation backend (`../poteto-mode/references/hermes-delegation.md`).",
     ),
     (
         'which saves tokens when the chat runs on Auto or a cheaper model.',
@@ -1031,7 +1031,7 @@ HELP_MAP = [
     ),
     (
         '| A new model choice had no effect | The rule from `/setup-pstack` applies to new chats. Start one. |',
-        "| A new model choice had no effect | Spawns follow `pstack-models.json` only through the pstack delegation backend (`delegation.backend: pstack`). Without it every role runs on the parent model. Check each result's `route` label. |",
+        "| A new model choice had no effect | Routes apply to sessions started after the change, and only through the model_map delegation backend (`delegation.backend: model_map`). Start one with `/new`. Without the backend every role runs on the parent model. Check each result's `route`. |",
     ),
     (
         '| Parallel agents overwrote each other | Give each agent its own worktree, or run them as cloud agents, which each get their own machine. |',
@@ -1055,30 +1055,31 @@ HELP_MAP = [
 # Hermes v0.23.0 delegate_task has no per-task `model` (core-reserved: dropped
 # silently, the child runs on the parent model) and no `readonly` (undeclared:
 # the task is refused). Cron never resumes the arming session. These pairs
-# rewrite the post-T13 text so the skills route by `pstack_role` through the
-# pstack delegation backend (hermes-plugin/pstack-delegation), keep read-only
-# as an advisory + verified contract, and describe cron ticks as fresh runs.
+# rewrite the post-T13 text so the skills route by the `option` of the
+# official advanced-delegation `model_map` backend (one route table in
+# config.yaml, shared with every other delegation; role -> route table in
+# tools/model_map_options.py), keep read-only as an advisory + verified
+# contract, and describe cron ticks as fresh runs.
 # The contract itself ships as skills/poteto-mode/references/hermes-delegation.md
 # (tools/assets/hermes-delegation.md). Audited like every other map.
 H1_CONTRACT = "`../poteto-mode/references/hermes-delegation.md`"
 H1_PB_CONTRACT = "`../references/hermes-delegation.md`"
-H1_RO = "- read-only: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (" + H1_CONTRACT + ")"
 H1_MAP = [
     (
         "Set `model` to that line's value, or to the default if the rule or the line is missing. Leave `model` unset when the value is `inherit-parent`. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message.",
-        "Route each spawn per the Hermes delegation contract (" + H1_CONTRACT + "): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply.",
+        "Route each spawn per the Hermes delegation contract (" + H1_CONTRACT + "): set `option` to the route its role maps to when `delegate_task` offers `option`, and never pass `model`, which Hermes drops. Without the model_map delegation backend every spawn runs on the parent model; say so in the reply.",
     ),
     (
         "For `inherit-parent`, omit `model` so the workers run on the parent model. If delegate_task rejects a slug, use the default and say so. If it rejects the default, use the closest valid slug of the same family from its error message. For a model race, name each arm's model up front.",
-        "Route workers with `pstack_role: swarm workers` per " + H1_CONTRACT + "; never pass `model`. For a model race, give each arm a panel seat (`pstack_role: arena runners`, `seat: n`) and name each arm's resolved model from its result `route` label.",
+        "Route workers with `option: implement` (the `swarm workers` role) per " + H1_CONTRACT + "; never pass `model`. For a model race, give each arm its own `panel-` route as its `option`, in list order, and name each arm's resolved model from its result `route`.",
     ),
     (
         "runs that role on the parent chat model (omit the delegate's `model`).",
-        "runs that role on the parent chat model (the pstack delegation backend returns the parent route; never pass `model`).",
+        "runs that role on the parent chat model (its route in `delegation.backends.model_map` names the parent model; never pass `model`).",
     ),
     (
         "with `delegate_task` (role: `leaf`) with the poteto-mode wrapper instructions in the task prompt and an explicit model per the Subagents section",
-        "with `delegate_task` tasks carrying the poteto-mode wrapper instructions in `context` and an explicit `pstack_role` per the Subagents section",
+        "with `delegate_task` tasks carrying the poteto-mode wrapper instructions in `context` and an explicit `option` per the Subagents section",
     ),
     (
         'No "standing by" reply that waits on a nested agent.',
@@ -1094,23 +1095,23 @@ H1_MAP = [
     ),
     (
         "three `delegate_task` calls (role: `leaf`), agent mode (`readonly: false`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references, and readonly strips MCPs.",
-        "one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (" + H1_CONTRACT + "). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.",
+        "one `delegate_task` call with three tasks, each with `option` set to the route of its role line below and the READ-ONLY `context` line (" + H1_CONTRACT + "). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.",
     ),
     (
         "One `delegate_task` call (role: `leaf`), `model` from the `reflect judgment, divergent, synthesizer` line (default `claude-opus-5-5-xhigh`), agent mode (`readonly: false`). It spot-verifies citations through MCP, and readonly strips MCPs.",
-        "One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (upstream default `claude-opus-5-5-xhigh`) and `access: read-only`. It spot-verifies citations through MCP, which Hermes children keep.",
+        "One `delegate_task` task with `option: deep` (the `reflect judgment, divergent, synthesizer` role; upstream default `claude-opus-5-5-xhigh`) and the READ-ONLY `context` line. It spot-verifies citations through MCP, which Hermes children keep.",
     ),
     (
         "with `delegate_task` (role: `leaf`), background execution, and the step 3 model, left unset for `inherit-parent`.",
-        "in one `delegate_task` call (Hermes always runs it in the background), each task carrying the step 3 `pstack_role`.",
+        "in one `delegate_task` call (Hermes always runs it in the background), each task carrying the step 3 `option`.",
     ),
     (
         "An `inherit-parent` entry in this line means the parent model, so omit `model` for it. If delegate_task rejects a configured entry, run that seat on its family's default and say so. Families go by prefix: `claude-*`, and `grok-*` with `cursor-grok-*` and `composer-*`. A refused `composer-*` entry runs on `grok-4.7-xhigh-fast`. If the family has no default, or delegate_task rejects that default, use the closest valid slug of the same family from its error message, or drop the seat and say so when there is none. If dropped seats leave fewer than two runners, add runners until there are two, or one when the line has one entry. Run each added runner on a remaining runner's model, or omit `model` so it runs on the parent model when none remain, and say so.",
-        "Spawn runner n with `pstack_role` set to the runners line (`arena runners`, `architect runners` from architect, or `interrogate reviewers` from interrogate) and `seat: n`. Never pass `model` (" + H1_CONTRACT + "). Families go by prefix: `claude-*`, and `grok-*` with `cursor-grok-*` and `composer-*`; read each runner's family from its result `route` label. If delegate_task refuses a seat, rerun it once without `seat` and `pstack_role` so it runs on the parent model, say so, and fix the panel entry. If refused seats leave fewer than two runners, add runners on the parent model until there are two, or one when the line has one entry, and say so.",
+        "Spawn runner n with `option` set to the n-th `panel-` route; the runners line (`arena runners`, `architect runners` from architect, or `interrogate reviewers` from interrogate) runs on those routes. Never pass `model` (" + H1_CONTRACT + "). Families go by prefix: `claude-*`, and `grok-*` with `cursor-grok-*` and `composer-*`; read each runner's family from its route description or its result `route`. If delegate_task refuses a route, rerun that runner once without `option` so it runs on the default route, say so, and name the route to fix. If refused routes leave fewer than two runners, add runners on the default route until there are two, or one when there is one `panel-` route, and say so.",
     ),
     (
         "background execution (a steer or resume of a running agent too, because a foreground call holds your turn while other reports wait), agent mode (readonly restricts file writes only; MCP access is unaffected), file pointers not inlined context, explicit model per role",
-        "background execution (always, on Hermes; steer a running child with `action: steer`), full tool access (children inherit your toolsets; see `references/hermes-delegation.md`), file pointers not inlined context, explicit `pstack_role` per role",
+        "background execution (always, on Hermes; steer a running child with `action: steer`), full tool access (children inherit your toolsets; see `references/hermes-delegation.md`), file pointers not inlined context, explicit `option` per role",
     ),
     (
         "Run workers on a new cloud VM (local execution) unless the work needs this machine: a `control-ui` or `control-cli` runtime check (from `cursor-team-kit`), local transcripts, a simulator, or auth that exists only here.",
@@ -1118,31 +1119,31 @@ H1_MAP = [
     ),
     (
         "Every spawn is a read-only `delegate_task` subagent.",
-        "Every spawn is a read-only `delegate_task` task: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (" + H1_CONTRACT + ").",
+        "Every spawn is a read-only `delegate_task` task: the READ-ONLY `context` line, per the Hermes delegation contract (" + H1_CONTRACT + ").",
     ),
     (
         "`model`: the `why investigators` line, default `grok-4.7-xhigh-fast`.",
-        "Set each one's `pstack_role` to `why investigators` (upstream default `grok-4.7-xhigh-fast`).",
+        "Set each one's `option` to `explore` (the `why investigators` role; upstream default `grok-4.7-xhigh-fast`).",
     ),
     (
         "Spawn one synthesizer. `model`: the `why synthesizer` line, default `claude-opus-5-5-xhigh`.",
-        "Spawn one synthesizer with `pstack_role`: `why synthesizer` (upstream default `claude-opus-5-5-xhigh`).",
+        "Spawn one synthesizer with `option: deep` (the `why synthesizer` role; upstream default `claude-opus-5-5-xhigh`).",
     ),
     (
         "Spawn each adversary as a `delegate_task` subagent.",
-        "Spawn adversary n as a `delegate_task` task with `pstack_role: interrogate reviewers` and `seat: n` (" + H1_CONTRACT + ").",
+        "Spawn adversary n as a `delegate_task` task with `option` set to the n-th `panel-` route (" + H1_CONTRACT + ").",
     ),
     (
         "Spawn one readonly judge subagent.",
-        "Spawn one read-only judge: `pstack_role: arena cross-judge pool`, `seat` set to the chosen entry, and `access: read-only` plus the READ-ONLY `context` line (" + H1_CONTRACT + ").",
+        "Spawn one read-only judge: `option` set to the chosen `panel-` route, plus the READ-ONLY `context` line (" + H1_CONTRACT + ").",
     ),
     (
         "If delegate_task rejects an entry, use a valid slug of the same model at the closest level or speed from the error message, or move to the next entry when there is none.",
-        "If delegate_task refuses that seat, move to the next entry from another family.",
+        "If delegate_task refuses that route, move to the next `panel-` route from another family.",
     ),
     (
         "**Match the model to the job.** Before each spawn, start from the role's line or default and pick the reasoning level and speed the job needs. The `/setup-pstack` budget sets each role's starting level, xhigh by default. Raise it one step, up to max, for the hardest or subtlest work. Lower it one step for judgment and two or more steps for routine work. Use fast mode only when the job is urgent, meaning CI or trunk is red or a person is blocked on the result right now. Otherwise use standard speed, the same slug without `-fast`. Verification is the exception and stays on the `swarm workers` model and speed (`grok-4.7-xhigh-fast` by default). Change only the effort level and whether the slug is fast, and keep the family the role names, so a diverse panel stays diverse. If the family has no slug at that level and speed, use its nearest slug. A role on `inherit-parent` stays on the parent model. If delegate_task rejects the adjusted slug, do not try another adjusted slug. Use the role's line or default and say so. If delegate_task rejects that too, continue with the calling skill's fallback. A slug counts as rejected once a Task error says that the model is not valid, or leaves the slug out of its list of valid slugs. Never pass a rejected slug, and skip any fallback whose slug is already rejected. When the calling skill has no fallback, use the closest valid slug of the role's family from the error's list of valid slugs, or omit `model` so the subagent runs on the parent model when the list has none. When the calling skill's fallback runs out of slugs without saying what to do next, omit `model` too. Say so in both cases.",
-        "**Match the model to the job.** Before each spawn, pick the reasoning level and speed the job needs, starting from the role's line or default. The `/setup-pstack` budget sets each role's starting level, xhigh by default. Raise it one step, up to max, for the hardest or subtlest work. Lower it one step for judgment and two or more steps for routine work. Use fast mode only when the job is urgent, meaning CI or trunk is red or a person is blocked on the result right now. Verification is the exception and stays on the `swarm workers` model and speed. Keep the family the role names, so a diverse panel stays diverse. On Hermes a spawn cannot carry its own slug: core drops `model`, and the pstack delegation backend builds each child from the role's panel entry, effort included (`<model>@<effort>` or an explicit route in `pstack-models.json`). So make the adjustment through the role you pick (`hardest tasks` for the hardest work, the playbook's code line for routine work) or through the panel entry, never by passing `model` (`references/hermes-delegation.md`). If delegate_task refuses a role's route, rerun that task once without `pstack_role` so it runs on the parent model, say so, and fix the entry in `pstack-models.json`.",
+        "**Match the model to the job.** Before each spawn, pick the reasoning level and speed the job needs, starting from the role's line or default. The `/setup-pstack` budget sets each role's starting level, xhigh by default. Raise it one step, up to max, for the hardest or subtlest work. Lower it one step for judgment and two or more steps for routine work. Use fast mode only when the job is urgent, meaning CI or trunk is red or a person is blocked on the result right now. Verification is the exception and stays on the `swarm workers` model and speed. Keep the family the role names, so a diverse panel stays diverse. On Hermes a spawn cannot carry its own slug or effort: core drops `model`, and each `option` route in `delegation.backends.model_map` fixes the child's model and reasoning effort. So make the adjustment through the route you pick (`deep` for the hardest work, `implement` for routine code, `quick` for mechanical work) or through the route table in `config.yaml` (`/setup-pstack`), never by passing `model` (`references/hermes-delegation.md`). If delegate_task refuses a task's route, rerun that task once without `option` so it runs on the default route, say so, and name the route to fix in `config.yaml`.",
     ),
     (
         "so put this file's absolute path in every `poteto-agent` prompt.",
@@ -1165,6 +1166,11 @@ H1_FORBIDDEN = (
     "omit `model`",
     "re-wakes this session",
     "MCP access is unaffected",
+    # The retired pstack backend's task keys and panel file: model_map refuses the keys.
+    "pstack_role",
+    "seat: n",
+    "access: read-only",
+    "pstack-models.json",
 )
 
 
@@ -1185,8 +1191,8 @@ def apply_h1_contract(out: Path, st: Stats) -> None:
         raise ConvertError(f"H1 delegation contract incomplete: {leftovers}")
     st.fixes.append(
         f"H1: Hermes delegation contract applied across {changed} skill file(s) + "
-        "skills/poteto-mode/references/hermes-delegation.md (route by pstack_role via the pstack "
-        "delegation backend; model is dropped and readonly refused by core; read-only advisory + "
+        "skills/poteto-mode/references/hermes-delegation.md (route by the advanced-delegation "
+        "model_map `option`; model is dropped and readonly refused by core; read-only advisory + "
         "verified; cron ticks are fresh runs)"
     )
 
@@ -1558,8 +1564,10 @@ hermes plugins install honki12345/pstack-hermes --ref <new-sha> --force --enable
    Pick the target explicitly: `pstack` is ambiguous (repo root = local
    directory; elsewhere = installed package). Use the name as installed for
    the installed package, or a resolved local path for a branch tree.
-2. Load the `setup-pstack` skill once - it writes `pstack-models.json` beside hermes' `config.yaml`, outside this package, so plugin updates do not discard it
-   (the 18-role model panel the workflow skills read).
+2. Load the `setup-pstack` skill once - it writes pstack's model routes to
+   `delegation.backends.model_map` in hermes' `config.yaml`, outside this package, so plugin
+   updates do not discard them (needs the `advanced-delegation` plugin; the workflow skills pick
+   those routes by name).
 3. Load `poteto-mode` and give it a real task — it classifies the work and
    routes to the right playbook. You do not pick playbooks yourself.
 
@@ -1636,13 +1644,13 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex (F16b still rejects a whitespace-only slug) |
 | F11 | `worktree-audit.sh` reads worktree paths with spaces whole (F10/F12 GNU/BSD fixes retired: upstream ships them) |
 | F-publish | `benny` + `make-bot-ui` excluded (scanner verdicts); `hermesbot` fills the slot; 3 localhost literals neutralized |
-| T8/T9/T10 | `setup-pstack` writes the model panel beside hermes' `config.yaml` (outside the package, so updates do not discard it); discovery via `session_search`; hermes tool names |
+| T8/T9/T10 | `setup-pstack` writes the model routes into hermes' `config.yaml` (`delegation.backends.model_map`, outside the package, so updates do not discard them); discovery via `session_search`; hermes tool names |
 | Phase-2A | delegation vocabulary → `delegate_task` / `clarify` package-wide |
 | T11 | hardcoded Cursor paths → hermes equivalents; upstream guide links → upstream URLs |
 | T12 | `/loop` → `hermes cron` wake (each tick a fresh run); check-plan accepts either marker |
 | T13 | residual vendor coupling reworded (`cursor-team-kit` skills named as optional, cloud agents → local delegates) |
-| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, panel file, `hermesbot` row |
-| H1 | spawns route by `pstack_role` / `seat` / `access` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
+| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, model routes, `hermesbot` row |
+| H1 | spawns route by the advanced-delegation `model_map` `option` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the

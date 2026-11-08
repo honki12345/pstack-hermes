@@ -1286,6 +1286,15 @@ def test_a_notice_inside_a_marker_turn_keeps_the_marker_wording():
     assert block_message(tool("terminal")) == gate.BLOCK_MESSAGE
 
 
+# Under `delegation.backend: model_map` a task carrying `pstack_role` is refused before it starts,
+# so a block message that recommends that key would make the agent's next delegation fail.
+@pytest.mark.parametrize("name", ["BLOCK_MESSAGE", "FOLLOWUP_BLOCK_MESSAGE", "DECISION_MESSAGE"])
+def test_block_messages_route_delegation_by_option(name):
+    message = getattr(gate, name)
+    assert "pstack_role" not in message
+    assert "`option`" in message
+
+
 # Audit round 2. The read-only check refuses a shape it cannot read with certainty. A refusal costs
 # one block and one todolist, so these tests pin what is refused rather than parse it more exactly.
 @pytest.mark.parametrize("command", [

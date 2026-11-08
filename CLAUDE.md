@@ -95,7 +95,7 @@ mappings are enforced by the converter and validation gates:
 | `/loop` | `hermes cron` wake |
 | `/goal` | write `goal.md` in the agent store |
 | `poteto-agent` | Do not override — respect what the skill prescribes |
-| `readonly` (Ask mode) | No per-task `readonly` on Hermes (core refuses the key). `access: read-only` via the pstack delegation backend, a READ-ONLY `context` line, and a parent `git status` check; children keep MCP. See `skills/poteto-mode/references/hermes-delegation.md`. |
+| `readonly` (Ask mode) | No per-task `readonly` on Hermes (core refuses the key). A READ-ONLY `context` line and a parent `git status` check; children keep MCP. See `skills/poteto-mode/references/hermes-delegation.md`. |
 
 ## Skill discovery and loading
 
@@ -130,7 +130,7 @@ appear in skill prose or config, the build fails:
 | `cloud concurrency limit` | Hermes swarm sizing is worker count, not cloud concurrency |
 | `inherit-parent` or `auto` | Hermes has no Cursor-style `auto` selector; the parent chat model IS the inherit-parent semantic |
 | `~/.cursor/projects` | Cursor transcript path — hermes sessions live in SQLite; query via `session_search` |
-| `~/.cursor/rules/pstack-models.mdc` | Panel written inside the plugin directory is lost on `plugins update`; write `pstack-models.json` beside hermes' `config.yaml` outside the package instead |
+| `~/.cursor/rules/pstack-models.mdc` | Model choices written inside the plugin directory are lost on `plugins update`; write the routes to `delegation.backends.model_map` in hermes' `config.yaml` outside the package instead |
 
 ## Installation and first run
 
@@ -142,9 +142,10 @@ hermes plugins install honki12345/pstack-hermes --enable
    Pick the target explicitly: `pstack` is ambiguous (repo root = local directory;
    elsewhere = installed package). Use the name as installed for the installed
    package, or a resolved local path for a branch tree.
-2. Load the `setup-pstack` skill once - it writes `pstack-models.json` beside
-   hermes' `config.yaml`, outside this package, so plugin updates do not discard it
-   (the 18-role model panel the workflow skills read).
+2. Load the `setup-pstack` skill once - it writes pstack's model routes to
+   `delegation.backends.model_map` in hermes' `config.yaml`, outside this package, so plugin
+   updates do not discard them (needs the `advanced-delegation` plugin; the workflow skills pick
+   those routes by name).
 3. Load `poteto-mode` and give it a real task — it classifies the work and
    routes to the right playbook. You do not pick playbooks yourself.
 

@@ -117,6 +117,7 @@ its own line.
       "todo_decision_before_work": false,
       "skip_reasons": [],
       "delegate_roles": [],
+      "delegate_options": [],
       "write_tools": [],
       "sandbox": {"head_changed": false, "status_changed": false},
       "child_models": [],
@@ -159,6 +160,11 @@ A log written before the gate recorded ids is paired by tool name and order and 
 before the hook, parallel calls may log in any order, and a call the gate never saw can take the
 next call's row, so G2, G5 and the delegation counts can be wrong on such logs. Trust a number
 only from an `"id"` run.
+
+`delegate_options` lists the `option` of every delegated task, read at the top level of a
+`delegate_task` call and inside each of its `tasks`: the route name the model_map backend ran it
+on. `delegate_roles` lists `pstack_role` the same way, for runs made under the retired pstack
+backend. The child sessions' own models are in `child_models`.
 
 G5 does not interpret shell or code strings: whatever a command did to the sandbox, including
 from a delegated child session, shows up in the porcelain status.

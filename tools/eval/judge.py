@@ -359,6 +359,17 @@ def _rejected(call: Call, index: int) -> bool:
     return isinstance(entry, dict) and bool(entry.get("error"))
 
 
+def _task_values(calls: list[dict], key: str) -> list[str]:
+    """`key` of every delegated task, in call order: the single-task form carries it at the top
+    level, the batch form inside each of `tasks`."""
+    values = []
+    for args in calls:
+        tasks = args.get("tasks")
+        entries = [args] + ([t for t in tasks if isinstance(t, dict)] if isinstance(tasks, list) else [])
+        values += [str(entry[key]) for entry in entries if entry.get(key)]
+    return values
+
+
 def _state(snapshot: object) -> tuple[str, str] | None:
     if not isinstance(snapshot, dict):
         return None
@@ -450,9 +461,8 @@ def judge(*, db_path: Path, gate_log: Path, session_id: str, prompt: str, turn: 
         "todo_written_before_work": todo_written,
         "todo_decision_before_work": decided,
         "skip_reasons": skip_reasons,
-        "delegate_roles": [
-            str(a.get("pstack_role")) for a in delegate_calls if a.get("pstack_role")
-        ],
+        "delegate_roles": _task_values(delegate_calls, "pstack_role"),
+        "delegate_options": _task_values(delegate_calls, "option"),
         "write_tools": writes,
         "sandbox": change,
         "child_models": [c["model"] for c in children],

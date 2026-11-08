@@ -37,8 +37,10 @@ hermes plugins install honki12345/pstack-hermes --ref <new-sha> --force --enable
    Pick the target explicitly: `pstack` is ambiguous (repo root = local
    directory; elsewhere = installed package). Use the name as installed for
    the installed package, or a resolved local path for a branch tree.
-2. Load the `setup-pstack` skill once - it writes `pstack-models.json` beside hermes' `config.yaml`, outside this package, so plugin updates do not discard it
-   (the 18-role model panel the workflow skills read).
+2. Load the `setup-pstack` skill once - it writes pstack's model routes to
+   `delegation.backends.model_map` in hermes' `config.yaml`, outside this package, so plugin
+   updates do not discard them (needs the `advanced-delegation` plugin; the workflow skills pick
+   those routes by name).
 3. Load `poteto-mode` and give it a real task — it classifies the work and
    routes to the right playbook. You do not pick playbooks yourself.
 
@@ -115,13 +117,13 @@ Hermes-native only; for real Cursor-side work install upstream pstack.
 | F16 | retired at c47b1284: upstream ships a slug-agnostic lane regex (F16b still rejects a whitespace-only slug) |
 | F11 | `worktree-audit.sh` reads worktree paths with spaces whole (F10/F12 GNU/BSD fixes retired: upstream ships them) |
 | F-publish | `benny` + `make-bot-ui` excluded (scanner verdicts); `hermesbot` fills the slot; 3 localhost literals neutralized |
-| T8/T9/T10 | `setup-pstack` writes the model panel beside hermes' `config.yaml` (outside the package, so updates do not discard it); discovery via `session_search`; hermes tool names |
+| T8/T9/T10 | `setup-pstack` writes the model routes into hermes' `config.yaml` (`delegation.backends.model_map`, outside the package, so updates do not discard them); discovery via `session_search`; hermes tool names |
 | Phase-2A | delegation vocabulary → `delegate_task` / `clarify` package-wide |
 | T11 | hardcoded Cursor paths → hermes equivalents; upstream guide links → upstream URLs |
 | T12 | `/loop` → `hermes cron` wake (each tick a fresh run); check-plan accepts either marker |
 | T13 | residual vendor coupling reworded (`cursor-team-kit` skills named as optional, cloud agents → local delegates) |
-| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, panel file, `hermesbot` row |
-| H1 | spawns route by `pstack_role` / `seat` / `access` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
+| P1 | `poteto-help` re-pointed at Hermes: install, no Custom Modes, model routes, `hermesbot` row |
+| H1 | spawns route by the advanced-delegation `model_map` `option` (`skills/poteto-mode/references/hermes-delegation.md`); never `model` or `readonly` |
 
 Text is otherwise unchanged; the machine-generated fix register in
 `.build-provenance.txt` is the authoritative per-build record, and the

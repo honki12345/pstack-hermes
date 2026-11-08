@@ -1,11 +1,11 @@
 ---
 name: setup-pstack
-description: Configure which models pstack uses per role and at what reasoning budget. Detects your available models and writes a per-role panel beside `config.yaml` in the hermes config directory, outside the plugin tree, so it survives plugin updates. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
+description: Configure which models pstack uses per role and at what reasoning budget. Detects your available models and writes the per-route model table to `delegation.backends.model_map` in the hermes `config.yaml`, outside the plugin tree, so it survives plugin updates. Use for /setup-pstack, "configure pstack models", "pstack budget", or changing pstack's model choices.
 ---
 
 # Setup pstack
 
-Write `pstack-models.json` in the hermes config directory (next to `config.yaml`: `~/.hermes/` on Linux, `%LOCALAPPDATA%\hermes\` on Windows) - **outside** the plugin directory. pstack replaces the installed package on every `plugins update`, so a panel written inside the plugin tree is silently discarded, while a file beside `config.yaml` survives reinstalls.
+Write pstack's routes to `delegation.backends.model_map` in the hermes `config.yaml` of the active profile (`~/.hermes/config.yaml`, or `$HERMES_HOME/config.yaml` for a named profile) - **outside** the plugin directory. pstack replaces the installed package on every `plugins update`, so a table written inside the plugin tree is silently discarded, while `config.yaml` survives reinstalls. The routes belong to the `model_map` delegation backend of the `advanced-delegation` plugin (`delegation.backend: model_map`), and every other delegation in the profile picks from the same table (`../poteto-mode/references/hermes-delegation.md`).
 
 ## Steps
 
@@ -15,7 +15,7 @@ Enumerate the model slugs available in this session (the configured providers' c
 
 ### 2. Load current state
 
-The default role-to-model mapping is the shape shown in step 5 below. If `pstack-models.json` already exists in the hermes config directory, read it and treat its `budget` entry and its role values as the current choices. Otherwise start from these defaults. Do NOT try to recover an older in-package `config/models.json`: a plugin update replaces that file with the shipped default before this skill runs, so anything found there is the default rather than the user's saved choices, and copying it forward would silently discard their configuration. If they expected a configuration to still be there, tell them plainly that an update overwrote it and ask them to re-run setup-pstack. A line whose role is not in step 5 is from a retired role. Drop it.
+The default role-to-model mapping is the shape shown in step 5 below. If `config.yaml` already has `delegation.backends.model_map.options` (`hermes delegation config --show` prints them), treat each pstack route's model and reasoning effort as the current choice for every role on that route (the role table is in `../poteto-mode/references/hermes-delegation.md`). The routes record no budget label, so ask for one. Otherwise start from these defaults. Do NOT try to recover an older in-package `config/models.json`: a plugin update replaces that file with the shipped default before this skill runs, so anything found there is the default rather than the user's saved choices, and copying it forward would silently discard their configuration. If they expected a configuration to still be there, tell them plainly that an update overwrote it and ask them to re-run setup-pstack. A line whose role is not in step 5 is from a retired role. Drop it.
 
 ### 3. Budget, map, and confirm
 
@@ -34,9 +34,9 @@ The default role-to-model mapping is the shape shown in step 5 below. If `pstack
 
 Every real slug written must be in the detected set; `inherit-parent` always passes. If a chosen real slug is not available, stop and ask again.
 
-### 5. Write the config
+### 5. Write the routes
 
-Write `pstack-models.json` in the hermes config directory (next to `config.yaml`), never inside the plugin directory - a panel stored with the package is lost on the next `plugins update`. One entry per role, using the same labels poteto-mode uses. Overwrite the whole file so re-runs stay idempotent. Shape:
+Group the roles by route with the role table in `../poteto-mode/references/hermes-delegation.md`. Every role on one route shares its model, so when the chosen models differ inside a route, ask the user which one the route takes. Write each choice as a Hermes model id plus its effort, `<model>@<effort>`, or as `{"provider": ..., "model": ..., "reasoning_effort": ...}` for a provider other than the main one. Save the choices to a scratch file in this shape, then build the block and write it in one command. The builder keeps routes the profile added itself and replaces pstack's own, so re-runs stay idempotent:
 
 ```json
 {
@@ -63,7 +63,15 @@ Write `pstack-models.json` in the hermes config directory (next to `config.yaml`
   }
 }
 ```
-Panel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY; one subagent runs per entry, so the list length sets the count. `swarm workers` is the default for every worker unless a race assigns another model per arm.
+
+```sh
+HOME_DIR="${HERMES_HOME:-$HOME/.hermes}"
+BLOCK=$("$HOME/.hermes/hermes-agent/venv/bin/python" "$HOME_DIR/plugins/pstack/tools/model_map_options.py" --panel <scratch file> --config "$HOME_DIR/config.yaml")
+hermes config set delegation.backends.model_map "$BLOCK"
+hermes config set delegation.backend model_map
+```
+
+The builder fails with the reason when roles on one route name different models; ask the user and run it again. Panel roles (how critics, arena runners, arena cross-judge pool, architect runners, interrogate reviewers) take an ARRAY, and all five share one list: each entry becomes one `panel-` route, so the list length sets the seat count. `swarm workers` is the default for every worker unless a race assigns another model per arm. The routes need the `advanced-delegation` plugin. If `hermes plugins list` does not show it enabled, ask before running `hermes plugins install advanced-delegation`.
 
 ### 6. Confirm
 

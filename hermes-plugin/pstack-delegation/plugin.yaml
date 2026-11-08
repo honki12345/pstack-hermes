@@ -1,4 +1,4 @@
 name: pstack-delegation
 version: 0.1.0
-description: "pstack delegation backend: routes each delegate_task subagent by pstack role (pstack_role / seat / access) through pstack-models.json, so pstack's multi-model panels run on the configured models instead of silently collapsing to the parent model."
+description: "Deprecated (use advanced-delegation model_map). pstack delegation backend: routes each delegate_task subagent by pstack role (pstack_role / seat / access) through pstack-models.json, so pstack's multi-model panels run on the configured models instead of silently collapsing to the parent model."
 author: pstack-hermes fork
