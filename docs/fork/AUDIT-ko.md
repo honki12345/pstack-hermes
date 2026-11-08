@@ -28,10 +28,10 @@
 | # | 원 감사 항목 | 원 감사 행 | 해소 커밋 | 다시 확인하는 방법과 결과 |
 |---|---|---|---|---|
 | 1 | 보안 표의 `publish-dist.yml` 자동 push, 스캐너 우회 패치, 출처를 검증할 수 없는 서명 키, `model-drift-watch.yml` 주간 이슈 | 보안 4 | `9521d12` | `ls .github/workflows`는 `ci.yml`과 `validate-gold.yml`만 보여 줍니다. `patches/`와 `keys/`는 없습니다. |
-| 2 | `delegate_task`에 넘긴 `model`이 오류 없이 무시되어 다중 모델 패널이 한 모델로 줄어듦 | 기능 1 | `a703a0d`, `8458f13` | 스킬은 `pstack_role`로 경로를 고릅니다(`skills/poteto-mode/references/hermes-delegation.md:32-55`). `` grep -rnE -e '^- `model`:' -e 'Set `model` to' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 9건입니다. `uv run --frozen pytest -q tools/tests/test_pstack_delegation_routing.py`는 14개 통과입니다. |
-| 3 | `readonly: true`를 넘기면 작업이 거부됨 | 기능 1 | `8458f13` | `` grep -rnF '`readonly`: `true`' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 4건입니다. 변환기의 `H1_FORBIDDEN`(`tools/convert.py:1162-1168`)은 이 문자열이 다시 생기면 빌드를 실패시킵니다. |
-| 4 | "readonly는 파일 쓰기만 막고 MCP는 유지"라는 사실과 다른 서술 | 기능 1 | `8458f13` | 계약 문서의 읽기 전용 절이 권고 지시와 `git status` 사후 검증으로 바뀌었습니다(`hermes-delegation.md:57-69`). `H1_FORBIDDEN`이 `MCP access is unaffected`를 금지합니다. |
-| 5 | `/loop`를 cron으로 바꾸면서 "이 세션을 다시 깨운다"고 서술 | 기능 1 | `8458f13` | `grep -rn 're-wakes this session' skills`는 0건이고 `H1_FORBIDDEN`이 이 문구를 금지합니다. 계약 문서는 cron 틱을 새 실행으로 다룹니다(`hermes-delegation.md:71-86`). 스킬 문서에서 `/loop`는 `skills/poteto-help/SKILL.md:109`의 설명 한 곳뿐입니다(`grep -rn '/loop' skills --include=*.md`). |
+| 2 | `delegate_task`에 넘긴 `model`이 오류 없이 무시되어 다중 모델 패널이 한 모델로 줄어듦 | 기능 1 | `a703a0d`, `8458f13` | 스킬은 공식 advanced-delegation `model_map`의 `option`으로 경로를 고릅니다(`skills/poteto-mode/references/hermes-delegation.md:33-85`). 처음 해소한 `a703a0d`, `8458f13`은 `pstack_role`을 썼고, 4장 끝의 전환 절이 바뀐 경위를 적습니다. `` grep -rnE -e '^- `model`:' -e 'Set `model` to' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 9건입니다. `uv run --frozen pytest -q tools/tests/test_pstack_delegation_routing.py`는 14개 통과입니다. |
+| 3 | `readonly: true`를 넘기면 작업이 거부됨 | 기능 1 | `8458f13` | `` grep -rnF '`readonly`: `true`' skills ``는 0건입니다. 같은 패턴을 `git grep`으로 해소 전 `8458f13^`에서 찾으면 4건입니다. 변환기의 `H1_FORBIDDEN`(`tools/convert.py:1163-1174`)은 이 문자열이 다시 생기면 빌드를 실패시킵니다. |
+| 4 | "readonly는 파일 쓰기만 막고 MCP는 유지"라는 사실과 다른 서술 | 기능 1 | `8458f13` | 계약 문서의 읽기 전용 절이 권고 지시와 `git status` 사후 검증으로 바뀌었습니다(`hermes-delegation.md:87-99`). `H1_FORBIDDEN`이 `MCP access is unaffected`를 금지합니다. |
+| 5 | `/loop`를 cron으로 바꾸면서 "이 세션을 다시 깨운다"고 서술 | 기능 1 | `8458f13` | `grep -rn 're-wakes this session' skills`는 0건이고 `H1_FORBIDDEN`이 이 문구를 금지합니다. 계약 문서는 cron 틱을 새 실행으로 다룹니다(`hermes-delegation.md:101-116`). 스킬 문서에서 `/loop`는 `skills/poteto-help/SKILL.md:109`의 설명 한 곳뿐입니다(`grep -rn '/loop' skills --include=*.md`). |
 | 6 | orchestrate의 "Always local execution ..."와 autopilot의 "A local root ..." 자기모순 | 기능 2 | `8458f13` | `git grep -l 'A local root' e6beab0 -- skills`는 2개 파일을, `Always local execution`은 1개 파일을 찾습니다. 현재 `skills/`에서는 둘 다 0건입니다. |
 | 7 | 아무 스킬도 읽지 않는 `config/models.json`에 이질적인 slug가 있음 | 기능 1 | `63b83c1` | 모든 역할이 `inherit-parent`인 템플릿입니다. `grep -c -e qwen -e muse-spark config/models.json`은 0입니다. `docs/MODELS.md:43-46`이 템플릿이라고 밝힙니다. |
 | 8 | 원칙 문구 완화(T8)와 feature 플레이북의 직접 구현 예외(G1) | 기능 1 | `63b83c1` | `principle-fix-root-causes`와 `principle-test-behavior-not-implementation`의 `SKILL.md`가 pin의 업스트림 원문과 바이트 단위로 같습니다(`cmp <(git -C <upstream> show c742dd6:pstack/skills/<이름>/SKILL.md) skills/<이름>/SKILL.md`). `feature.md`는 업스트림과 12행 하나만 다르고, 그 차이는 H1 계약에 등록한 standing-by 응답 적응 문장입니다. |
@@ -50,7 +50,7 @@
 
 Hermes v0.23.0에는 작업별 읽기 전용이 없고, cron 틱은 언제나 새 실행입니다. 둘 다
 Hermes 본체 동작이라 위 표에 넣지 않았습니다. H1 계약
-(`skills/poteto-mode/references/hermes-delegation.md:57-86`)이 두 한계에 맞춘 절차를
+(`skills/poteto-mode/references/hermes-delegation.md:87-116`)이 두 한계에 맞춘 절차를
 정합니다.
 
 ### 현재 head에서 다시 본 보안 사실
@@ -120,9 +120,9 @@ Hermes 본체 동작이라 위 표에 넣지 않았습니다. H1 계약
 
 | 보완점 | pstack-claude | 포트 원본 | 이 포크 |
 |---|---|---|---|
-| 역할별로 실제 다른 모델로 라우팅 | `Agent` 도구의 `model`과 effort별 agent | 무시됨 | 완료. `pstack-delegation` 백엔드 |
+| 역할별로 실제 다른 모델로 라우팅 | `Agent` 도구의 `model`과 effort별 agent | 무시됨 | 완료. 공식 advanced-delegation `model_map` 경로(처음에는 `pstack-delegation` 백엔드, 지금은 퇴역 예정) |
 | 역할별 reasoning effort | `opus @xhigh` | 없음 | 완료. `<model>@<effort>`, 객체 경로 |
-| 모델 시트 검증기 | `check-sheet.sh` | 없음 | 완료. `routing.py --check` |
+| 모델 시트 검증기 | `check-sheet.sh` | 없음 | 완료. `tools/model_map_options.py`가 역할 패널을 경로표로 바꾸며 어긋난 역할을 거부(이전 `routing.py --check`) |
 | 런타임별 도구 대응표 | `references/*-tools.md` | 본문을 그 자리에서 치환 | 완료. `poteto-mode/references/hermes-delegation.md` |
 | 버려진 에이전트를 멈춘 뒤 교체 | poteto-mode 규칙 | 없음 | 완료. 계약 문서의 `stop`/`steer` |
 | 업스트림 추적 | 최신 `c742dd6`에 동기화 | `c47b128` | 완료. `c742dd6`(v0.15.36)로 재고정, 앵커 147/147, 신규 스킬 11개 적응 |
@@ -147,11 +147,11 @@ Hermes의 `delegation.backend` 공급자 플러그인 경계를 사용합니다.
 - 읽기 전용은 Hermes가 강제할 수 없으므로 "권고 지시 + 부모의 `git status` 사후
   검증"이라는 계약으로 명시합니다.
 - 스킬 쪽은 변환 단계 `H1`이 맡습니다. `H1_MAP`의 앵커를 감사하고, 금지 문자열
-  5개(`H1_FORBIDDEN`)가 다시 생기면 빌드를 실패시킵니다. 앵커는 `8458f13`에서 21개였고
-  현재는 23개입니다(`tools/convert.py:1066`).
+  9개(`H1_FORBIDDEN`)가 다시 생기면 빌드를 실패시킵니다. 앵커는 `8458f13`에서 21개였고
+  현재는 23개입니다(`tools/convert.py:1067`).
 
 `uv run --frozen python -c "import sys; sys.path.insert(0, 'tools'); import convert; print(len(convert.H1_MAP), len(convert.H1_FORBIDDEN))"`는
-`23 5`를 출력합니다.
+`23 9`를 출력합니다.
 
 ### 검증
 
@@ -162,6 +162,25 @@ Hermes의 `delegation.backend` 공급자 플러그인 경계를 사용합니다.
 | 저장소 전체 pytest, ruff, check_docs, validate.py(static·gold manifest·gold load) | 모두 통과. `dcdcf21`의 `uv run --frozen pytest -q`는 193개 통과 |
 | `hermes plugins doctor`(패키지, 플러그인) | OK |
 | 실제 모델 호출(검증 전용 프로필 `pstacklab`, `3cf3d43`) | 통과. 1회 호출의 seat 0/1/2가 `claude-opus-5-5`, `gpt-6-astra-900k`(`profile:reviewer`), `claude-sonnet-5-5[1m]`(부모)로 실행됨. 1회성 실행은 자식 총량 한도 `delegation.oneshot_max_children`(기본 2)를 패널 좌석 수 이상으로 올려야 3석이 실행됨. 이 한도가 동시 실행 수가 아니라 실행 전체의 총량이라는 정정은 `0cecf88` |
+
+### 공식 `model_map`으로 전환
+
+Hermes 공식 플러그인 `advanced-delegation`(카탈로그 pin `e404b68`)이 같은 공급자 경계 위에
+`delegation.backend: model_map`을 제공합니다. 경로표 하나(`config.yaml`의
+`delegation.backends.model_map.options`)를 pstack 작업과 일반 위임이 함께 쓰도록 이 포크도 그쪽으로
+옮겼습니다.
+
+- 작업별 인자는 `option` 하나입니다. 이름과 한 줄 설명만 모델에 보이고, 목록 밖 이름은 core가
+  자식을 만들기 전에 거부합니다. `pstack_role`, `seat`, `access`는 선언되지 않은 키라 거부됩니다.
+- 역할 18개는 경로 `implement`, `explore`, `quick`, `deep`과 `panel-*`(좌석마다 하나)로 묶입니다.
+  일반 작업용으로 `research`와 기본 경로 `general`이 있습니다. 대응표는
+  `tools/model_map_options.py`의 `ROLE_ROUTES`가 정본이고, 테스트가 계약 문서의 표와 대조합니다.
+- `setup-pstack`은 `pstack-models.json` 대신 `config.yaml`에 경로를 씁니다. 생성기는 역할 패널을
+  경로 블록으로 바꾸고, 프로필이 직접 추가한 경로는 남깁니다.
+- `H1_FORBIDDEN`에 `pstack_role`, `seat: n`, `access: read-only`, `pstack-models.json`을 더했고,
+  `validate.py`도 앞의 셋을 생성 스킬에서 찾으면 실패합니다.
+- `pstack-delegation`은 저장소에 남겨 두고 퇴역 예정으로 표시했습니다. 되돌릴 때
+  `delegation.backend: pstack`으로 바꾸면 스킬은 `option`을 보내지 않고 부모 경로로 위임합니다.
 
 ## 5. 원칙 변경(T8·G1) 결정과 업스트림 원문 복원
 

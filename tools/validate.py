@@ -117,6 +117,11 @@ HERMES_ADAPTATION_BANS = {
     "parallel cloud workers": "delegate_task background work is process-local, not a cloud fleet",
     "cloud concurrency limit": "hermes swarm sizing is worker count, not cloud concurrency",
     "`inherit-parent` or `auto`": "hermes has no Cursor-style auto selector",
+    # The retired pstack delegation backend's task keys: under `delegation.backend: model_map`
+    # Hermes refuses a task carrying a key the backend does not declare, before it starts.
+    "pstack_role": "spawns route by the model_map `option`; `pstack_role` is refused",
+    "seat: n": "panel seats are `panel-` routes picked by `option`, not `seat`",
+    "access: read-only": "read-only is the READ-ONLY context line; `access` is refused",
 }
 
 
@@ -529,7 +534,8 @@ def check_hermes_adaptation_contract(pkg: Path, rep: Report) -> None:
         rep.fail(f"Hermes adaptation contract: unresolved constructs: {bad}")
     else:
         rep.ok("Hermes adaptation contract: no inert personas, stale runtime claims, "
-               "Cursor tool names, transcript paths, cloud-worker wording, or auto aliases")
+               "Cursor tool names, transcript paths, cloud-worker wording, auto aliases, "
+               "or retired pstack backend keys")
 
 
 def check_model_panel(pkg: Path, rep: Report, asset: Path | None = None) -> None:

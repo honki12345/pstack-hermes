@@ -165,7 +165,8 @@ _FOOTER_OPEN = "\n\n[INTERNAL NOTIFICATION"
 
 _FORMAT_HINT = (
     "Recommended item: `Delegation decision: delegate_task <the steps that go to a child>` (with "
-    "pstack_role) or `Delegation decision: skip: <reason>` with the reason on the same line."
+    "the `option` route each step takes) or `Delegation decision: skip: <reason>` with the reason "
+    "on the same line."
 )
 
 BLOCK_MESSAGE = (

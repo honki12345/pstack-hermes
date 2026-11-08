@@ -1,5 +1,15 @@
 # pstack-delegation
 
+> [!WARNING]
+> **Deprecated.** The shipped skills now route through the official
+> `advanced-delegation` plugin's model routes (`delegation.backend: model_map`,
+> one `option` per task; see [docs/MODELS.md](../../docs/MODELS.md)). They no
+> longer send `pstack_role`, `seat` or `access`. This backend stays only as a
+> rollback for profiles that have not moved: under it the skills send no
+> `option`, so every spawn runs on the parent route. Migrate a panel with
+> `tools/model_map_options.py --panel <pstack-models.json>`. It will be removed in a
+> later release.
+
 A Hermes delegation backend that routes each `delegate_task` subagent by
 **pstack role**, so pstack's per-role models and multi-model panels actually run
 on the models you configured.

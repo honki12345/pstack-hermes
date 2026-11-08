@@ -47,6 +47,21 @@ def test_adaptation_contract_catches_cursor_tool_names_auto_and_transcript_paths
     assert "cloud workers" in joined
 
 
+def test_adaptation_contract_catches_retired_pstack_backend_keys(tmp_path):
+    pkg = tmp_path / "pkg"
+    _skill(pkg, "swarm/SKILL.md", "Route workers with `pstack_role: swarm workers`.\n")
+    _skill(pkg, "how/SKILL.md", "Every spawn sets `access: read-only`.\n")
+    _skill(pkg, "arena/SKILL.md", "Spawn runner n with `seat: n`.\n")
+
+    rep = validate.Report()
+    validate.check_hermes_adaptation_contract(pkg, rep)
+
+    joined = "\n".join(rep.failed)
+    assert "pstack_role" in joined
+    assert "access: read-only" in joined
+    assert "seat: n" in joined
+
+
 def test_model_panel_role_shapes_are_validated(tmp_path):
     payload = {
         "roles": {

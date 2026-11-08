@@ -292,7 +292,7 @@ uv run --frozen pytest -q hermes-plugin/poteto-delegation-gate/tests
 
 The cases live in `tests/test_gate.py` and run without Hermes. CI scans only `tools/tests/`, so
 the wrapper `tools/tests/test_poteto_delegation_gate.py` loads that file and collects the same
-cases. Both commands run all 472. The notice cases carry strings that Hermes' own formatters
+cases. Both commands run all 618. The notice cases carry strings that Hermes' own formatters
 produce, copied in with their source named in a comment, so they need no Hermes install.
 
 ## Measure its effect

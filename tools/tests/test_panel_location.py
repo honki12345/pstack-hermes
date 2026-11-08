@@ -1,9 +1,10 @@
-"""setup-pstack must not write the model panel into the plugin directory.
+"""setup-pstack must not write the model choices into the plugin directory.
 
 `hermes plugins update` (and any reinstall) replaces the installed package tree,
 so a panel written inside it is silently discarded - the user's model choices
 revert to the shipped defaults with no warning. The write target therefore lives
-in the hermes config directory, beside `config.yaml`, which survives updates.
+in the hermes `config.yaml` (`delegation.backends.model_map`, the advanced-delegation
+model routes every delegation in the profile shares), which survives updates.
 
 The assertions run on the text the converter actually produces, not on the
 converter's source: the bug was never in validate.py, it was in the instruction
@@ -97,10 +98,12 @@ def test_generated_skill_never_says_write_into_the_plugin_dir():
     assert NEXT_TO_MANIFEST not in text
 
 
-def test_generated_skill_writes_beside_config_yaml():
+def test_generated_skill_writes_the_routes_into_config_yaml():
     text = _converted_setup_text()
-    assert "pstack-models.json" in text
+    assert "delegation.backends.model_map" in text
     assert "config.yaml" in text
+    # The retired pstack backend's panel file is read by nothing once routes live in config.yaml.
+    assert "pstack-models.json" not in text
 
 
 def test_converter_source_has_no_in_package_write_target():
@@ -123,8 +126,8 @@ def test_read_side_points_at_the_user_level_panel():
 
     # setup-pstack: writes it, and reads it back.
     t10 = _load_t10_map()
-    assert any("pstack-models.json" in side for pair in t10 for side in pair), (
-        "T10 no longer points at the user-level panel"
+    assert sum("delegation.backends.model_map" in new for _, new in t10) >= 3, (
+        "T10 no longer writes and reads the routes in config.yaml"
     )
 
     # Every map entry whose REPLACEMENT text names a panel path must name the
@@ -134,10 +137,10 @@ def test_read_side_points_at_the_user_level_panel():
     # positives on T8.
     for name in ("T8_MAP", "T9_MAP", "T13_MAP"):
         for _, replacement in _load_named_maps((name,))[0]:
-            if "models.json" not in replacement and "model panel" not in replacement:
+            if not any(word in replacement for word in ("models.json", "model panel", "role table")):
                 continue
-            assert "pstack-models.json" in replacement, (
-                f"{name} writes panel guidance without naming pstack-models.json: "
+            assert "delegation.backends.model_map" in replacement, (
+                f"{name} gives model-choice guidance without naming the config.yaml routes: "
                 f"{replacement[:90]!r}"
             )
 

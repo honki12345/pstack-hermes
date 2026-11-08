@@ -21,6 +21,20 @@ Entries below this section are history inherited from the original port.
   `tools/tests/test_poteto_delegation_gate.py` collects its 43 cases in CI.
 
 ### Changed
+- Delegation routes through the official `advanced-delegation` plugin's model routes
+  (`delegation.backend: model_map`) instead of the fork's `pstack` backend. pstack work and every
+  other delegation in a profile now pick from one route table, `delegation.backends.model_map` in
+  `config.yaml`. The H1 contract (`skills/poteto-mode/references/hermes-delegation.md`) maps the 18
+  roles to the routes `implement`, `explore`, `quick`, `deep` and one `panel-*` route per panel
+  seat, plus `research` and the default `general` for ordinary work. Skills set `option` and no
+  longer send `pstack_role`, `seat` or `access`, which `model_map` refuses; the converter
+  (`H1_FORBIDDEN`) and `validate.py` now fail a build that ships them. `setup-pstack` writes the
+  routes into `config.yaml` instead of `pstack-models.json`. New `tools/model_map_options.py`
+  builds the route block from a role panel and keeps routes a profile added itself; with the panel
+  this fork migrated from, every role keeps its model and effort. The eval judge reports
+  `delegate_options` (top level and inside `tasks`) and reads `pstack_role` inside `tasks` too.
+  The delegation gate's block message recommends the `option` route instead of `pstack_role`.
+  `hermes-plugin/pstack-delegation` is deprecated and kept as a rollback.
 - `poteto-delegation-gate` keeps the gate on for follow-up turns. Before, the first turn without
   the `poteto-mode` header in a session switched it off (`turn_disarmed`), so a follow-up that
   became a wide investigation skipped the delegation decision. Now such a turn starts fresh and

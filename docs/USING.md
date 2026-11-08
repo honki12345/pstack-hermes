@@ -35,9 +35,10 @@ convenience route when you want `/poteto-mode` style commands.
    (repo root = local directory; elsewhere = installed package). Use the name
    as installed for the installed package, or a resolved local path for a
    branch tree.
-2. **Configure the model panel** — run the `setup-pstack` skill once. It writes
-   the model panel **outside** the package (typically `pstack-models.json`
-   beside hermes `config.yaml`) so plugin updates do not discard your choices.
+2. **Configure the model routes** — run the `setup-pstack` skill once. It writes
+   the routes **outside** the package (`delegation.backends.model_map` in hermes
+   `config.yaml`, read by the `advanced-delegation` plugin's `model_map` backend)
+   so plugin updates do not discard your choices.
    Roles map code, prose, judgment, tooling, cross-judge, and panel roles to
    models available to you. `inherit-parent` means "use the parent chat model".
    The upstream-name → hermes-default mapping (for now) is in

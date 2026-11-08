@@ -412,6 +412,31 @@ def test_g3_counts_executed_delegations(run):
     assert verdict["evidence"]["delegate_roles"] == ["investigate", "feature"]
 
 
+def test_delegate_options_are_read_at_the_top_level_and_inside_tasks(run):
+    run.todo(DECIDED)
+    run.call("delegate_task", {"goal": "fix it", "option": "implement"})
+    run.call("delegate_task", {"tasks": [
+        {"goal": "a", "option": "panel-opus"},
+        {"goal": "b"},
+        {"goal": "c", "option": "panel-gpt"},
+    ]}, bridged=True)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["delegate_task_calls"] == 2
+    assert verdict["evidence"]["delegate_options"] == ["implement", "panel-opus", "panel-gpt"]
+    assert verdict["evidence"]["delegate_roles"] == []
+
+
+def test_delegate_roles_are_read_inside_tasks_too(run):
+    run.todo(DECIDED)
+    run.call("delegate_task", {"tasks": [
+        {"goal": "a", "pstack_role": "interrogate reviewers", "seat": 0},
+        {"goal": "b", "pstack_role": "interrogate reviewers", "seat": 1},
+    ]})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["evidence"]["delegate_roles"] == ["interrogate reviewers"] * 2
+    assert verdict["evidence"]["delegate_options"] == []
+
+
 def test_g3_fails_without_a_delegation(run):
     run.todo(DECIDED)
     run.call("terminal", {"command": "ls"})
