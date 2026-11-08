@@ -8,9 +8,9 @@ disable-model-invocation: true
 
 Investigate the motivation and intent behind code. The companion `how` skill answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Each spawn below names a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
+Each spawn below names a role line in the pstack role table (`../poteto-mode/references/hermes-delegation.md`; the routes live in `delegation.backends.model_map` of hermes' `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `option` to the route its role maps to when `delegate_task` offers `option`, and never pass `model`, which Hermes drops. Without the model_map delegation backend every spawn runs on the parent model; say so in the reply. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
 
-Every spawn is a read-only `delegate_task` task: `access: read-only` plus the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Hermes children keep the parent's MCP tools, so the MCP-backed investigators and the synthesizer's citation spot-checks keep their lookups. Investigators still shouldn't write anything.
+Every spawn is a read-only `delegate_task` task: the READ-ONLY `context` line, per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`). Hermes children keep the parent's MCP tools, so the MCP-backed investigators and the synthesizer's citation spot-checks keep their lookups. Investigators still shouldn't write anything.
 
 ## Operating Posture
 
@@ -46,7 +46,7 @@ Map each available MCP to one evidence category:
 
 Source control is always available through git and `gh`. For the other six, classify using the MCP name, server instructions, tool names, and resource descriptors. If an MCP could fit more than one category, choose the one matching its primary evidence. Record ambiguous cases in the coverage map.
 
-Spawn one investigator per category that has a matching MCP, all in a single message so they run concurrently, each owning exactly one tool or MCP. Don't ask one agent to cover multiple MCPs. Set each one's `pstack_role` to `why investigators` (upstream default `grok-4.7-xhigh-fast`).
+Spawn one investigator per category that has a matching MCP, all in a single message so they run concurrently, each owning exactly one tool or MCP. Don't ask one agent to cover multiple MCPs. Set each one's `option` to `explore` (the `why investigators` role; upstream default `grok-4.7-xhigh-fast`).
 
 Each investigator's prompt is `references/investigator-prompt.md` filled in, plus:
 - the category playbook `references/sources/<source>.md` for the selected MCP, adapted from the examples in `references/source-playbook.md`
@@ -76,7 +76,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 ## Step 4. Synthesize
 
-Spawn one synthesizer with `pstack_role`: `why synthesizer` (upstream default `claude-opus-5-5-xhigh`). It gets:
+Spawn one synthesizer with `option: deep` (the `why synthesizer` role; upstream default `claude-opus-5-5-xhigh`). It gets:
 1. The investigator findings, including any null results and any categories skipped with justification
 2. The code anchor
 3. The user's original question

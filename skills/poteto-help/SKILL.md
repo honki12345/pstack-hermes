@@ -24,7 +24,7 @@ Infer the need from the message and the conversation. A named situation, such as
 
 Check the state that changes the answer, and mention it only when it does:
 
-- No `pstack-models.json` beside hermes' `config.yaml` means `/setup-pstack` hasn't run for this user, so every role uses its default model.
+- No `delegation.backends.model_map` routes in hermes' `config.yaml` means `/setup-pstack` hasn't run for this user, so every spawn runs on the parent model.
 - No `verify-*` skill or other app harness in the project means agents have no scripted way to drive the app. Mention `/create-verification-skill` when the question is about proving a change works.
 - No formal verification skill in the project means no property is checked past what tests reach. Mention `/create-formal-verification-skill` when the question is about a race, an invariant, or another case tests rarely hit. When one exists and the code it covers changed after the commit it records as last in sync, mention `/maintain-formal-verification-skill` if the question touches that code.
 
@@ -36,7 +36,7 @@ When the model rule is missing and it matters, ask whether the user wants to pic
 ## Get set up
 
 1. Install with `hermes plugins install honki12345/pstack-hermes --enable`. The package README covers pinning and updates.
-2. Run [`/setup-pstack`](../setup-pstack/SKILL.md). It asks for a reasoning budget, maps a model to each role, and writes `pstack-models.json` beside hermes' `config.yaml`. Spawns follow it only through the pstack delegation backend (`../poteto-mode/references/hermes-delegation.md`). Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
+2. Run [`/setup-pstack`](../setup-pstack/SKILL.md). It asks for a reasoning budget, maps a model to each role's route, and writes the routes to `delegation.backends.model_map` in hermes' `config.yaml`. Spawns follow them only through the model_map delegation backend (`../poteto-mode/references/hermes-delegation.md`). Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
 3. Start a real task with `/poteto-mode`, a goal, and a check that can pass or fail.
 
 Installing changes nothing until the user invokes a skill. Only `/setup-pstack` loads from the user's words. The [README](../../README.md) and [guide page 1](https://github.com/cursor/plugins/blob/main/pstack/docs/guide/01-setup.md) have the details. Offer to word their first prompt with them, per [`references/prompting.md`](references/prompting.md).
@@ -132,7 +132,7 @@ Principles are one-rule skills that `/poteto-mode` reads and cites in its replie
 |---|---|
 | The mode stopped applying after a few turns | The skill fades as the chat moves on. Start each task with `/poteto-mode`. |
 | A question got treated as the next step of the last task | Say "new task", or say the turn doesn't need the mode. |
-| A new model choice had no effect | Spawns follow `pstack-models.json` only through the pstack delegation backend (`delegation.backend: pstack`). Without it every role runs on the parent model. Check each result's `route` label. |
+| A new model choice had no effect | Routes apply to sessions started after the change, and only through the model_map delegation backend (`delegation.backend: model_map`). Start one with `/new`. Without the backend every role runs on the parent model. Check each result's `route`. |
 | Runs cost more than expected | See the cost paragraph under Get set up. |
 | A skill didn't load on its own | Only `/setup-pstack` loads from the user's words. The others load when the user types them or when `/poteto-mode` runs them, and it doesn't run every skill. |
 | Parallel agents overwrote each other | Give each agent its own worktree. Hermes children are local and share this machine. |

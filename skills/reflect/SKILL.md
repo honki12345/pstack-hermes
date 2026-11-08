@@ -16,9 +16,9 @@ The parent locates the current session via `session_search` (hermes stores sessi
 
 ## 2. Spawn three reviewers in parallel
 
-One message, one `delegate_task` call with three tasks, each with `pstack_role` set to its role line below and `access: read-only` (`../poteto-mode/references/hermes-delegation.md`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.
+One message, one `delegate_task` call with three tasks, each with `option` set to the route of its role line below and the READ-ONLY `context` line (`../poteto-mode/references/hermes-delegation.md`). Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references; Hermes children keep the parent's MCP tools.
 
-Each reviewer and the synthesizer name a role line in the pstack model panel (`pstack-models.json` in the hermes config dir next to `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `pstack_role` to that line's name when `delegate_task` offers it, and never pass `model`, which Hermes drops. Without the pstack delegation backend every spawn runs on the parent model; say so in the reply. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
+Each reviewer and the synthesizer name a role line in the pstack role table (`../poteto-mode/references/hermes-delegation.md`; the routes live in `delegation.backends.model_map` of hermes' `config.yaml`) and a default. Route each spawn per the Hermes delegation contract (`../poteto-mode/references/hermes-delegation.md`): set `option` to the route its role maps to when `delegate_task` offers `option`, and never pass `model`, which Hermes drops. Without the model_map delegation backend every spawn runs on the parent model; say so in the reply. Pick each subagent's reasoning level and fast or standard speed for the job, per the Subagents section of the **poteto-mode** skill.
 
 | Lens | Role line | Default `model` | Prompt template |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Pass each template verbatim, substituting the Hermes session id or digest where 
 
 ## 3. Synthesize
 
-One `delegate_task` task with `pstack_role`: `reflect judgment, divergent, synthesizer` (upstream default `claude-opus-5-5-xhigh`) and `access: read-only`. It spot-verifies citations through MCP, which Hermes children keep. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
+One `delegate_task` task with `option: deep` (the `reflect judgment, divergent, synthesizer` role; upstream default `claude-opus-5-5-xhigh`) and the READ-ONLY `context` line. It spot-verifies citations through MCP, which Hermes children keep. Pass `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. It returns an Accepted / Rejected / Backlog list.
 
 ## 4. Structural enforcement check
 

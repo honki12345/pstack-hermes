@@ -2,7 +2,8 @@
 
 How pstack's spawn instructions map onto Hermes Agent. Every skill that says
 "spawn", "fan out", or names a model role line follows this page. Verified
-against Hermes v0.23.0 (`tools/delegate_tool.py`, `tools/delegate_tool_routes.py`).
+against Hermes v0.23.0 (`tools/delegate_tool.py`, `tools/delegate_tool_routes.py`) and
+`advanced-delegation` 1.0.0 (catalog pin `e404b68`).
 
 ## What `delegate_task` accepts
 
@@ -29,39 +30,68 @@ A legacy `role` (`leaf`) is accepted and ignored: depth decides capability.
   spends one per seat, so budget for every round, or the call that crosses the
   cap is refused before any of its children start.
 
-## Route by role, not by slug
+## Route by option, not by slug
 
-With the `pstack` delegation backend active (`hermes-plugin/pstack-delegation`
-in the pstack-hermes repository; `delegation.backend: pstack`), `delegate_task`
-offers three extra task keys:
+pstack routes through the official `advanced-delegation` plugin's model routes
+(`delegation.backend: model_map`). Its routes live in
+`delegation.backends.model_map.options` of `config.yaml`, the same table every
+other delegation in the profile uses. With it active, each `delegate_task` task
+takes one extra key, `option`: the name of a route. The schema lists the names
+and one-line descriptions the profile configured, and Hermes refuses a name
+outside that list before any child starts.
 
-| Key | Value |
-|---|---|
-| `pstack_role` | The role line the skill names, spelled exactly: `how explorer`, `interrogate reviewers`, `feature, refactoring`, ... |
-| `seat` | For panel roles (lists), the 0-based entry. Spawn one task per entry. |
-| `access` | `read-only` or `write`. |
+Pick each spawn's `option` from the role the skill names:
 
-The backend reads `pstack-models.json` beside `config.yaml`, then
-`delegation.backends.pstack.aliases`, then upstream pstack's defaults, and builds
-each child on that model, provider, and reasoning effort (or as a named
-profile). Never pass `model`. Each result's `route` label names the model the
-child actually ran on. Cite the label, not the configured slug.
+| Route | Use | pstack roles |
+|---|---|---|
+| `implement` | Write or change code: features, refactors, bug and perf fixes, hillclimb loops, swarm work items. | `feature, refactoring`, `bug-fix`, `perf-issue`, `hillclimb`, `swarm workers` |
+| `explore` | Read-only code investigation: trace call paths, gather evidence, map how or why something works. | `how explorer`, `why investigators` |
+| `research` | Web and document research with cited sources. | none (general work) |
+| `quick` | Small mechanical tasks: one-line checks, lookups, tooling probes. | `reflect tooling` |
+| `deep` | Hardest problems and judgment: design calls, synthesis, explanations, audits, careful prose. | `judgment and prose`, `hardest tasks`, `how explainer`, `why synthesizer`, `reflect judgment, divergent, synthesizer` |
+| `general` | Anything that fits no other route. Default for tasks that pick none. | none (the default route) |
 
-Without the backend (the schema shows no `pstack_role`), omit `pstack_role`,
-`seat`, and `access`; they are refused. Every child then runs on the parent model.
-Spawn panel roles anyway, one task per entry, so the fan-out and the independent
-reads still happen, and state in the reply that the panel ran single-model.
-"Different model family" checks are unmet in that case. Say so instead of
-claiming them.
+Panel roles (`how critics`, `arena runners`, `arena cross-judge pool`,
+`architect runners`, `interrogate reviewers`) use the routes whose names start
+with `panel-`, one per seat, in the order the `option` list shows them. Seat n
+of a panel is the n-th `panel-` route, and the panel has as many seats as there
+are `panel-` routes. Each panel route's description names its model family, so
+a skill that needs "another family" can pick by it.
+
+- Never pass `model`. Core drops it, and the route fixes the model, provider,
+  and reasoning effort. Change the effort by picking another route (`deep` for
+  the hardest work, `quick` for mechanical work), never per task.
+- A task without `option` runs on the profile's default route
+  (`delegation.backends.model_map.default`, `general` in the generated table),
+  else on the parent model.
+- If the `option` list lacks the route a role names, omit `option` for that
+  task, so it runs on the default route, and say so in the reply.
+- If delegate_task refuses a task's route (an unknown name, or a provider the
+  profile cannot reach), rerun that task once without `option`, so it runs on
+  the default route, say so, and name the route to fix in `config.yaml`.
+- Each result's `route` names the route (`label`) and the provider, model, and
+  reasoning effort the child actually ran on. Cite that, not the configured
+  table.
+
+`setup-pstack` writes this table. The pstack-hermes repository's
+`tools/model_map_options.py` builds it from a role panel and keeps routes the
+profile added itself.
+
+Without the backend (the schema shows no `option`), omit `option`; a task
+carrying it is refused. Every child then runs on the parent model, or on
+`delegation.model` when set. Spawn panel roles anyway, one task per seat the
+skill asks for, so the fan-out and the independent reads still happen, and
+state in the reply that the panel ran single-model. "Different model family"
+checks are unmet in that case. Say so instead of claiming them.
 
 ## Read-only is advisory
 
 Hermes cannot strip write tools from one child. For every spawn a skill marks
 read-only:
 
-1. Set `access: read-only` when the backend is active.
-2. Open `context` with `READ-ONLY: do not edit files, git state, or external
+1. Open `context` with `READ-ONLY: do not edit files, git state, or external
    systems; report findings only.`
+2. Prefer the `explore` route, or the route the skill names.
 3. When the children return, run `git status --porcelain` (and `git stash list`)
    in each worktree they could reach. Revert and report any write.
 
