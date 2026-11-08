@@ -14,7 +14,7 @@ honki12345/pstack-hermes --json hasIssuesEnabled`가 `false`). 이슈를 켜면 
 
 ## 진행 상태
 
-개선 프로그램의 PR과 결과입니다. 상태는 `develop`의 `acb12c5` 기준입니다.
+개선 프로그램의 PR과 결과입니다. 상태는 `develop`의 `2c9e144` 기준입니다.
 
 | PR | 내용 | 결과 | 백로그 |
 |---|---|---|---|
@@ -24,7 +24,7 @@ honki12345/pstack-hermes --json hasIssuesEnabled`가 `false`). 이슈를 켜면 
 | PR-4 | 마커 없는 후속 턴에도 관문 유지 | 병합(#10) | B5 |
 | PR-5 | H1 위임 계약에 위임 결정 기록 문장 추가 | 닫음(#7). 효과가 측정되지 않았습니다 | B4 |
 | PR-6 | 이 문서와 감사 문서 갱신 | 이 PR | B12 |
-| PR-7 | 조사형 프롬프트 `p5-ops-errors`와 `fulfilment-api` fixture | 별도 PR(#9) | B16 |
+| PR-7 | 조사형 프롬프트 `p5-ops-errors`와 `fulfilment-api` fixture | 병합(#9) | B16 |
 
 ## 효과를 재는 지표
 
