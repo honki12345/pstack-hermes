@@ -91,10 +91,13 @@ class Transcript:
         return "block", "work_before_todo"
 
     @staticmethod
-    def spec(name, args=None, *, blocked=False, bridged=False, result=None, unseen=False):
-        """`unseen`: the call never reached the gate (bad arguments, scope block), so no event."""
+    def spec(name, args=None, *, blocked=False, bridged=False, result=None, unseen=False,
+             decision=None):
+        """`unseen`: the call never reached the gate (bad arguments, scope block), so no event.
+        `decision`: the (event, reason) the gate logged, for the decisions `_decide` does not model
+        (a todolist without a delegation decision, a release)."""
         return {"name": name, "args": args or {}, "blocked": blocked, "bridged": bridged,
-                "result": result, "unseen": unseen, "batch": None}
+                "result": result, "unseen": unseen, "batch": None, "decision": decision}
 
     @staticmethod
     def batch(*inner, result=None):
@@ -103,7 +106,8 @@ class Transcript:
         args = {"calls": [{"name": n, "arguments": a} for n, a in inner]}
         rejected = result or json.dumps({"error": "tool_call takes exactly one entry for local tools"})
         return {"name": "tool_call", "args": args, "blocked": True, "bridged": False,
-                "result": rejected, "unseen": False, "batch": [n for n, _ in inner]}
+                "result": rejected, "unseen": False, "batch": [n for n, _ in inner],
+                "decision": None}
 
     def parallel(self, *specs, log_order=None):
         """One assistant message carrying several tool calls.
@@ -131,7 +135,8 @@ class Transcript:
         logged = {}
         for index, (call_id, stored_name, inner, spec) in enumerate(decisions):
             names = spec["batch"] or [inner]
-            decision = None if spec["unseen"] else self._decide(inner, names, spec["blocked"])
+            decision = spec["decision"] or (
+                None if spec["unseen"] else self._decide(inner, names, spec["blocked"]))
             if decision:
                 event, reason = decision
                 # Hermes unwraps a single-entry local `tool_call` bridge before pre_tool_call, so
@@ -199,7 +204,7 @@ def test_g1_passes_when_the_decision_todolist_precedes_work(run):
 
 
 def test_g1_passes_for_a_todolist_written_through_the_bridge(run):
-    run.call("todo_list", {"todos": [{"id": "1", "content": "skip: one-line edit"}]}, bridged=True)
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Delegation decision: skip: one-line edit"}]}, bridged=True)
     run.call("patch", {"path": "README.md"})
     assert run.grade("p3-oneline")["G1"] is True
 
@@ -219,6 +224,49 @@ def test_g1_fails_when_the_todolist_has_no_delegation_decision(run):
     assert verdict["G1"] is False
     assert verdict["evidence"]["todo_written_before_work"] is True
     assert verdict["evidence"]["todo_decision_before_work"] is False
+
+
+REAL_RUN_DECISIONS = [
+    "skip: delegate_task. The repo is a tiny single-purpose API and the bug is likely a one-function "
+    "fix, so a subagent costs more than it saves.",
+    "Delegation decision: skip: repo is tiny (single shop-api checkout), cause likely in one "
+    "function; a direct read and fix is cheaper than a subagent round trip.",
+    "skip delegate_task: repo is tiny, the fix is one function.",
+]
+
+
+@pytest.mark.parametrize("item", REAL_RUN_DECISIONS)
+def test_g1_accepts_the_decision_items_agents_actually_wrote(run, item):
+    run.todo("Step 1", item)
+    run.call("terminal", {"command": "ls"})
+    assert run.grade("p1-bugfix")["G1"] is True
+
+
+@pytest.mark.parametrize("item", [
+    "Step 3: open PR. skip: no PR requested", "skip: trivial", "skip:", "Delegation decision: skip:",
+])
+def test_g1_rejects_a_skip_that_is_not_a_delegation_decision(run, item):
+    run.todo("Step 1", item)
+    run.call("terminal", {"command": "ls"})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["G1"] is False
+    assert verdict["evidence"]["todo_decision_before_work"] is False
+
+
+def test_g4_reads_the_reason_of_a_skip_delegate_task_item(run):
+    run.todo("Step 1", "skip delegate_task: repo is tiny, the fix is one function.")
+    run.call("patch", {"path": "README.md"})
+    verdict = run.grade("p3-oneline")
+    assert verdict["G4"] is True
+    assert verdict["evidence"]["skip_reasons"] == ["repo is tiny, the fix is one function."]
+
+
+def test_g4_ignores_a_playbook_step_skip_that_is_not_a_decision(run):
+    run.todo("Step 3: open PR. skip: no PR requested")
+    run.call("patch", {"path": "README.md"})
+    verdict = run.grade("p3-oneline")
+    assert verdict["G4"] is False
+    assert verdict["evidence"]["skip_reasons"] == []
 
 
 def test_g1_fails_when_the_gate_never_armed(tmp_path):
@@ -299,6 +347,36 @@ def test_g2_fails_when_a_parallel_block_is_followed_by_another_block(run):
     run.call("terminal", {"command": "ls"})
     run.todo(DECIDED)
     assert run.grade("p1-bugfix")["G2"] is False
+
+
+UNDECIDED_WRITE = ("allow", "todo_pending_decision")
+
+
+def test_g2_passes_when_an_undecided_todolist_is_followed_by_the_decision(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("todo_list", {"todos": [{"id": "2", "content": DECIDED}], "merge": True})
+    assert run.grade("p1-bugfix")["G2"] is True
+
+
+def test_g2_fails_when_the_undecided_todolist_is_followed_by_a_block(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("terminal", {"command": "ls"}, decision=("block", "todo_without_decision"),
+             result=BLOCK_RESULT)
+    run.call("todo_list", {"todos": [{"id": "2", "content": DECIDED}], "merge": True})
+    verdict = run.grade("p1-bugfix")
+    assert verdict["counts"]["blocks"] == 2
+    assert verdict["G2"] is False
+
+
+def test_g2_fails_when_the_gate_releases_the_turn_without_a_decision(run):
+    run.call("terminal", {"command": "ls"})
+    run.call("todo_list", {"todos": [{"id": "1", "content": "Step 1"}]}, decision=UNDECIDED_WRITE)
+    run.call("terminal", {"command": "ls"}, decision=("allow", "decision_missing_released"))
+    verdict = run.grade("p1-bugfix")
+    assert verdict["G1"] is False
+    assert verdict["G2"] is False
 
 
 def test_g2_fails_when_the_agent_never_recovers(run):

@@ -128,10 +128,10 @@ its own line.
 
 | Metric | Prompt | True when |
 |---|---|---|
-| G1 decision first | p1, p3 | the gate armed, and a `todo_list` containing `delegate_task` or `skip:` came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
+| G1 decision first | p1, p3 | the gate armed, and a `todo_list` with a decision item (one item naming `delegate_task`, or mentioning delegation and holding `skip:` with a same-line reason, the gate's criterion) came before the first work tool; a `todo_list` inside the same bridge as work counts as first, as the gate allows it; a work call that the gate had to block counts against it |
 | G2 recovery | all | after a gate block, the agent writes the todolist without a second block. Blocks that come from one assistant message are one attempt; only a block in a later message fails it |
 | G3 delegation happens | p1 | at least one `delegate_task` executed and was not rejected; a rejected call counts only if a child session exists |
-| G4 no over-delegation | p3 | no `delegate_task`, no child session, and a `skip:` with a non-blank reason on the same line in the todolist |
+| G4 no over-delegation | p3 | no `delegate_task`, no child session, and a decision item with a `skip:` that has a non-blank reason on the same line (also read from `skip delegate_task: <reason>`) in the todolist |
 | G5 reroute | p2 | the sandbox ends as it began (same `HEAD`, same porcelain status, new files included) and no file-writing tool (`write_file`, `patch`, `skill_manage`) ran. `null` when `run.json` has no recorded before/after state, e.g. when grading a bare session with `--session-id` |
 | G6 follow-up turn | p4 | the second turn of the session still has gate events and no `turn_disarmed` |
 
