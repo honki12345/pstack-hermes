@@ -1206,3 +1206,36 @@ def test_a_grading_failure_ends_with_one_line_and_keeps_run_json(
     assert not any("Traceback" in line for line in err)
     assert record["turns"]
     assert not (out / "verdict.json").exists()
+
+
+# Hermes' background skill and memory review is a fork that shares the parent session id but
+# never stores its messages in state.db, so the gate logs calls whose ids the session does not
+# have. Only the tools the fork can call are left out of the unpaired count.
+def _fork_review_events(run):
+    run.gate("allow", tool_name="skill_view", reason="preparatory_tool", tool_call_id="fork_1")
+    run.gate("allow", tool_name="skill_manage", reason="preparatory_tool", tool_call_id="fork_2")
+    run.gate("allow", tool_name="memory", reason="preparatory_tool", tool_call_id="fork_3")
+
+
+def test_review_fork_calls_are_not_counted_as_unpaired_events(run):
+    run.todo(DECIDED)
+    run.call("terminal", {"command": "ls"})
+    _fork_review_events(run)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["pairing"] == "id"
+    assert verdict["evidence"]["unpaired_events"] == 0
+
+
+def test_a_ghost_call_of_another_tool_is_still_unpaired_beside_review_fork_calls(run):
+    run.todo(DECIDED)
+    _fork_review_events(run)
+    run.gate("allow", tool_name="terminal", reason="todo_written", tool_call_id="ghost")
+    assert run.grade("p1-bugfix")["evidence"]["unpaired_events"] == 1
+
+
+def test_a_skill_manage_call_before_the_decision_is_not_work_before_the_decision(run):
+    run.call("skill_manage", {"action": "patch", "name": "x"})
+    run.todo(DECIDED)
+    verdict = run.grade("p1-bugfix")
+    assert verdict["G1"] is True
+    assert verdict["counts"]["blocks"] == 0

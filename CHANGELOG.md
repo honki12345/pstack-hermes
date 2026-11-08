@@ -15,6 +15,47 @@ Entries below this section are history inherited from the original port.
   `tools/tests/test_poteto_delegation_gate.py` collects its 43 cases in CI.
 
 ### Changed
+- `poteto-delegation-gate` keeps the gate on for follow-up turns. Before, the first turn without
+  the `poteto-mode` header in a session switched it off (`turn_disarmed`), so a follow-up that
+  became a wide investigation skipped the delegation decision. Now such a turn starts fresh and
+  is logged as `turn_continued`. A follow-up may make up to three read-only calls without a
+  decision (`followup_read`), so a question turn is not blocked, and a gateway notice such as
+  `[ASYNC DELEGATION BATCH COMPLETE` continues the previous turn's state. Another skill's header
+  still turns the gate off, a new `poteto-mode` header re-arms it, and sessions without a
+  `poteto-mode` turn are unaffected. Session state expires after 24 hours and is capped at 256
+  sessions. It is still lost when the process restarts. The gate has 615 cases now.
+- `poteto-delegation-gate` follow-up turns, second round. Every Hermes notice header is
+  recognised (heartbeat, watch disabled, overflow and resumed, busy-fold, batch, subagent batch),
+  and so is the `[INTERNAL NOTIFICATION` footer the gateway appends. The read-only shell check is
+  quote aware, takes `;` as a piece separator, and allows `>/dev/null` and `2>&1`, read `gh`
+  subcommands, `git --no-pager`, `sed -n '<address>p'`. `file` accepts only read flags and
+  `rg --hostname-bin` is refused. On this machine's terminal history the check refused 90% of
+  read-only commands before and refuses 44% now. A follow-up `read_file` counts against the
+  three-call allowance unless the path is a skill or playbook file. A follow-up's first block has
+  its own message. `skill_manage` is a preparatory tool because Hermes' background review fork shares
+  the parent session, and the `tools/eval/` judge leaves those fork calls out of
+  `unpaired_events`. The 24-hour expiry now applies to the speaking session too.
+- `poteto-delegation-gate` follow-up turns, third round. `cut`, `date` (format, `-u` and the
+  output-format flags, optionally after `TZ=`), the listing forms of `git branch` and `git remote`,
+  and `gh auth status` with no flags are read-only. On the same terminal history the check then
+  refused 23% of read-only commands. The goal loop's continuation prompt continues the previous
+  turn like a notice.
+- `poteto-delegation-gate` follow-up turns, fourth round. The read-only shell check now refuses
+  a shape it cannot read with certainty instead of parsing it more exactly. A `#`, a newline or any
+  other control character anywhere in the command, quotes included, makes it not read-only.
+  A `sed -n` address with a backslash or `[` in its regex is refused. `gh` takes only the read
+  flags of each subcommand from an allowlist, so `--jq`, `-q`, `--template`, `-t`, `-w`, `--web`,
+  `--watch`, `--flag=value` forms and bundled short flags are refused, and `gh auth status` takes
+  no flag. `jq` is no longer read-only because `env` and `$ENV` print the environment. All four
+  goal continuation templates are recognised, including the quality-gate form. The gateway footer
+  is found with `rfind` from the end, so detection is linear in the message length. Before, a
+  57 KB message that repeated the footer opening took 4.3 seconds and 114 KB took 34 seconds. A
+  `read_file` counts as a skill file only when its normalised path is a `.md` file under a `skills`
+  directory and has no `..` part. Deeply nested JSON in a tool call is read as unreadable, so it is
+  blocked and logged instead of raising and being allowed with no log line. `skill_manage` can
+  still write a skill file on a marker turn without a decision, because it is a preparatory tool.
+  On the same terminal history the check refuses 26% of read-only commands, up from 24% measured
+  on the same data before this round. These rules reduce friction and are not a security boundary.
 - `poteto-delegation-gate` reads the todolist. Working tools stay blocked until a `todo_list` item
   names `delegate_task`, or mentions delegation and holds `skip:` with a same-line reason, instead
   of unlocking on any `todo_list` call. A `skip:` on a playbook step does not count. A todolist without a decision is allowed so the agent can add one with `merge: true`, and
