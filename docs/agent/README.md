@@ -13,5 +13,7 @@ Always-on contract: [AGENTS.md](../../AGENTS.md). Open **one** row below.
 | Setup, Actions policy, PR, release | [../../CONTRIBUTING.md](../../CONTRIBUTING.md) |
 
 **Scale rule:** new deep-ops prose = a router row + a focused file. Do not grow
-AGENTS.md. Do not add adaptation ledgers under `docs/`; the one fork-level
-record is [../fork/AUDIT-ko.md](../fork/AUDIT-ko.md).
+AGENTS.md. Do not add adaptation ledgers under `docs/`; the fork-level records
+are [../fork/AUDIT-ko.md](../fork/AUDIT-ko.md) for the audit and, while issues
+are disabled, [../fork/BACKLOG-ko.md](../fork/BACKLOG-ko.md) for plans and the
+backlog.

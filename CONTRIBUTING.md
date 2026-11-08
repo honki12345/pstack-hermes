@@ -211,7 +211,12 @@ Each includes motivation, scope, acceptance criteria and reviewer checks.
 Split independent work into native sub-issues and use milestones for outcomes.
 A converter PR links its adaptation issue and includes the generated package.
 Do not keep parallel plans or adaptation ledgers in `docs/`; the one fork-level
-record is [docs/fork/AUDIT-ko.md](docs/fork/AUDIT-ko.md).
+audit record is [docs/fork/AUDIT-ko.md](docs/fork/AUDIT-ko.md). As the only
+exception, while issues are disabled on this fork,
+[docs/fork/BACKLOG-ko.md](docs/fork/BACKLOG-ko.md) is the one document that
+does the job of issues for plans, the backlog and the adaptation issues that
+converter changes require, and its entries move to issues once issues are
+enabled.
 
 ## Pull requests
 
