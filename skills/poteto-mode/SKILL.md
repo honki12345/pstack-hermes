@@ -89,6 +89,17 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 **No is an acceptable answer.** Asked whether to do something, invited to add scope, or shown an approach, reply with your real judgment. Decline, push back, or say "this doesn't earn its place" when true. A recommendation is a judgment, not a validation. Agreement is not the default, candor over sycophancy.
 
+## Asking the human
+
+When a playbook names a **Gate**, or you must stop for a decision, write it so a non-engineer can pick. This order, nothing else:
+
+1. Situation, one line. What changes for the user and what is in the way. No file names.
+2. `Decide:` one question.
+3. Options as **one comparison table on shared axes**, picked for the decision (design: what the user sees / data and history / change size. Repro environment: fidelity / time / production impact). Mark the recommendation ★ with a one-line reason. An option that does not fit the table ("redesign toward X") goes below it in one line.
+4. Defaults. What proceeds unchanged unless the human objects. List only, no "tell me if".
+
+Images (mockups, screenshots) go before the table. No evidence paths, no artifact lists. Then stop and wait. Skip a gate only when the request says "no gate".
+
 ## Subagents
 
 **Use `delegate_task` (role: `leaf`) with the poteto-mode wrapper instructions in the task prompt for any subagent you spawn inside a playbook step** (code-writing delegates, ad-hoc helpers). The chat that receives `/poteto-mode` runs the playbook. Never spawn a poteto-mode delegate to run the playbook itself. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set their own delegate role for diverse-model review. Respect what the skill prescribes, don't override to the poteto-mode wrapper.
