@@ -21,6 +21,21 @@ Entries below this section are history inherited from the original port.
   `tools/tests/test_poteto_delegation_gate.py` collects its 43 cases in CI.
 
 ### Changed
+- **Re-pin to upstream `bf0c7cd` (pstack v0.15.42); package rebuilt.** Upstream #1236 changes the
+  default models (Opus xhigh for code, prose and judgment; Fable max for `hardest tasks`; Opus
+  high-fast for fast work; Fable / Opus / Gemini panels), makes `how` one read-only subagent,
+  turns `why` into a one-paragraph record read (its `references/` are deleted), fixes statechart
+  rendering and SANY errors, and sharpens `sharpen` and `reflect` text. 15 dead anchors: 9
+  re-anchored (T8 retired-role line and budget sentence, T9 reflect tooling row, T10 step 5,
+  DELEGATION how spawn, HELP cross-harness note, H1 arena runners, how read-only spawn and Match
+  the model), 6 pruned with the deleted upstream text (T8 why readonly rationale, Read/Grep/Glob
+  and how explainer fallback, T9 why MCP discovery, H1 why investigator and synthesizer). The T8
+  `source-playbook.md` note and its validate check retire with that file. Three new pairs adapt
+  new upstream text: recall's "readonly strips MCP" sweep (T8) and the `# defaults: 2` migration
+  in setup-pstack and poteto-mode (T10), since Hermes routes never hold upstream slugs. The H1
+  judge fallback now says "another vendor", as upstream does. The `pstack-delegation` backend's
+  upstream defaults follow the new pin. The `how` and `why` role lines stay in the route table for
+  panels that still name them. Anchor audit 144/144, 0 dead.
 - Delegation routes through the official `advanced-delegation` plugin's model routes
   (`delegation.backend: model_map`) instead of the fork's `pstack` backend. pstack work and every
   other delegation in a profile now pick from one route table, `delegation.backends.model_map` in

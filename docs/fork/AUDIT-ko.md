@@ -5,6 +5,8 @@
 `c742dd61706fbacc1b95f1a20b7b988cf096ce6c`(v0.15.36)에서 변환했습니다.
 `uv run --frozen python tools/check_pins.py`는 `ci.yml`의 `UPSTREAM_PIN`으로 같은 SHA를
 보고하고, `plugin.json`의 `version`은 `0.15.36`입니다.
+이후 `bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7`(v0.15.42)로 다시 고정했습니다. 변경 내역은
+`CHANGELOG.md`에 있고, 아래 표는 감사 당시(v0.15.36) 기준입니다.
 
 원 감사는 원래 포트 `iap/pstack-hermes` master `e6beab0`과 그 포트가 고정한 업스트림
 `c47b128`(v0.15.5)을 대상으로 했습니다. 그때의 판정과 표는 2장에 그대로 남겼습니다.
