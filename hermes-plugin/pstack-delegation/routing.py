@@ -63,32 +63,37 @@ PANEL_ROLES = frozenset({
 ACCESS_MODES = ("read-only", "write")
 
 _OPUS = "claude-opus-5-5-xhigh"
+_OPUS_FAST = "claude-opus-5-5-high-fast"
+_FABLE_MAX = "claude-fable-5-2-max"
 _GROK = "grok-4.7-xhigh-fast"
-_PAIR = (_OPUS, _GROK)
+_PANEL = ("claude-fable-5-2-high", _OPUS_FAST, "gemini-4-carbon-high")
 
 #: Upstream pstack's per-role defaults (cursor/plugins pstack ``setup-pstack`` at the
-#: pinned commit; v0.15.36 dropped Sol and defaults to Opus xhigh plus Grok),
-#: used when the user's panel has no line for a role. These are Cursor slugs:
-#: they route only through ``aliases``; unmapped ones follow ``unmapped_defaults``.
+#: pinned commit; v0.15.42 moved code roles to Opus xhigh, ``hardest tasks`` to Fable max,
+#: fast work to Opus high-fast, and panels to Fable / Opus / Gemini), used when the user's
+#: panel has no line for a role. v0.15.42 also retired the ``how`` and ``why`` roles; they
+#: keep their last upstream default so a panel that still names them routes as before.
+#: These are Cursor slugs: they route only through ``aliases``; unmapped ones follow
+#: ``unmapped_defaults``.
 UPSTREAM_DEFAULTS: dict[str, str | tuple[str, ...]] = {
-    "feature, refactoring": _GROK,
-    "bug-fix": _GROK,
-    "perf-issue": _GROK,
-    "hillclimb": _GROK,
+    "feature, refactoring": _OPUS,
+    "bug-fix": _OPUS,
+    "perf-issue": _OPUS,
+    "hillclimb": _OPUS,
     "judgment and prose": _OPUS,
-    "hardest tasks": _OPUS,
+    "hardest tasks": _FABLE_MAX,
     "how explorer": _GROK,
     "how explainer": _OPUS,
     "how critics": (_OPUS,),
     "why investigators": _GROK,
     "why synthesizer": _OPUS,
-    "reflect tooling": _GROK,
+    "reflect tooling": _OPUS_FAST,
     "reflect judgment, divergent, synthesizer": _OPUS,
-    "arena runners": _PAIR,
-    "arena cross-judge pool": _PAIR,
-    "swarm workers": _GROK,
-    "architect runners": _PAIR,
-    "interrogate reviewers": _PAIR,
+    "arena runners": _PANEL,
+    "arena cross-judge pool": _PANEL,
+    "swarm workers": _OPUS_FAST,
+    "architect runners": _PANEL,
+    "interrogate reviewers": _PANEL,
 }
 
 PARENT_ALIASES = frozenset({"inherit-parent", "auto"})

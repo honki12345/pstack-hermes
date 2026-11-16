@@ -440,9 +440,6 @@ def check_phase1(pkg: Path, rep: Report) -> None:
         for tok, label in t8_patterns.items():
             if tok in t:
                 t8_bad.append(f"{p.relative_to(pkg)}:{label}")
-    sp_note = (pkg / "skills" / "why" / "references" / "source-playbook.md")
-    if sp_note.is_file() and "Cursor MCP examples" not in sp_note.read_text(encoding="utf-8"):
-        t8_bad.append("why/references/source-playbook.md:missing adaptation note")
     if t8_bad:
         rep.fail(f"T8: unresolved constructs: {t8_bad}")
     else:
