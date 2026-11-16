@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  UPSTREAM_PIN: c742dd61706fbacc1b95f1a20b7b988cf096ce6c
+  UPSTREAM_PIN: bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7
 
 jobs:
   build:

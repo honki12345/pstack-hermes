@@ -54,11 +54,18 @@ def test_unmapped_upstream_default_can_be_refused():
 
 
 def test_alias_maps_an_upstream_slug_to_a_real_route():
-    settings = {"aliases": {"grok-4.7-xhigh-fast": {"provider": "xai", "model": "grok-4.7-fast",
-                                                    "reasoning_effort": "xhigh"}}}
+    settings = {"aliases": {"claude-opus-5-5-high-fast": {"provider": "anthropic", "model": "claude-opus-5-5",
+                                                          "reasoning_effort": "high"}}}
     result = route("swarm workers", settings=settings)
-    assert result.route == {"reasoning_effort": "xhigh", "provider": "xai", "model": "grok-4.7-fast"}
-    assert result.label == "swarm workers -> xai/grok-4.7-fast @xhigh"
+    assert result.route == {"reasoning_effort": "high", "provider": "anthropic", "model": "claude-opus-5-5"}
+    assert result.label == "swarm workers -> anthropic/claude-opus-5-5 @high"
+
+
+def test_upstream_defaults_follow_the_pinned_setup_pstack():
+    assert routing.UPSTREAM_DEFAULTS["hardest tasks"] == "claude-fable-5-2-max"
+    assert routing.UPSTREAM_DEFAULTS["bug-fix"] == "claude-opus-5-5-xhigh"
+    assert routing.UPSTREAM_DEFAULTS["interrogate reviewers"] == (
+        "claude-fable-5-2-high", "claude-opus-5-5-high-fast", "gemini-4-carbon-high")
 
 
 def test_provider_pin_drops_the_default_endpoint():

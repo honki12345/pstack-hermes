@@ -3,7 +3,7 @@
 *The pstack agent method — go fast by going deep first — packaged for the
 Hermes Agent portable plugin path. Unofficial port of
 <https://github.com/cursor/plugins/tree/main/pstack> (MIT, © Lauren Tan);
-package keeps the upstream identity pstack v0.15.36.*
+package keeps the upstream identity pstack v0.15.42.*
 
 Independently maintained by honki12345 at
 <https://github.com/honki12345/pstack-hermes>. The converter and tooling

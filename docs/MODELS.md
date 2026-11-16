@@ -1,6 +1,6 @@
 # Models: how pstack roles pick a model on Hermes
 
-pstack skills name a **role line** for every spawn (`how explorer`,
+pstack skills name a **role line** for every spawn (`swarm workers`,
 `interrogate reviewers`, `feature, refactoring`, ...). On Hermes a role becomes
 a model through the **model routes** of the official `advanced-delegation`
 plugin (`delegation.backend: model_map`). Core `delegate_task` drops a per-task
@@ -30,6 +30,11 @@ in the profile picks from the same table.
 Panel roles run one task per `panel-` route, in the order the `option` list
 shows them, so the number of `panel-` routes is the seat count. All five panel
 roles share those seats.
+
+Upstream v0.15.42 retired the `how` and `why` role lines (`how explorer`,
+`how explainer`, `why investigators`, `why synthesizer`): `how` now spawns one
+read-only task with no role, so it takes the default route, and `why` spawns
+none. The table keeps those roles so a panel that still names them builds.
 
 Each result's `route` records the route name (`label`) and the provider, model
 and reasoning effort the child actually ran on.

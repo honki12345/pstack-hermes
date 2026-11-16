@@ -98,7 +98,7 @@ hermes config set delegation.backend pstack
 #       pstack:
 #         aliases:
 #           claude-opus-5-5-xhigh: {model: claude-opus-5-5, reasoning_effort: xhigh}
-#           grok-4.7-xhigh-fast: {provider: xai, model: grok-4.7-fast, reasoning_effort: xhigh}
+#           gemini-4-carbon-high: {provider: gemini, model: gemini-4-carbon, reasoning_effort: high}
 ```
 
 The backend applies to sessions started after the change. Open a new session
